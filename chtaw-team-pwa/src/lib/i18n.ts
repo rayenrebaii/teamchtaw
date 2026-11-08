@@ -108,6 +108,14 @@ export const english = {
   "Installer l’application": "Install the app",
   "Installer l’app": "Install the app",
   "Application installée": "App installed",
+  "Sur ordinateur, ce bouton télécharge un raccourci à enregistrer sur votre Bureau.":
+    "On a computer, this button downloads a shortcut to save on your desktop.",
+  "Enregistrez le raccourci téléchargé sur votre Bureau. Un double-clic sur son icône ouvrira Team Chtaw dans votre navigateur.":
+    "Save the downloaded shortcut on your desktop. Double-click its icon to open Team Chtaw in your browser.",
+  "Dans Safari, touchez Partager, puis « Sur l’écran d’accueil ». Activez « Ouvrir comme app web » si cette option apparaît, puis touchez Ajouter : l’icône Team Chtaw apparaîtra sur votre écran d’accueil.":
+    "In Safari, tap Share, then Add to Home Screen. Enable Open as Web App if offered, then tap Add: the Team Chtaw icon will appear on your home screen.",
+  "Ouvrez cette page dans Chrome ou Edge, hors navigation privée, puis choisissez « Installer l’application » dans le menu. Si Team Chtaw est déjà installée, retrouvez son icône dans vos applications.":
+    "Open this page in Chrome or Edge outside private browsing, then choose Install app from the menu. If Team Chtaw is already installed, find its icon in your apps.",
   "Votre team, à portée de main": "Your team, within reach",
   "Installation non terminée. Utilisez le menu de votre navigateur.":
     "Installation did not complete. Use your browser menu.",

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "Votre espace communautaire : conversations, entraînements et esprit d’équipe, en temps réel.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: false, title: "Team Chtaw" },
+  appleWebApp: { capable: true, title: "Team Chtaw" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
 };
 export const viewport: Viewport = {

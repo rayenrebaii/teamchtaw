@@ -302,10 +302,11 @@ it("pagine les absences indépendamment des prochaines séances", async () => {
   expect(mine).toHaveBeenCalledWith(expect.objectContaining({ status: "UPCOMING", page: "1" }));
 });
 it("présente les instructions Safari sans annoncer d’installation", () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) Safari/605");
   render(<InstallPWAButton showStatus />);
   fireEvent.click(screen.getByRole("button", { name: "Installer l’application" }));
-  expect(screen.getByRole("dialog")).toBeTruthy();
-  expect(screen.getByText(/Sur iPhone ou iPad/)).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("status").textContent).toContain("Safari");
   expect(screen.queryByText("Application installée")).toBeNull();
 });
 it("adapte la hauteur disponible aux événements du viewport virtuel", () => {

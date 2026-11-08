@@ -11,13 +11,15 @@ export default function InstallPage() {
         <BrandLogo />
         <span className="eyebrow">VOTRE TEAM, PARTOUT</span>
         <h1>Installez Team Chtaw</h1>
-        <p className="muted">Ajoutez Team Chtaw à votre écran d’accueil. Le raccourci ouvrira l’application dans votre navigateur.</p>
+        <p className="muted">Une icône Team Chtaw sur votre ordinateur ou votre téléphone, pour retrouver votre application en un geste.</p>
         <InstallPWAButton showStatus />
         <div className="install-instructions">
-          <h2>Android et ordinateur</h2>
-          <p>Dans le menu de Chrome ou Edge, choisissez « Ajouter à l’écran d’accueil » ou « Créer un raccourci », puis confirmez. Sur ordinateur, laissez « Ouvrir dans une fenêtre » désactivé si cette option apparaît.</p>
+          <h2>Sur ordinateur</h2>
+          <p>Cliquez sur Installer l’application, puis enregistrez le raccourci téléchargé sur votre Bureau, ou déplacez-le depuis Téléchargements. Son icône ouvrira Team Chtaw dans votre navigateur.</p>
+          <h2>Sur Android</h2>
+          <p>Ouvrez cette page dans Chrome ou Edge, cliquez sur Installer l’application et confirmez dans la fenêtre du navigateur. L’icône apparaîtra parmi vos applications.</p>
           <h2>iPhone et iPad</h2>
-          <p>Dans Safari, ouvrez l’application puis touchez Partager et « Sur l’écran d’accueil ». Pour l’ouvrir dans Safari, désactivez « Ouvrir comme app web » si cette option apparaît, puis touchez « Ajouter ».</p>
+          <p>Dans Safari, touchez Partager, puis « Sur l’écran d’accueil ». Activez « Ouvrir comme app web » si cette option apparaît, puis touchez « Ajouter » pour créer l’icône.</p>
         </div>
         {available ? <Link className="btn btn-secondary" href="/login">Ouvrir l’application</Link> :
           <p className="tiny muted" role="status">L’installation est disponible. L’accès aux comptes et à la messagerie sera ouvert prochainement.</p>}

@@ -76,21 +76,34 @@ cible isolée approuvée et vérifier l'inventaire avant de considérer la resta
 comme validée. Les inventaires, clés et backups restent dans `.deployment-private`,
 ignoré par Git et Vercel.
 
-## Lancement dans le navigateur
+## Icône sur ordinateur et installation mobile
 
-À la demande du propriétaire, le manifeste passe à `display: browser` et
-`start_url: /app`. La capacité standalone Apple est désactivée. L'icône doit
-ouvrir le site dans le navigateur ; selon le système, il s'agit d'un raccourci
-et le prompt d'installation native peut ne plus être proposé.
-Supprimer puis recréer les anciens raccourcis si le mode précédent persiste.
-Sur iPhone, désactiver « Ouvrir comme app web » si Safari propose cette option.
-La page `/install` reste publique et indépendante de la session.
+Le propriétaire a choisi une vraie installation PWA avec icône sur mobile.
+Le manifeste utilise `display: standalone`, `start_url: /app`, des icônes
+192/512 px et la capacité web app Apple. Android/Chrome/Edge proposent leur
+confirmation native lorsque `beforeinstallprompt` est disponible. Sur iPhone,
+Safari impose Partager puis Sur l'écran d'accueil (Ouvrir comme app web activé
+si cette option apparaît). Aucune installation silencieuse n'est annoncée.
+
+Sur Windows, le bouton télécharge `/downloads/Team-Chtaw.url` ; sur Mac,
+`/downloads/Team-Chtaw.webloc`. Les fichiers pointent exclusivement vers
+`https://teamchtaw-pwa.vercel.app/app` et sont servis en pièces jointes.
+L'utilisateur doit les enregistrer ou les déplacer sur le Bureau pour que
+l'icône y apparaisse. Le site n'écrit pas directement dans son Bureau.
+Ces raccourcis d'ordinateur ouvrent le navigateur habituel.
+
+L'ancien modal générique est retiré. Les instructions restantes s'affichent
+dans la page uniquement sur les plateformes sans prompt natif disponible.
+Le Service Worker v8 ne remplace jamais un téléchargement de raccourci par
+la page HTML hors ligne. `/install` reste public et indépendant de la session.
 
 ## Vérifications
 
 Les builds, TypeScript et tests unitaires ont été exécutés. Après le remplacement
 du stockage : 86 tests unitaires backend et 87 tests d'intégration backend sur
-base locale isolée réussis. PWA : 100 tests logiques et 57 tests d'interface réussis.
+base locale isolée réussis. PWA : 101 tests logiques et 58 tests d'interface réussis
+pour l'installation mobile et les raccourcis, puis 31 scénarios d'interface
+concernés relancés après l'ajustement de détection de plateforme.
 La compilation Vercel fraîche nécessite `@testing-library/dom` explicitement
 présent en devDependency (peer sinon absent avec legacy-peer-deps).
 
@@ -113,9 +126,8 @@ Contrôles publics effectivement exécutés avec succès après déploiement :
 - Rotation par cookie, handshake Socket.IO et révocation de session après logout.
 - Formulaire de connexion dans Edge automatisé à 390 px, cookie sur le domaine
   `teamchtaw-pwa.vercel.app`, rechargement conservant la session et logout.
-- Manifeste public `display: browser`, `start_url: /app`, zéro erreur JavaScript
-  durant ce parcours. Cache public passé en v7 ; le manifeste utilise le réseau
-  en priorité pour éviter de conserver l'ancien mode standalone.
+- Le parcours de connexion publié a été vérifié sans erreur JavaScript.
+  Le manifeste utilise le réseau en priorité pour actualiser le mode d'installation.
 - Image privée lue via le domaine PWA avec le compte autorisé, empreinte SHA-256
   identique à la sauvegarde ; le même accès anonyme retourne 401.
 

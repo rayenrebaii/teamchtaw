@@ -16,6 +16,7 @@ describe("Public PWA installation", () => {
   });
 
   it("opens the native install prompt only in response to a user click", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 15) Chrome/140");
     render(<InstallPWAButton showStatus />);
     const prompt = vi.fn().mockResolvedValue(undefined);
     const event = new Event("beforeinstallprompt", { cancelable: true });
@@ -28,9 +29,25 @@ describe("Public PWA installation", () => {
   });
 
   it("shows browser instructions when the native prompt is unavailable", () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) Safari/605");
     render(<InstallPWAButton showStatus />);
     fireEvent.click(screen.getByRole("button", { name: "Installer l’application" }));
-    expect(screen.getByRole("dialog").textContent).toContain("Safari");
-    expect(screen.getByRole("dialog").textContent).toContain("Android");
+    expect(screen.getByRole("status").textContent).toContain("Safari");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("downloads an Internet shortcut on Windows instead of opening the instruction modal", () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Windows NT 10.0) Chrome/140");
+    let target = "", filename = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      target = this.getAttribute("href") ?? "";
+      filename = this.download;
+    });
+    render(<InstallPWAButton showStatus />);
+    fireEvent.click(screen.getByRole("button", { name: "Installer l’application" }));
+    expect(target).toBe("/downloads/Team-Chtaw.url");
+    expect(filename).toBe("Team Chtaw.url");
+    expect(screen.getByRole("status").textContent).toContain("Bureau");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
