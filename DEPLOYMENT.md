@@ -99,6 +99,13 @@ dans la page uniquement sur les plateformes sans prompt natif disponible.
 Le Service Worker v8 ne remplace jamais un téléchargement de raccourci par
 la page HTML hors ligne. `/install` reste public et indépendant de la session.
 
+Vérification publique effectuée : le clic télécharge bien `Team Chtaw.html`
+sans changement d'extension ; le fichier enregistré puis ouvert dans le
+navigateur de test rejoint l'URL `/app`. Aucun ancien modal ni erreur JavaScript.
+Le navigateur ne signale aucun défaut d'installabilité pour le manifeste
+standalone. La confirmation d'installation sur le téléphone reste une action
+de son utilisateur, et n'est pas présentée comme une installation physique testée.
+
 ## Vérifications
 
 Les builds, TypeScript et tests unitaires ont été exécutés. Après le remplacement
