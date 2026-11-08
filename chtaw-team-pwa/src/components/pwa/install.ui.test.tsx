@@ -45,8 +45,8 @@ describe("Public PWA installation", () => {
     });
     render(<InstallPWAButton showStatus />);
     fireEvent.click(screen.getByRole("button", { name: "Installer l’application" }));
-    expect(target).toBe("/downloads/Team-Chtaw.url");
-    expect(filename).toBe("Team Chtaw.url");
+    expect(target).toBe("/downloads/Team-Chtaw.html");
+    expect(filename).toBe("Team Chtaw.html");
     expect(screen.getByRole("status").textContent).toContain("Bureau");
     expect(screen.queryByRole("dialog")).toBeNull();
   });

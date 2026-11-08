@@ -63,10 +63,9 @@ export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean 
         variant="secondary"
         onClick={async () => {
           if (platform === "windows" || platform === "mac") {
-            const extension = platform === "mac" ? "webloc" : "url";
             const link = document.createElement("a");
-            link.href = `/downloads/Team-Chtaw.${extension}`;
-            link.download = `Team Chtaw.${extension}`;
+            link.href = "/downloads/Team-Chtaw.html";
+            link.download = "Team Chtaw.html";
             document.body.appendChild(link);
             link.click();
             link.remove();

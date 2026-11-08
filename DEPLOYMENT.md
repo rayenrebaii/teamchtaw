@@ -85,9 +85,11 @@ confirmation native lorsque `beforeinstallprompt` est disponible. Sur iPhone,
 Safari impose Partager puis Sur l'écran d'accueil (Ouvrir comme app web activé
 si cette option apparaît). Aucune installation silencieuse n'est annoncée.
 
-Sur Windows, le bouton télécharge `/downloads/Team-Chtaw.url` ; sur Mac,
-`/downloads/Team-Chtaw.webloc`. Les fichiers pointent exclusivement vers
-`https://teamchtaw-pwa.vercel.app/app` et sont servis en pièces jointes.
+Sur Windows et Mac, le bouton télécharge `/downloads/Team-Chtaw.html`.
+Ce petit document sans script ouvre exclusivement
+`https://teamchtaw-pwa.vercel.app/app` par redirection HTML, avec un lien de
+secours, et est servi en pièce jointe. Les téléchargements `.url` ne sont pas
+utilisés car les navigateurs Chromium actuels les renomment en `.download`.
 L'utilisateur doit les enregistrer ou les déplacer sur le Bureau pour que
 l'icône y apparaisse. Le site n'écrit pas directement dans son Bureau.
 Ces raccourcis d'ordinateur ouvrent le navigateur habituel.

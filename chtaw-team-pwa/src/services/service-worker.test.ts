@@ -92,7 +92,7 @@ describe("Cache PWA et cycle de vie", () => {
     const sw = worker(); sw.noStore(); await sw.run("fetch", { request: sw.request("/_next/static/test.js", "cors") });
     expect(sw.stored.size).toBe(0);
   });
-  it.each(["/api/v1/auth/me", "/app?_rsc=1", "/downloads/Team-Chtaw.url"])("laisse le réseau gérer %s", async (path) => {
+  it.each(["/api/v1/auth/me", "/app?_rsc=1", "/downloads/Team-Chtaw.html"])("laisse le réseau gérer %s", async (path) => {
     const sw = worker(); expect(await sw.run("fetch", { request: sw.request(path, "cors") })).toBeUndefined();
   });
   it("nettoie les caches anciens sans toucher aux autres applications", async () => {

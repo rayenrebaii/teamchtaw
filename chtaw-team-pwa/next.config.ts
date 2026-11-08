@@ -37,8 +37,7 @@ const config: NextConfig = {
   },
   async headers() {
     return [
-      { source: "/downloads/Team-Chtaw.url", headers: [{ key: "Content-Type", value: "application/internet-shortcut" }, { key: "Content-Disposition", value: 'attachment; filename="Team Chtaw.url"' }] },
-      { source: "/downloads/Team-Chtaw.webloc", headers: [{ key: "Content-Type", value: "application/xml" }, { key: "Content-Disposition", value: 'attachment; filename="Team Chtaw.webloc"' }] },
+      { source: "/downloads/Team-Chtaw.html", headers: [{ key: "Content-Type", value: "text/html; charset=utf-8" }, { key: "Content-Disposition", value: 'attachment; filename="Team Chtaw.html"' }] },
       { source: "/:path*", headers: [{ key: "Content-Security-Policy", value: csp }, { key: "X-Content-Type-Options", value: "nosniff" }, { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }, { key: "X-Frame-Options", value: "DENY" }] },
       {
         source: "/sw.js",
