@@ -1,0 +1,53 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCommunity } from "./community";
+import { authService } from "@/services/auth.service";
+import { groupsService } from "@/services/groups.service";
+import { pollsService } from "@/services/polls.service";
+import { usersService } from "@/services/users.service";
+import type { User } from "@/types";
+const admin: User = { id: "admin", firstName: "Admin", lastName: "Team", email: "admin@test.invalid", role: "ADMIN", status: "APPROVED", joinedAt: "2026-11-01T10:00:00Z", bio: "" };
+const member: User = { ...admin, id: "member", role: "USER", email: "member@test.invalid" };
+const originalSync = useCommunity.getState().sync;
+beforeEach(() => { vi.restoreAllMocks(); useCommunity.getState().clear(); useCommunity.setState({ sync: originalSync, session: { userId: admin.id, mode: "real" }, users: [admin] }); });
+describe("Independent admin API loading", () => {
+  it("removes a banned member from local groups only after server deletion succeeds", async () => {
+    const group = { id: "group", name: "Group", description: "", color: "#ffffff", isGeneral: true, memberIds: [admin.id, member.id] };
+    useCommunity.setState({ users: [admin, member], people: [admin, member], groups: [group] });
+    const ban = vi.spyOn(usersService, "ban").mockRejectedValue(Error("Forbidden"));
+    await expect(useCommunity.getState().ban(member.id)).rejects.toThrow("Forbidden");
+    expect(useCommunity.getState().groups[0]!.memberIds).toContain(member.id);
+    ban.mockResolvedValue(undefined);
+    vi.spyOn(useCommunity.getState(), "sync").mockResolvedValue(undefined);
+    await useCommunity.getState().ban(member.id);
+    expect(ban).toHaveBeenCalledWith(member.id);
+    expect(useCommunity.getState().users).toEqual([admin]);
+    expect(useCommunity.getState().people).toEqual([admin]);
+    expect(useCommunity.getState().groups[0]!.memberIds).toEqual([admin.id]);
+  });
+  it("loads actual members even if polling fails and names the failed section", async () => {
+    vi.spyOn(authService, "me").mockResolvedValue(admin);
+    vi.spyOn(groupsService, "list").mockResolvedValue([]);
+    vi.spyOn(pollsService, "all").mockRejectedValue(Error("Erreur interne."));
+    vi.spyOn(usersService, "all").mockResolvedValue([admin, member]);
+    vi.spyOn(usersService, "stats").mockResolvedValue({ totalUsers: 2, pendingUsers: 0, approvedUsers: 2, groups: 0, messages: 0, polls: 0 });
+    await useCommunity.getState().sync();
+    expect(useCommunity.getState().users).toEqual([admin, member]);
+    expect(useCommunity.getState().syncErrors).toEqual({ polls: "Erreur interne." });
+    expect(useCommunity.getState().error).toBe("Sondages : Erreur interne.");
+    vi.mocked(pollsService.all).mockResolvedValue([]);
+    await useCommunity.getState().sync();
+    expect(useCommunity.getState()).toMatchObject({ error: null, syncErrors: {}, loading: false });
+  });
+  it("does not reuse a member response after switching accounts", async () => {
+    let finish!: (users: User[]) => void;
+    vi.spyOn(authService, "me").mockResolvedValue(admin);
+    vi.spyOn(groupsService, "list").mockResolvedValue([]);
+    vi.spyOn(pollsService, "all").mockResolvedValue([]);
+    vi.spyOn(usersService, "all").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    vi.spyOn(usersService, "stats").mockResolvedValue({ totalUsers: 2, pendingUsers: 0, approvedUsers: 2, groups: 0, messages: 0, polls: 0 });
+    const pending = useCommunity.getState().sync();
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    useCommunity.getState().clear(); finish([admin, member]); await pending;
+    expect(useCommunity.getState()).toMatchObject({ users: [], session: null });
+  });
+});

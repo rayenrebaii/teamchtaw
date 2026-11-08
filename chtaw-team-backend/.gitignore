@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.test
+.npm-cache/
+/uploads/
+.test-uploads-*/
+coverage/
+*.log

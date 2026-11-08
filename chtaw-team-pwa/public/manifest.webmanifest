@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "Team Chtaw",
+  "short_name": "Team Chtaw",
+  "description": "Votre collectif, partout. Conversations et esprit d’équipe.",
+  "lang": "fr",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#faf7ff",
+  "theme_color": "#16062f",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

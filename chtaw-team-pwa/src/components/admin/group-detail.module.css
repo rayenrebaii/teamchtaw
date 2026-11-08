@@ -1,0 +1,22 @@
+@media (max-width: 640px) {
+  .summary { min-width: 0; }
+  .summary .header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+  }
+  .header .actions { display: contents; }
+  .actions > button { grid-column: 2; justify-self: end; }
+  .actions > a {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .actions > a svg { flex-shrink: 0; }
+  .summary > p { overflow-wrap: anywhere; }
+  .summary > :global(.badge) { max-width: 100%; white-space: normal; line-height: 1.5; }
+}

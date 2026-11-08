@@ -1,0 +1,60 @@
+import React from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { AdminCalendar } from "./admin-calendar";
+import { useCommunity } from "@/stores/community";
+import { usePreferences } from "@/stores/preferences";
+import type { Poll, User } from "@/types";
+const sync = useCommunity.getState().sync;
+const admin: User = { id: "admin", firstName: "Admin", lastName: "Team", email: "admin@test.invalid", role: "ADMIN", status: "APPROVED", joinedAt: "2026-01-01T00:00:00Z", bio: "" };
+const session = (id: string, start: string, end: string): Poll => ({ id, groupId: "group", authorId: admin.id, question: id, type: "SESSION", status: "CLOSED", singleChoice: false, votes: [], options: [{ id: "slot", label: "Horaire 1", startsAt: start, endsAt: end }] });
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-04T09:30:00Z"));
+  useCommunity.getState().clear();
+  usePreferences.setState({ language: "fr" });
+  useCommunity.setState({ session: { userId: admin.id, mode: "real" }, users: [admin], groups: [{ id: "group", name: "G1", color: "#be9af5", isGeneral: false, description: "", memberIds: [admin.id] }], sync: vi.fn().mockResolvedValue(undefined) });
+});
+afterEach(() => { cleanup(); useCommunity.setState({ sync }); vi.useRealTimers(); });
+it("automatically imports new saved session slots and marks them completed after their end", () => {
+  render(<AdminCalendar />);
+  expect(screen.getByText("Aucun créneau enregistré pour cette semaine.")).toBeTruthy();
+  act(() => useCommunity.getState().receivePoll(session("Nouvelle séance", "2026-11-04T09:00:00Z", "2026-11-04T10:00:00Z")));
+  expect(screen.getByRole("heading", { name: "Nouvelle séance" })).toBeTruthy();
+  expect(screen.getByText("En cours")).toBeTruthy();
+  act(() => vi.advanceTimersByTime(30 * 60 * 1000));
+  expect(screen.getByText("Achevé")).toBeTruthy();
+  expect(useCommunity.getState().polls).toHaveLength(1);
+});
+it("rolls over at Monday midnight in Tunis and retrieves the previous week from history", () => {
+  vi.setSystemTime(new Date("2026-11-08T22:59:50Z"));
+  useCommunity.setState({ polls: [session("Semaine passée", "2026-11-08T20:00:00Z", "2026-11-08T21:00:00Z"), session("Semaine suivante", "2026-11-09T10:00:00Z", "2026-11-09T11:00:00Z")] });
+  render(<AdminCalendar />);
+  expect(screen.getByRole("heading", { name: "Semaine passée" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Semaine suivante" })).toBeNull();
+  act(() => vi.advanceTimersByTime(30000));
+  expect(screen.getByRole("heading", { name: "Semaine suivante" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Semaine passée" })).toBeNull();
+  fireEvent.change(screen.getByLabelText("Choisir une semaine"), { target: { value: "2026-11-02" } });
+  expect(screen.getByText("Historique")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Semaine passée" })).toBeTruthy();
+  expect(screen.getByText("Achevé")).toBeTruthy();
+  expect(useCommunity.getState().polls).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "Cette semaine" }));
+  expect(screen.getByRole("heading", { name: "Semaine suivante" })).toBeTruthy();
+});
+it("navigates to future and historical weeks, filters groups and opens poll votes", async () => {
+  useCommunity.setState({ polls: [session("Future", "2026-11-10T10:00:00Z", "2026-11-10T11:00:00Z")] });
+  render(<AdminCalendar initialWeek="invalid" />);
+  fireEvent.click(screen.getByRole("button", { name: "Semaine suivante" }));
+  expect(screen.getByRole("heading", { name: "Future" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Créer un sondage de séance" }).getAttribute("href")).toBe("/admin/polls?create=session");
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "Voir les votes : Future · Horaire 1" })));
+  expect(screen.getByRole("dialog", { name: "Résultats du sondage" })).toBeTruthy();
+});
+it("supports deep-linked archived weeks and reports synchronization errors", () => {
+  useCommunity.setState({ polls: [session("Archive", "2026-10-27T10:00:00Z", "2026-10-27T11:00:00Z")], syncErrors: { polls: "Unavailable" } });
+  render(<AdminCalendar initialWeek="2026-10-28" />);
+  expect(screen.getByRole("heading", { name: "Archive" })).toBeTruthy();
+  expect(screen.getByRole("alert")).toBeTruthy();
+});

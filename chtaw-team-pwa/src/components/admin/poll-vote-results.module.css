@@ -1,0 +1,14 @@
+.results { min-width: 0; display: grid; gap: 14px; }
+.results > :is(h3, p) { margin: 0; overflow-wrap: anywhere; }
+.section { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-alt); }
+.section h4 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; font-size: 14px; }
+.section h4 > span:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.section h4 svg { color: var(--primary); flex-shrink: 0; }
+.section p { margin: 8px 0 0; line-height: 1.5; }
+.list { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow-y: auto; }
+.person { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.person :global(.avatar) { flex-shrink: 0; }
+.person > div { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.person > div > span { display: block; color: var(--muted); margin-top: 3px; font-size: 12px; }
+.complete { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.complete svg { flex-shrink: 0; }

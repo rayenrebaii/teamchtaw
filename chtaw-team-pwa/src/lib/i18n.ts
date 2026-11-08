@@ -1,0 +1,278 @@
+"use client";
+import { adminEnglish } from "./admin-copy";
+import { usePreferences, type Language } from "@/stores/preferences";
+export const english = {
+  ...adminEnglish,
+  Conversations: "Conversations",
+  Présences: "Attendance",
+  "Mon profil": "My profile",
+  Profil: "Profile",
+  Paramètres: "Settings",
+  "VOTRE ESPACE": "YOUR SPACE",
+  "Ouverture de votre espace…": "Opening your space…",
+  Étudiant: "Student",
+  Administrateur: "Administrator",
+  Déconnexion: "Sign out",
+  "Menu utilisateur de {name}": "{name}'s account menu",
+  Fermer: "Close",
+  Réessayer: "Try again",
+  "Chargement…": "Loading…",
+  Précédent: "Previous",
+  Suivant: "Next",
+  "Page {page} sur {pages}": "Page {page} of {pages}",
+  Réinitialiser: "Reset",
+  "Tous les groupes": "All groups",
+  Toutes: "All",
+  "À venir": "Upcoming",
+  Présent: "Present",
+  Absent: "Absent",
+  "En attente": "Pending",
+  Annulée: "Cancelled",
+  "Vos absences": "Your absences",
+  "Aucune absence validée": "No recorded absences",
+  "Aucune séance à venir": "No upcoming sessions",
+  "Retrouvez vos absences et vos prochaines séances.":
+    "View your recorded absences and upcoming sessions.",
+  "Mes présences": "My attendance",
+  "Retrouvez vos séances passées, vos présences et vos prochaines séances.":
+    "View your past sessions, attendance records and upcoming sessions.",
+  "Séances terminées": "Completed sessions",
+  "Séances à venir": "Upcoming sessions",
+  Absences: "Absences",
+  "Date de début": "From date",
+  "Date de fin": "To date",
+  Statut: "Status",
+  Groupe: "Group",
+  "Trier par date": "Sort by date",
+  "Ordre recommandé": "Recommended order",
+  "Plus récentes": "Newest first",
+  "Plus anciennes": "Oldest first",
+  "Séances en cours et historique": "Ongoing sessions and history",
+  "Aucune séance ne correspond": "No matching sessions",
+  "Vos séances apparaîtront ici lorsqu’elles seront publiées.":
+    "Your sessions will appear here once they are published.",
+  "La date de fin doit être postérieure ou égale à la date de début.":
+    "The end date must be on or after the start date.",
+  "Date non renseignée": "Date not recorded",
+  "Heure de fin non renseignée": "End time not recorded",
+  "Créneaux de la séance": "Session time slots",
+  "Certains horaires sont incomplets ; aucune date ni heure de fin n’est déduite.":
+    "Some schedules are incomplete; no date or end time is inferred.",
+  "Fuseau horaire": "Time zone",
+  "Présence validée par l’équipe.": "Attendance officially recorded by the team.",
+  "Absence validée par l’équipe.": "Absence officially recorded by the team.",
+  "La séance n’a pas encore commencé.": "This session has not started yet.",
+  "La séance est annulée et exclue des statistiques.":
+    "This session is cancelled and excluded from statistics.",
+  "Le statut définitif n’est pas encore enregistré.":
+    "The final attendance status has not been recorded yet.",
+  "Non inscrit à un créneau": "No time slot selected",
+  "Historique des corrections": "Correction history",
+  Vers: "To",
+  "Non vérifié": "Not verified",
+  "UN VISAGE DANS LE COLLECTIF": "PART OF THE TEAM",
+  "Membre approuvé": "Approved member",
+  Prénom: "First name",
+  Nom: "Last name",
+  Email: "Email",
+  Rôle: "Role",
+  Adhésion: "Membership",
+  Inscription: "Joined",
+  "Mes groupes": "My groups",
+  "Aucun groupe": "No groups",
+  "Quelques mots sur vous": "About you",
+  "Enregistrer mes modifications": "Save changes",
+  "Profil enregistré": "Profile saved",
+  "Au moins 2 caractères.": "At least 2 characters.",
+  "250 caractères maximum.": "250 characters maximum.",
+  "60 caractères maximum.": "60 characters maximum.",
+  "Enregistrement…": "Saving…",
+  "Mon historique de présence": "My attendance history",
+  "À VOTRE FAÇON": "MAKE IT YOURS",
+  Apparence: "Appearance",
+  "Thème sombre": "Dark theme",
+  "Thème clair": "Light theme",
+  "Thème système": "System theme",
+  "Choisir le thème": "Choose a theme",
+  "Votre préférence reste appliquée à la réouverture.":
+    "Your preference is kept when you reopen the app.",
+  Langue: "Language",
+  "Choisir la langue": "Choose a language",
+  "Français (FR)": "Français (FR)",
+  "English (EN)": "English (EN)",
+  "La langue concerne l’interface ; les messages et les noms des groupes restent inchangés.":
+    "This changes the interface language; messages and group names stay unchanged.",
+  "Installer Chtaw Team": "Install Chtaw Team",
+  "Installez Chtaw Team sur votre appareil pour y accéder rapidement.":
+    "Install Chtaw Team on your device for quick access.",
+  "Installer l’application": "Install the app",
+  "Installer l’app": "Install the app",
+  "Application installée": "App installed",
+  "Votre team, à portée de main": "Your team, within reach",
+  "Installation non terminée. Utilisez le menu de votre navigateur.":
+    "Installation did not complete. Use your browser menu.",
+  "Sur iPhone ou iPad, ouvrez cette application dans Safari, touchez Partager, puis « Sur l’écran d’accueil ».":
+    "On iPhone or iPad, open this app in Safari, tap Share, then Add to Home Screen.",
+  "Sur Android, utilisez Chrome et choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil » dans le menu du navigateur.":
+    "On Android, use Chrome and choose Install app or Add to Home screen from the browser menu.",
+  "L’installation dépend du navigateur et nécessite HTTPS en production. L’application reste accessible dans votre navigateur.":
+    "Installation depends on your browser and requires HTTPS in production. You can always use the app in your browser.",
+  "Votre communauté en direct": "Your live community",
+  "La messagerie est connectée.": "Messaging is connected.",
+  "La messagerie tente de se reconnecter.": "Messaging is reconnecting.",
+  "Vos conversations et identifiants ne sont pas enregistrés dans le stockage local de l’application.":
+    "Your conversations and credentials are not saved in the app's local storage.",
+  "ON GARDE LE LIEN": "STAY CONNECTED",
+  "Votre dose quotidienne d’esprit d’équipe.": "Your daily dose of team spirit.",
+  "Rechercher un groupe": "Search groups",
+  "Rechercher une conversation": "Search conversations",
+  "VOS GROUPES": "YOUR GROUPS",
+  "# Général · Toute la communauté": "# General · The whole community",
+  "{count} membres · Groupe privé": "{count} members · Private group",
+  "📊 Un nouveau sondage vous attend": "📊 A new poll is waiting",
+  "📷 Un moment partagé avec la team": "📷 A moment shared with the team",
+  "Ouvrir la conversation": "Open conversation",
+  "Aucun groupe trouvé": "No groups found",
+  "Essayez un autre nom.": "Try another name.",
+  "Chaque message nous rapproche.": "Every message brings us closer.",
+  "Un objectif commun. Une énergie collective.": "One shared goal. One team spirit.",
+  "C’EST ÇA, L’ESPRIT CHTAW.": "THAT'S THE CHTAW SPIRIT.",
+  "Connecté à la team": "Connected to the team",
+  "Connexion en cours…": "Connecting…",
+  "Connexion interrompue · Reconnexion automatique": "Disconnected · Reconnecting automatically",
+  "Retour aux conversations": "Back to conversations",
+  "{count} membres": "{count} members",
+  "Le cœur de la communauté": "The heart of the community",
+  "Groupe privé": "Private group",
+  "Voir les membres": "View members",
+  "Voir les membres du groupe": "View group members",
+  "Un espace pour partager, se motiver et avancer ensemble.":
+    "A place to share, stay motivated and move forward together.",
+  "Charger les messages précédents": "Load earlier messages",
+  "Chargement des messages": "Loading messages",
+  Vous: "You",
+  Membre: "Member",
+  "Agrandir la photo": "Enlarge photo",
+  "Photo partagée par l’administrateur": "Photo shared by the administrator",
+  "La conversation commence avec vous": "The conversation starts with you",
+  "Envoyez un premier message à la team.": "Send the team its first message.",
+  "Votre message": "Your message",
+  "Un message pour la team…": "A message for the team…",
+  "Envoyer le message": "Send message",
+  "Un peu de respect, beaucoup d’esprit d’équipe. ✨": "A little respect, a lot of team spirit. ✨",
+  "Les moments partagés": "Shared moments",
+  "Photos des messages chargés dans cette conversation.":
+    "Photos from the messages loaded in this conversation.",
+  "Photo de la team": "Team photo",
+  "Les photos de la team apparaîtront ici.": "Team photos will appear here.",
+  "Charger davantage de messages et photos": "Load more messages and photos",
+  "VOTRE COMMUNAUTÉ, AU MÊME ENDROIT": "YOUR COMMUNITY, IN ONE PLACE",
+  "On a tant de choses à se partager.": "We have so much to share.",
+  "Sélectionnez un groupe et rejoignez la conversation. La team n’attend que vous.":
+    "Select a group and join the conversation. Your team is waiting.",
+  "Retrouver la team": "Join the team",
+  "Ce groupe est introuvable ou inaccessible.":
+    "This group could not be found or is not accessible.",
+  "Un moment avec la team": "A moment with the team",
+  "Photo partagée en grand format": "Full-size shared photo",
+  "Membres du groupe": "Group members",
+  "Membres ({count})": "Members ({count})",
+  "Chargement des membres…": "Loading members…",
+  "La liste des membres n’a pas pu être actualisée.": "The member list could not be refreshed.",
+  "Administrateur · Retrait protégé": "Administrator · Protected membership",
+  "Aucun membre dans ce groupe.": "No members in this group.",
+  "SONDAGE DE SÉANCE": "SESSION POLL",
+  "SONDAGE DE LA TEAM": "TEAM POLL",
+  "Séance annulée · Exclue du calcul des absences":
+    "Cancelled session · Excluded from absence totals",
+  "Une seule réponse": "One answer only",
+  "Plusieurs réponses possibles": "Multiple answers allowed",
+  " · Terminé": " · Closed",
+  " · Jusqu’au {date}": " · Until {date}",
+  "{count} participation": "{count} response",
+  "{count} participations": "{count} responses",
+  " · Vous avez voté": " · You voted",
+  "Modifier mon vote": "Edit my vote",
+  "Votre vote a été enregistré": "Your vote has been recorded",
+  "Confirmer la modification": "Confirm changes",
+  "Confirmer le vote": "Confirm vote",
+  "Vos horaires :": "Your time slots:",
+  "UN NOUVEAU DÉPART": "A FRESH START",
+  "Image indisponible": "Image unavailable",
+  "Chargement de l’image…": "Loading image…",
+  "Un contretemps dans la team.": "A setback for the team.",
+  "Rechargez cet écran pour reprendre la conversation.":
+    "Reload this screen to rejoin the conversation.",
+  "Cette page a quitté le terrain.": "This page has left the field.",
+  "Revenir aux conversations ↗": "Back to conversations ↗",
+  "Une erreur est survenue.": "Something went wrong.",
+  "La requête a échoué.": "The request failed.",
+  "Connexion au serveur impossible. Vérifiez votre réseau et réessayez.":
+    "Cannot connect to the server. Check your connection and try again.",
+  "Session fermée sur cet appareil.": "Signed out on this device.",
+  "La session a changé.": "The session has changed.",
+  "Vous avez déjà participé.": "You have already voted.",
+  "Ce sondage est clôturé.": "This poll is closed.",
+  "Sélection invalide.": "Invalid selection.",
+  "Restauration de votre session…": "Restoring your session…",
+  "Déconnexion locale effectuée. La révocation serveur sera retentée à la reconnexion ; sur un appareil partagé, fermez aussi le navigateur.":
+    "Signed out locally. Server revocation will be retried when you reconnect; on a shared device, also close the browser.",
+  "Une mise à jour est disponible.": "An update is available.",
+  "Mettre à jour": "Update",
+  "Plus tard": "Later",
+  "La protection hors ligne n’a pas pu être actualisée.": "Offline support could not be updated.",
+  "Enregistrez vos modifications avant de recharger l’application. Installer la mise à jour maintenant ?":
+    "Save your changes before reloading the app. Install the update now?",
+
+  "Notifications": "Notifications", "Messages": "Messages", "Sondages": "Polls", "Rappels de séances": "Session reminders",
+  "Tout marquer comme lu": "Mark all as read", "Marquer comme lue": "Mark as read", "Lue": "Read", "Non lue": "Unread", "Aucune notification": "No notifications",
+  "Afficher toutes les notifications": "View all notifications", "Charger davantage": "Load more", "{count} notifications non lues": "{count} unread notifications",
+  "Nouveau message dans {group}": "New message in {group}", "Nouveau sondage": "New poll", "Séance demain": "Session tomorrow", "Séance dans 1 heure": "Session in 1 hour",
+  "Un nouveau message a été publié.": "A new message has been posted.", "Un nouveau sondage est disponible dans {group}.": "A new poll is available in {group}.",
+  "Un rappel de séance est disponible pour {group}.": "A session reminder is available for {group}.",
+  "Activer les notifications": "Enable notifications", "Notifications des messages": "Message notifications", "Notifications des sondages": "Poll notifications",
+  "Autoriser les notifications système sur cet appareil": "Allow system notifications on this device", "Désactiver sur cet appareil": "Disable on this device",
+  "Les préférences sont enregistrées sur votre compte. L’autorisation système concerne uniquement cet appareil.": "Preferences are saved to your account. System permission applies only to this device.",
+  "Les notifications système ne sont pas configurées.": "System notifications have not been configured.",
+  "Notifications système incompatibles sur cet appareil. Sur iOS, installez d’abord la PWA sur l’écran d’accueil.": "System notifications are not supported on this device. On iOS, first add the PWA to your Home Screen.",
+  "Autorisation refusée. Modifiez les réglages de votre navigateur.": "Permission denied. Update your browser settings.",
+  "Notifications système actives sur cet appareil": "System notifications are enabled on this device",
+  "Les notifications système nécessitent la version de production de la PWA.": "System notifications require the production version of the PWA.",
+  "Mettez à jour la PWA avant d’activer les notifications système.": "Update the PWA before enabling system notifications.",
+  "Abonnement Push invalide.": "Invalid push subscription.", "Stockage des notifications indisponible.": "Notification storage is unavailable.",
+  "Contenu indisponible.": "Content unavailable.", "Séance": "Session", "Retour aux présences": "Back to attendance",
+} as const;
+export type CopyKey = keyof typeof english;
+export function translate(
+  key: string,
+  language: Language,
+  values: Record<string, string | number> = {},
+) {
+  return Object.entries(values).reduce<string>(
+    (message, [name, value]) => message.replaceAll("{" + name + "}", String(value)),
+    language === "en" ? (english[key as CopyKey] ?? key) : key,
+  );
+}
+export function currentLanguage(): Language {
+  return usePreferences.getState().language;
+}
+export function translateNotice(message: string, success = false) {
+  const language = currentLanguage();
+  if (language === "fr") return message;
+  return message in english
+    ? english[message as CopyKey]
+    : success
+      ? "Changes saved."
+      : "The request could not be completed. Please try again.";
+}
+export function useCopy() {
+  const language = usePreferences((state) => state.language);
+  const selected = language;
+  return {
+    language: selected,
+    locale: selected === "en" ? "en-GB" : "fr-FR",
+    text: (key: string, values?: Record<string, string | number>) => translate(key, selected, values),
+    t: (key: string, values?: Record<string, string | number>) => translate(key, selected, values),
+    error: translateNotice,
+  };
+}

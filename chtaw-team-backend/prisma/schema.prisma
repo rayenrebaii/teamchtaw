@@ -1,0 +1,410 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MessageKind {
+  text
+  photo
+  poll
+  system
+}
+
+enum PollType {
+  ORDINARY
+  SESSION
+}
+
+enum PollStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  NON_VERIFIE
+  PRESENT
+  ABSENT
+}
+
+model User {
+  id                     String                  @id @default(uuid()) @db.Uuid
+  email                  String                  @unique @db.VarChar(254)
+  passwordHash           String
+  firstName              String                  @db.VarChar(60)
+  lastName               String                  @db.VarChar(60)
+  bio                    String                  @default("") @db.VarChar(250)
+  role                   Role                    @default(USER)
+  status                 AccountStatus           @default(PENDING)
+  joinedAt               DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  sessions               RefreshSession[]
+  memberships            GroupMember[]
+  messages               Message[]
+  media                  Media[]
+  polls                  Poll[]
+  votes                  PollVote[]
+  attendanceEdits        AttendanceEdit[]
+  absenceState           AbsenceState?
+  absenceAlerts          AbsenceAlert[]
+  sessionParticipants    SessionParticipant[]
+  sessionAttendanceEdits SessionAttendanceEdit[]
+  admissionDecisions AdmissionDecision[] @relation("AdmissionSubject")
+  admissionReviews AdmissionDecision[] @relation("AdmissionActor")
+  notifications Notification[]
+  notificationPreference NotificationPreference?
+  pushSubscriptions PushSubscription[]
+  reminderDeliveries SessionReminderDelivery[]
+
+  @@index([status, joinedAt, id])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  rotation  Int       @default(0)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  pushSubscriptions PushSubscription[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Group {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String        @db.VarChar(80)
+  description  String        @default("") @db.VarChar(500)
+  color        String        @default("#c7f36b") @db.VarChar(7)
+  isGeneral    Boolean       @default(false)
+  imageMediaId String?       @unique @db.Uuid
+  imageMedia   Media?        @relation("GroupImage", fields: [imageMediaId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  members      GroupMember[]
+  messages     Message[]
+  media        Media[]       @relation("GroupMedia")
+  polls        Poll[]
+  notifications Notification[]
+}
+
+model GroupMember {
+  groupId  String   @db.Uuid
+  userId   String   @db.Uuid
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@id([groupId, userId])
+  @@index([userId, groupId])
+}
+
+model Message {
+  id        String      @id @default(uuid()) @db.Uuid
+  groupId   String      @db.Uuid
+  group     Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  authorId  String      @db.Uuid
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  kind      MessageKind @default(text)
+  text      String      @default("") @db.VarChar(4000)
+  createdAt DateTime    @default(now())
+  mediaId   String?     @unique @db.Uuid
+  media     Media?      @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  pollId    String?     @unique @db.Uuid
+  poll      Poll?       @relation(fields: [pollId], references: [id], onDelete: Restrict)
+  notificationEvent NotificationEvent?
+
+  @@index([groupId, createdAt, id])
+}
+
+model Media {
+  id         String   @id @default(uuid()) @db.Uuid
+  groupId    String   @db.Uuid
+  group      Group    @relation("GroupMedia", fields: [groupId], references: [id], onDelete: Cascade)
+  uploaderId String   @db.Uuid
+  uploader   User     @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  storageKey String   @unique
+  mimeType   String   @db.VarChar(60)
+  size       Int
+  width      Int
+  height     Int
+  createdAt  DateTime @default(now())
+  message    Message?
+  groupImage Group?   @relation("GroupImage")
+
+  @@unique([id, groupId])
+  @@index([groupId, createdAt])
+}
+
+model Poll {
+  id                  String               @id @default(uuid()) @db.Uuid
+  groupId             String               @db.Uuid
+  group               Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  authorId            String               @db.Uuid
+  author              User                 @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  question            String               @db.VarChar(200)
+  description         String               @default("") @db.VarChar(2000)
+  type                PollType             @default(ORDINARY)
+  status              PollStatus           @default(OPEN)
+  attendanceLockedAt  DateTime?
+  mandatoryAttendance Boolean              @default(false)
+  participants        SessionParticipant[]
+  singleChoice        Boolean              @default(true)
+  endsAt              DateTime?
+  createdAt           DateTime             @default(now())
+  options             PollOption[]
+  votes               PollVote[]
+  message             Message?
+  reminderDeliveries SessionReminderDelivery[]
+
+  @@unique([id, groupId])
+  @@index([groupId, createdAt, id])
+  @@index([type, status, createdAt])
+}
+
+model PollOption {
+  id         String           @id @default(uuid()) @db.Uuid
+  pollId     String           @db.Uuid
+  poll       Poll             @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label      String           @db.VarChar(200)
+  position   Int
+  startsAt   DateTime?
+  endsAt     DateTime?
+  notificationUpdatedAt DateTime @default(now()) @updatedAt
+  marks      SessionMark[]
+  selections PollVoteOption[]
+
+  @@unique([pollId, label])
+  @@unique([id, pollId])
+  @@unique([pollId, position])
+}
+
+model PollVote {
+  id        String           @id @default(uuid()) @db.Uuid
+  pollId    String           @db.Uuid
+  poll      Poll             @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime         @default(now())
+  options   PollVoteOption[]
+
+  @@unique([pollId, userId])
+  @@unique([id, pollId])
+  @@index([userId, pollId])
+}
+
+model PollVoteOption {
+  voteId     String           @db.Uuid
+  optionId   String           @db.Uuid
+  pollId     String           @db.Uuid
+  vote       PollVote         @relation(fields: [voteId, pollId], references: [id, pollId], onDelete: Cascade)
+  option     PollOption       @relation(fields: [optionId, pollId], references: [id, pollId], onDelete: Cascade)
+  attendance AttendanceStatus @default(NON_VERIFIE)
+  version    Int              @default(0)
+  edits      AttendanceEdit[]
+
+  @@id([voteId, optionId])
+  @@index([optionId, pollId])
+}
+
+model AttendanceEdit {
+  id        String           @id @default(uuid()) @db.Uuid
+  voteId    String           @db.Uuid
+  optionId  String           @db.Uuid
+  selection PollVoteOption   @relation(fields: [voteId, optionId], references: [voteId, optionId], onDelete: Restrict, map: "AttendanceEdit_selection_fkey")
+  actorId   String           @db.Uuid
+  actor     User             @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  before    AttendanceStatus
+  after     AttendanceStatus
+  version   Int
+  createdAt DateTime         @default(now())
+
+  @@unique([voteId, optionId, version])
+  @@index([voteId, createdAt])
+}
+
+model AbsenceState {
+  userId     String @id @db.Uuid
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  total      Int    @default(0)
+  generation Int    @default(0)
+}
+
+model AbsenceAlert {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generation Int
+  groupName  String
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  resolvedAt DateTime?
+
+  @@unique([userId, generation])
+  @@index([resolvedAt, readAt, createdAt])
+}
+
+// Frozen approved USER membership at publication; later changes are explicit and audited.
+model SessionParticipant {
+  pollId             String                  @db.Uuid
+  userId             String                  @db.Uuid
+  poll               Poll                    @relation(fields: [pollId], references: [id], onDelete: Restrict)
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  included           Boolean                 @default(true)
+  version            Int                     @default(0)
+  createdAt          DateTime                @default(now())
+  absenceConfirmedAt DateTime?
+  reportOpenedAt     DateTime?
+  reportResolvedAt   DateTime?
+  marks              SessionMark[]
+  edits              SessionAttendanceEdit[]
+
+  @@id([pollId, userId])
+  @@index([userId, included])
+  @@index([reportResolvedAt, reportOpenedAt])
+}
+
+model SessionMark {
+  pollId      String             @db.Uuid
+  userId      String             @db.Uuid
+  optionId    String             @db.Uuid
+  participant SessionParticipant @relation(fields: [pollId, userId], references: [pollId, userId], onDelete: Restrict)
+  option      PollOption         @relation(fields: [optionId, pollId], references: [id, pollId], onDelete: Restrict)
+  attendance  AttendanceStatus   @default(NON_VERIFIE)
+  version     Int                @default(0)
+
+  @@id([pollId, userId, optionId])
+  @@index([optionId, pollId])
+}
+
+model SessionAttendanceEdit {
+  id          String             @id @default(uuid()) @db.Uuid
+  pollId      String             @db.Uuid
+  userId      String             @db.Uuid
+  participant SessionParticipant @relation(fields: [pollId, userId], references: [pollId, userId], onDelete: Restrict)
+  actorId     String             @db.Uuid
+  actor       User               @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  optionId    String?            @db.Uuid
+  action      String             @db.VarChar(32)
+  before      String             @db.VarChar(32)
+  after       String             @db.VarChar(32)
+  version     Int
+  createdAt   DateTime           @default(now())
+
+  @@index([pollId, userId, createdAt])
+}
+
+model AdmissionDecision {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  actorId String @db.Uuid
+  status AccountStatus
+  createdAt DateTime @default(now())
+  user User @relation("AdmissionSubject", fields: [userId], references: [id], onDelete: Restrict)
+  actor User @relation("AdmissionActor", fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  userId String @id @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled Boolean @default(true)
+  messagesEnabled Boolean @default(true)
+  pollsEnabled Boolean @default(true)
+  sessionRemindersEnabled Boolean @default(true)
+}
+
+model NotificationEvent {
+  messageId String @id @db.Uuid
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientIds String[] @db.Uuid
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  @@index([processedAt, createdAt])
+}
+
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId String @db.Uuid
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  type String @db.VarChar(32)
+  title String @db.VarChar(200)
+  body String @db.VarChar(500)
+  entityId String @db.Uuid
+  optionId String? @db.Uuid
+  sourceKey String @db.VarChar(250)
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  expiresAt DateTime
+  pushDeliveries PushDelivery[]
+  @@unique([userId, sourceKey])
+  @@index([userId, readAt, createdAt, id])
+}
+
+model PushSubscription {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String @db.Uuid
+  session RefreshSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  endpointHash String @unique @db.VarChar(64)
+  endpoint String @db.VarChar(2048)
+  p256dh String @db.VarChar(150)
+  auth String @db.VarChar(100)
+  binding String @default(uuid()) @db.Uuid
+  language String @default("fr") @db.VarChar(2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deliveries PushDelivery[]
+  @@index([userId, sessionId])
+}
+
+model PushDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  notificationId String @db.Uuid
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  subscriptionId String @db.Uuid
+  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  status String @default("PENDING") @db.VarChar(16)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseUntil DateTime?
+  sentAt DateTime?
+  @@unique([notificationId, subscriptionId])
+  @@index([status, nextAttemptAt, leaseUntil])
+}
+
+model SessionReminderDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @db.Uuid
+  session Poll @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  optionId String @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderType String @db.VarChar(16)
+  startsAt DateTime
+  scheduledFor DateTime
+  sentAt DateTime?
+  status String @default("PENDING") @db.VarChar(16)
+  @@unique([optionId, userId, reminderType, startsAt])
+  @@index([status, scheduledFor])
+}
