@@ -1,4 +1,4 @@
-const CACHE = "chtaw-public-v6";
+const CACHE = "chtaw-public-v7";
 const CORE = ["/branding/chtaw-logo.png", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png", "/images/team.svg"];
 const publicPath = (path) => CORE.includes(path) || path.startsWith("/_next/static/") || path.startsWith("/icons/");
 const cacheable = (response) => response.ok && !/(?:no-store|private)/i.test(response.headers.get("Cache-Control") || "");
@@ -29,6 +29,10 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/") || request.headers.get("Authorization") || request.headers.get("RSC") === "1" || url.searchParams.has("_rsc")) return;
+  if (url.pathname === "/manifest.webmanifest") {
+    event.respondWith(fetch(request, { cache: "no-store" }).catch(() => caches.match(request)));
+    return;
+  }
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(async () => (await caches.match("/offline.html")) || new Response("Connexion requise.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } })));
     return;

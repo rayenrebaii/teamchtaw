@@ -7,14 +7,15 @@
 | Service | Plateforme | État / URL |
 | --- | --- | --- |
 | Vitrine | Vercel Hobby | Publiée : https://teamchtaw-vitrine.vercel.app |
-| PWA | Vercel Hobby | Publiée : https://teamchtaw-pwa.vercel.app ; API pas encore raccordée |
-| Backend | Render Free | Correctif préparé, service à créer après approbation |
+| PWA | Vercel Hobby | Publiée et raccordée : https://teamchtaw-pwa.vercel.app |
+| Backend | Render Free | En ligne : https://teamchtaw-api.onrender.com ; service `srv-dbo8v2u7bikc73895mhg` |
 | PostgreSQL | Neon Free | Projet `shy-feather-22035914`, branche `production` (`br-blue-boat-bdecma85`), données migrées et vérifiées |
 
-Les connexions échouent actuellement car `/api/v1/auth/login` répond avec une
-page HTML 404 de Next.js : l'API NestJS n'est pas encore déployée. Il ne s'agit
-pas d'un échec constaté de PostgreSQL. Le correctif prépare le backend, sa
-connexion Neon et le proxy Next.js `BACKEND_URL`.
+Incident résolu : `/api/v1/auth/login` renvoyait une page HTML 404 de Next.js
+car l'API n'était pas déployée. Le backend Render est désormais en ligne avec
+Neon, et les réécritures Next.js acheminent les appels HTTP vers ce backend.
+La connexion avec un compte existant a réussi aussi bien directement sur
+Render qu'au travers du domaine PWA, puis dans un navigateur réel automatisé.
 
 ## Architecture et configuration
 
@@ -23,6 +24,9 @@ connexion Neon et le proxy Next.js `BACKEND_URL`.
 - PWA Next.js 16, racine `chtaw-team-pwa`, projet `prj_ViAWAGY0ZYg29UCu0ql1hG6TU5Cb`.
 - API NestJS/Prisma/Socket.IO, racine `chtaw-team-backend`, configuration `render.yaml`.
   `plan: free`, `HOST=0.0.0.0`, `PORT` fourni par Render, Swagger désactivé.
+  Build : `npm ci --include=dev && npm run prisma:generate && npm run build`.
+  `--include=dev` est indispensable malgré `NODE_ENV=production` pour disposer
+  de Prisma et TypeScript pendant la compilation. Démarrage : `npm start`.
 - Neon : `DATABASE_URL` poolée et `DATABASE_DIRECT_URL` directe pour les migrations
   et LISTEN/NOTIFY. TLS vérifié ; aucune désactivation de validation TLS.
 - Images privées : nouveau stockage PostgreSQL `StoredMedia`, quota applicatif
@@ -58,11 +62,13 @@ L'archive a été intégralement décompressée pour vérification. Les deux Web
 sauvegardés dans `.deployment-private/uploads` et leurs empreintes sont identiques
 aux fichiers locaux. Aucun volume, fichier local ou backup n'a été supprimé.
 
-Le correctif `202611080001_durable_media` ajoute uniquement `StoredMedia`.
-Après approbation, appliquer `npm run db:migrate` avec la connexion Neon directe,
-puis copier les deux images référencées (216 954 octets au total), sans écraser
-un objet existant, en vérifiant taille et SHA-256. Ne jamais exécuter de seed,
-reset ou restauration complète sur la base importée.
+La migration additive approuvée `202611080001_durable_media` est appliquée et
+ajoute uniquement `StoredMedia`. Une seule image est encore référencée par
+`Media` : ses 90 386 octets sont copiés et son SHA-256 vérifié dans Neon.
+Les deux sauvegardes locales (216 954 octets au total) sont conservées ; le
+fichier non référencé n'a pas été importé inutilement. Aucun objet existant
+n'a été écrasé. Ne jamais exécuter de seed, reset ou restauration complète
+sur la base importée.
 
 Pour une prochaine sauvegarde, choisir un nouveau nom daté, utiliser une
 connexion directe et un pg_dump 18+ pour Neon 18. Restaurer uniquement dans une
@@ -98,6 +104,25 @@ Avant de déclarer le correctif publié, vérifier les vraies URL : santé API a
 requête PostgreSQL, connexion et cookie au travers du proxy PWA, restauration de
 session, contrôle des rôles et appartenances, déconnexion, WebSocket et médias.
 Les tests locaux ne constituent pas ces contrôles de production.
+
+Contrôles publics effectivement exécutés avec succès après déploiement :
+
+- Santé Render et via le proxy PWA : la route exécute `SELECT 1` dans Neon.
+- Connexion avec un compte existant, profil privé et lecture de 3 groupes.
+- Cookie de refresh Secure/HttpOnly/SameSite=Lax ; aucun refresh token dans le JSON.
+- Rotation par cookie, handshake Socket.IO et révocation de session après logout.
+- Formulaire de connexion dans Edge automatisé à 390 px, cookie sur le domaine
+  `teamchtaw-pwa.vercel.app`, rechargement conservant la session et logout.
+- Manifeste public `display: browser`, `start_url: /app`, zéro erreur JavaScript
+  durant ce parcours. Cache public passé en v7 ; le manifeste utilise le réseau
+  en priorité pour éviter de conserver l'ancien mode standalone.
+- Image privée lue via le domaine PWA avec le compte autorisé, empreinte SHA-256
+  identique à la sauvegarde ; le même accès anonyme retourne 401.
+
+Les rapports détaillés restent dans `.deployment-private`. L'ouverture réelle
+d'une icône sur Android/iOS dépend du navigateur et n'a pas été simulée comme
+une installation physique. Recréer les raccourcis existants si nécessaire.
+Web Push est configuré mais sa réception sur un téléphone n'a pas été vérifiée.
 
 ## Limites gratuites
 

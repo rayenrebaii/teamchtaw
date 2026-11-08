@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: chtaw-team-backend
-    buildCommand: npm ci && npm run prisma:generate && npm run build
+    buildCommand: npm ci --include=dev && npm run prisma:generate && npm run build
     startCommand: npm start
     healthCheckPath: /api/v1/health
     autoDeployTrigger: off

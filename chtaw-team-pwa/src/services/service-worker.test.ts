@@ -32,7 +32,7 @@ function worker() {
     URL, Response,
     indexedDB: { open: () => { const request = { result: db, onsuccess: () => {} }; queueMicrotask(() => request.onsuccess()); return request; } },
     self: { location: { origin: "https://app.test" }, addEventListener: (name: string, handler: (event: unknown) => void) => { handlers[name] = handler; }, skipWaiting: () => { skipped++; }, registration: { showNotification: async (title: string, options: Record<string, unknown>) => { displayed.push({ title, options }); }, getNotifications: async () => [{ close: () => { closed++; } }] }, clients: { claim: async () => {}, matchAll: async () => [], openWindow: async (path: string) => { opened.push(path); } } },
-    caches: { open: async () => cache, match: async (key: string | Request) => stored.get(typeof key === "string" ? key : key.url), keys: async () => ["chtaw-static-v4", "other-app", "chtaw-public-v6"], delete: async (name: string) => { removed.push(name); } },
+    caches: { open: async () => cache, match: async (key: string | Request) => stored.get(typeof key === "string" ? key : key.url), keys: async () => ["chtaw-static-v4", "other-app", "chtaw-public-v6", "chtaw-public-v7"], delete: async (name: string) => { removed.push(name); } },
     fetch: async () => { if (!online) throw Error("offline"); return new Response("public", { headers: { "Cache-Control": header } }); },
   };
   runInNewContext(readFileSync(new URL("../../public/sw.js", import.meta.url), "utf8"), context);
@@ -96,7 +96,7 @@ describe("Cache PWA et cycle de vie", () => {
     const sw = worker(); expect(await sw.run("fetch", { request: sw.request(path, "cors") })).toBeUndefined();
   });
   it("nettoie les caches anciens sans toucher aux autres applications", async () => {
-    const sw = worker(); await sw.run("activate"); expect(sw.removed).toEqual(["chtaw-static-v4"]);
+    const sw = worker(); await sw.run("activate"); expect(sw.removed).toEqual(["chtaw-static-v4", "chtaw-public-v6"]);
     sw.stored.set("/app/profile", new Response("private"));
     await sw.run("message", { data: { type: "CLEAR_PRIVATE_CACHE" } });
     expect(sw.stored.has("/app/profile")).toBe(false);
