@@ -23,7 +23,6 @@ export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean 
   const [help, setHelp] = useState(false);
   const [installed, setInstalled] = useState(false);
   const platform = useSyncExternalStore(subscribePlatform, detectPlatform, serverPlatform);
-  const [shortcutRequested, setShortcutRequested] = useState(false);
   useEffect(() => {
     const handler = (event: Event) => {
       event.preventDefault();
@@ -62,16 +61,6 @@ export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean 
       <Button
         variant="secondary"
         onClick={async () => {
-          if (platform === "windows" || platform === "mac") {
-            const link = document.createElement("a");
-            link.href = "/downloads/Team-Chtaw.html";
-            link.download = "Team Chtaw.html";
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setShortcutRequested(true);
-            return;
-          }
           if (!prompt) {
             setHelp(true);
             return;
@@ -91,10 +80,8 @@ export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean 
         {showStatus ? t("Installer l’application") : t("Installer l’app")}
       </Button>
       {(platform === "windows" || platform === "mac") && (
-        <p className="small muted" role={shortcutRequested ? "status" : undefined}>
-          {shortcutRequested
-            ? t("Enregistrez le raccourci téléchargé sur votre Bureau. Un double-clic sur son icône ouvrira Team Chtaw dans votre navigateur.")
-            : t("Sur ordinateur, ce bouton télécharge un raccourci à enregistrer sur votre Bureau.")}
+        <p className="small muted">
+          {t("Confirmez l’installation dans Chrome ou Edge. Si le navigateur propose « Créer un raccourci sur le Bureau », activez cette option pour retrouver l’icône Team Chtaw sur votre Bureau.")}
         </p>
       )}
       {help && (

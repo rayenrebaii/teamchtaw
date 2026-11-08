@@ -15,7 +15,7 @@ export default function InstallPage() {
         <InstallPWAButton showStatus />
         <div className="install-instructions">
           <h2>Sur ordinateur</h2>
-          <p>Cliquez sur Installer l’application, puis enregistrez le raccourci téléchargé sur votre Bureau, ou déplacez-le depuis Téléchargements. Son icône ouvrira Team Chtaw dans votre navigateur.</p>
+          <p>Avec Chrome ou Edge, cliquez sur Installer l’application et confirmez. Team Chtaw sera installée avec son icône et ouvrira directement votre application. Activez « Créer un raccourci sur le Bureau » si cette option apparaît. Sinon, créez ce raccourci depuis la liste des applications de votre navigateur.</p>
           <h2>Sur Android</h2>
           <p>Ouvrez cette page dans Chrome ou Edge, cliquez sur Installer l’application et confirmez dans la fenêtre du navigateur. L’icône apparaîtra parmi vos applications.</p>
           <h2>iPhone et iPad</h2>

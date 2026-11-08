@@ -78,33 +78,31 @@ ignoré par Git et Vercel.
 
 ## Icône sur ordinateur et installation mobile
 
-Le propriétaire a choisi une vraie installation PWA avec icône sur mobile.
+Team Chtaw utilise une vraie installation PWA avec son icône sur ordinateur et mobile.
 Le manifeste utilise `display: standalone`, `start_url: /app`, des icônes
 192/512 px et la capacité web app Apple. Android/Chrome/Edge proposent leur
 confirmation native lorsque `beforeinstallprompt` est disponible. Sur iPhone,
 Safari impose Partager puis Sur l'écran d'accueil (Ouvrir comme app web activé
 si cette option apparaît). Aucune installation silencieuse n'est annoncée.
 
-Sur Windows et Mac, le bouton télécharge `/downloads/Team-Chtaw.html`.
-Ce petit document sans script ouvre exclusivement
-`https://teamchtaw-pwa.vercel.app/app` par redirection HTML, avec un lien de
-secours, et est servi en pièce jointe. Les téléchargements `.url` ne sont pas
-utilisés car les navigateurs Chromium actuels les renomment en `.download`.
-L'utilisateur doit les enregistrer ou les déplacer sur le Bureau pour que
-l'icône y apparaisse. Le site n'écrit pas directement dans son Bureau.
-Ces raccourcis d'ordinateur ouvrent le navigateur habituel.
+Sur Windows et Mac, le bouton appelle désormais le prompt natif du navigateur,
+comme sur Android. Aucun fichier HTML n'est téléchargé. Chrome/Edge installent
+la PWA avec son nom, ses icônes 192/512 et l'URL de lancement `/app`.
+La création de l'icône sur le Bureau dépend des options du navigateur et du
+système : activer « Créer un raccourci sur le Bureau » si proposé ; sinon créer
+ce raccourci depuis les applications installées du navigateur. Le site ne peut
+ni imposer cette option ni installer silencieusement une application.
 
 L'ancien modal générique est retiré. Les instructions restantes s'affichent
 dans la page uniquement sur les plateformes sans prompt natif disponible.
 Le Service Worker v8 ne remplace jamais un téléchargement de raccourci par
 la page HTML hors ligne. `/install` reste public et indépendant de la session.
 
-Vérification publique effectuée : le clic télécharge bien `Team Chtaw.html`
-sans changement d'extension ; le fichier enregistré puis ouvert dans le
-navigateur de test rejoint l'URL `/app`. Aucun ancien modal ni erreur JavaScript.
-Le navigateur ne signale aucun défaut d'installabilité pour le manifeste
-standalone. La confirmation d'installation sur le téléphone reste une action
-de son utilisateur, et n'est pas présentée comme une installation physique testée.
+Le test Windows vérifie que le clic appelle le prompt natif après un événement
+`beforeinstallprompt`, sans déclencher de téléchargement. Les tests Android et
+Safari restent inchangés. Les icônes PNG sont bien de dimensions 192x192 et
+512x512. La confirmation d'installation et la création de l'icône système
+restent des actions de l'utilisateur, pas des installations physiques testées.
 
 ## Vérifications
 

@@ -36,18 +36,19 @@ describe("Public PWA installation", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("downloads an Internet shortcut on Windows instead of opening the instruction modal", () => {
+  it("opens the native installer on Windows without downloading an HTML file", async () => {
     vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Windows NT 10.0) Chrome/140");
-    let target = "", filename = "";
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-      target = this.getAttribute("href") ?? "";
-      filename = this.download;
-    });
+    const download = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     render(<InstallPWAButton showStatus />);
-    fireEvent.click(screen.getByRole("button", { name: "Installer l’application" }));
-    expect(target).toBe("/downloads/Team-Chtaw.html");
-    expect(filename).toBe("Team Chtaw.html");
-    expect(screen.getByRole("status").textContent).toContain("Bureau");
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+      prompt, userChoice: Promise.resolve({ outcome: "accepted" }),
+    });
+    await act(async () => { window.dispatchEvent(event); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Installer l’application" })); });
+    expect(prompt).toHaveBeenCalledTimes(1);
+    expect(download).not.toHaveBeenCalled();
+    expect(screen.getByText(/Créer un raccourci sur le Bureau/)).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
