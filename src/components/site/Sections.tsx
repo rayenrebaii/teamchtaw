@@ -22,7 +22,7 @@ const STEPS = [
   {
     icon: Download,
     title: "Téléchargez",
-    text: "Choisissez la version Android ou iOS dans la section Téléchargement.",
+    text: "Touchez Téléchargement, puis confirmez l’installation dans votre navigateur.",
   },
   {
     icon: UserPlus,
@@ -275,7 +275,7 @@ export function DownloadSection() {
         <Card
           icon={Download}
           title="Installez l'application Team Chtaw"
-          text="Ouvrez Team Chtaw dans votre navigateur sur Android, iPhone ou ordinateur, puis installez l'application depuis votre navigateur."
+          text="Cliquez sur Installer l’application, puis confirmez sur la page d’installation. Sur iPhone, utilisez Safari : Partager, puis Sur l’écran d’accueil."
         >
           <div className="flex w-full flex-col items-center gap-4">
             {isConfigured ? (

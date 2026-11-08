@@ -25,6 +25,11 @@ dist-ssr
 coverage/
 playwright-report/
 .test-browser-results/
+.deployment-private/
+.vercel/
+*.dump
+*.backup
+supabase/.temp/
 
 # Wrangler / Cloudflare
 .wrangler/

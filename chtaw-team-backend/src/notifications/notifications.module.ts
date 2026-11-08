@@ -85,7 +85,7 @@ export class NotificationFeed implements OnModuleInit, OnModuleDestroy {
     if (this.closed) return;
     const previous = this.client;
     const client = new Client({
-      connectionString: this.config.getOrThrow<string>("DATABASE_URL"),
+      connectionString: this.config.get<string>("DATABASE_DIRECT_URL") || this.config.getOrThrow<string>("DATABASE_URL"),
       connectionTimeoutMillis: 5000,
     });
     this.client = client;

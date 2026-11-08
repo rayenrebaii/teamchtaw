@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Menu, X } from "lucide-react";
 import logo from "@/assets/chtaw-logo.png";
+import { PWA_URL } from "@/lib/site";
 
 const LINKS = [
   { id: "accueil", label: "Accueil" },
@@ -35,6 +36,10 @@ export function Navbar() {
 
   const go = (id: string) => {
     setOpen(false);
+    if (id === "telechargement" && PWA_URL.startsWith("https://")) {
+      window.location.assign(PWA_URL);
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 

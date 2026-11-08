@@ -1,0 +1,112 @@
+﻿# Team Chtaw — déploiement
+
+État du 8 novembre 2026. Dépôt : https://github.com/rayenrebaii/teamchtaw (`main`).
+
+## État réel
+
+| Service | Plateforme | État / URL |
+| --- | --- | --- |
+| Vitrine | Vercel Hobby | Publiée : https://teamchtaw-vitrine.vercel.app |
+| PWA | Vercel Hobby | Publiée : https://teamchtaw-pwa.vercel.app ; API pas encore raccordée |
+| Backend | Render Free | Correctif préparé, service à créer après approbation |
+| PostgreSQL | Neon Free | Projet `shy-feather-22035914`, branche `production` (`br-blue-boat-bdecma85`), données migrées et vérifiées |
+
+Les connexions échouent actuellement car `/api/v1/auth/login` répond avec une
+page HTML 404 de Next.js : l'API NestJS n'est pas encore déployée. Il ne s'agit
+pas d'un échec constaté de PostgreSQL. Le correctif prépare le backend, sa
+connexion Neon et le proxy Next.js `BACKEND_URL`.
+
+## Architecture et configuration
+
+- Vitrine React/TanStack Start/Vite/Nitro, racine du dépôt. Cible Vercel avec
+  `NITRO_PRESET=vercel`, sortie `.vercel/output`. Aucun middleware Supabase actif.
+- PWA Next.js 16, racine `chtaw-team-pwa`, projet `prj_ViAWAGY0ZYg29UCu0ql1hG6TU5Cb`.
+- API NestJS/Prisma/Socket.IO, racine `chtaw-team-backend`, configuration `render.yaml`.
+  `plan: free`, `HOST=0.0.0.0`, `PORT` fourni par Render, Swagger désactivé.
+- Neon : `DATABASE_URL` poolée et `DATABASE_DIRECT_URL` directe pour les migrations
+  et LISTEN/NOTIFY. TLS vérifié ; aucune désactivation de validation TLS.
+- Images privées : nouveau stockage PostgreSQL `StoredMedia`, quota applicatif
+  de 100 Mio, 10 Mio maximum par objet. Adapté au petit volume actuel, pas à une
+  photothèque illimitée. Les lectures passent toujours par les droits des groupes.
+  Aucun Supabase ni disque éphémère Render requis pour ce flux.
+- Les anciennes règles mobiles `profiles.approved` et `app_config` sont conservées.
+
+Variables Render : `NODE_ENV`, `HOST`, `PORT`, `NODE_VERSION`, `DATABASE_URL`,
+`DATABASE_DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`,
+`REFRESH_COOKIE_SAMESITE=lax`, `MEDIA_STORAGE=postgres`, `MEDIA_MAX_TOTAL_BYTES`,
+`SWAGGER_ENABLED=false`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
+`NOTIFICATION_TIMEZONE=Africa/Tunis`. Les secrets JWT existants sont préservés.
+
+Variables PWA : `BACKEND_URL` (origine Render), `NEXT_PUBLIC_SOCKET_URL` (même
+origine), `NEXT_PUBLIC_APP_AVAILABLE=true` seulement une fois les comptes vérifiés.
+Laisser `NEXT_PUBLIC_API_URL` absente : `/api/v1/*` est réécrit vers Render pour
+conserver des cookies de session HttpOnly/Secure sur le domaine de la PWA.
+
+Variables vitrine : `VITE_PWA_URL=https://teamchtaw-pwa.vercel.app/install`,
+`VITE_CONTACT_EMAIL` si une adresse publique réelle est fournie.
+
+## Sauvegardes et migration
+
+L'import initial autorisé dans Neon a été effectué dans une cible vide, dans
+une transaction sans `--clean`. Les 24 tables et 86 lignes, empreintes, colonnes,
+index, contraintes d'origine, triggers et extensions ont été comparés avec succès.
+Le changement PostgreSQL 17 vers 18 expose aussi 153 contraintes NOT NULL.
+
+Archive préservée : `.deployment-private/chtaw-before-neon-20261108.dump`.
+SHA-256 : `94e74b34ac9b1613753b80387e1f361c733a07fbc801af77dffc202189718957`.
+L'archive a été intégralement décompressée pour vérification. Les deux WebP sont
+sauvegardés dans `.deployment-private/uploads` et leurs empreintes sont identiques
+aux fichiers locaux. Aucun volume, fichier local ou backup n'a été supprimé.
+
+Le correctif `202611080001_durable_media` ajoute uniquement `StoredMedia`.
+Après approbation, appliquer `npm run db:migrate` avec la connexion Neon directe,
+puis copier les deux images référencées (216 954 octets au total), sans écraser
+un objet existant, en vérifiant taille et SHA-256. Ne jamais exécuter de seed,
+reset ou restauration complète sur la base importée.
+
+Pour une prochaine sauvegarde, choisir un nouveau nom daté, utiliser une
+connexion directe et un pg_dump 18+ pour Neon 18. Restaurer uniquement dans une
+cible isolée approuvée et vérifier l'inventaire avant de considérer la restauration
+comme validée. Les inventaires, clés et backups restent dans `.deployment-private`,
+ignoré par Git et Vercel.
+
+## Lancement dans le navigateur
+
+À la demande du propriétaire, le manifeste passe à `display: browser` et
+`start_url: /app`. La capacité standalone Apple est désactivée. L'icône doit
+ouvrir le site dans le navigateur ; selon le système, il s'agit d'un raccourci
+et le prompt d'installation native peut ne plus être proposé.
+Supprimer puis recréer les anciens raccourcis si le mode précédent persiste.
+Sur iPhone, désactiver « Ouvrir comme app web » si Safari propose cette option.
+La page `/install` reste publique et indépendante de la session.
+
+## Vérifications
+
+Les builds, TypeScript et tests unitaires ont été exécutés. Après le remplacement
+du stockage : 86 tests unitaires backend et 87 tests d'intégration backend sur
+base locale isolée réussis. PWA : 100 tests logiques et 57 tests d'interface réussis.
+La compilation Vercel fraîche nécessite `@testing-library/dom` explicitement
+présent en devDependency (peer sinon absent avec legacy-peer-deps).
+
+Commandes backend : `npm ci`, `npm run prisma:generate`, `npm run build`,
+`npm run typecheck`, `npm run lint`, `npm test`, `npm run test:isolated`.
+PWA : `npm ci`, `npm test`, `npm run build`, `npm run lint`.
+Vitrine : `npm test`, `npm run lint`, puis build avec `NITRO_PRESET=vercel`.
+Les scripts isolés créent leurs propres bases de test et les conservent.
+
+Avant de déclarer le correctif publié, vérifier les vraies URL : santé API avec
+requête PostgreSQL, connexion et cookie au travers du proxy PWA, restauration de
+session, contrôle des rôles et appartenances, déconnexion, WebSocket et médias.
+Les tests locaux ne constituent pas ces contrôles de production.
+
+## Limites gratuites
+
+Render Free peut dormir après 15 minutes sans trafic : réveil lent, timers de
+rappels suspendus. Les rappels dépassant 15 minutes de retard peuvent être ignorés
+par le code. Leur ponctualité n'est pas garantie ; aucune fonction n'est désactivée
+silencieusement et aucun maintien artificiel en éveil n'est mis en place.
+Les quotas de calcul Neon, de stockage et de bande passante restent à surveiller.
+Aucune mise à niveau ou facturation ne doit être activée automatiquement.
+
+Sources : https://render.com/docs/free ; https://neon.com/docs/connect/connection-pooling ;
+https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/display .

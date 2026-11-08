@@ -3,5 +3,5 @@ import { defineConfig } from "prisma/config";
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: { path: "prisma/migrations", seed: "tsx prisma/seed.ts" },
-  datasource: { url: process.env.DATABASE_URL ?? "postgresql://chtaw:local@127.0.0.1:5434/chtaw" },
+  datasource: { url: process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL || "postgresql://chtaw:local@127.0.0.1:5434/chtaw" },
 });

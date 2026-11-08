@@ -28,6 +28,12 @@ export function validateEnvironment(env: Record<string, unknown>) {
   }
   const mode = text("NODE_ENV", "development");
   if (!["development", "test", "production"].includes(mode)) throw Error("Invalid NODE_ENV.");
+  const directDatabase = text("DATABASE_DIRECT_URL", database);
+  if (!/^postgres(ql)?:\/\//.test(directDatabase)) throw Error("DATABASE_DIRECT_URL must use PostgreSQL.");
+  const mediaStorage = text("MEDIA_STORAGE", "local");
+  if (!["local", "postgres"].includes(mediaStorage)) throw Error("Invalid MEDIA_STORAGE.");
+  if (mode === "production" && env.RENDER === "true" && mediaStorage === "local")
+    throw Error("Render requires durable external media storage.");
   if (mode === "production" && origins.some((o) => !o.startsWith("https://")))
     throw Error("Production origins must use HTTPS.");
   const sameSite = text("REFRESH_COOKIE_SAMESITE", "lax");
@@ -60,6 +66,9 @@ export function validateEnvironment(env: Record<string, unknown>) {
     HOST: text("HOST", "127.0.0.1"),
     PORT: number("PORT", 3002, 1, 65535),
     DATABASE_URL: database,
+    DATABASE_DIRECT_URL: directDatabase,
+    MEDIA_STORAGE: mediaStorage,
+    MEDIA_MAX_TOTAL_BYTES: number("MEDIA_MAX_TOTAL_BYTES", 104857600, 1048576, 524288000),
     JWT_ACCESS_SECRET: access,
     JWT_REFRESH_SECRET: refresh,
     CORS_ORIGINS: origins,

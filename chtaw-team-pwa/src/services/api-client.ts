@@ -78,9 +78,14 @@ export class ApiClient {
   }
   private async checked<T>(response: Response): Promise<T> {
     if (response.status === 204) return undefined as T;
-    const body: unknown = await response
-      .json()
-      .catch(() => ({ message: "Réponse du serveur illisible." }));
+    const contentType = response.headers.get("Content-Type") ?? "";
+    if (!/application\/(?:[\w.-]+\+)?json\b/i.test(contentType)) {
+      throw new ApiError(response.ok ? 502 : response.status,
+        "Le service est momentanément indisponible. Veuillez réessayer dans un instant.");
+    }
+    let body: unknown;
+    try { body = await response.json(); }
+    catch { throw new ApiError(502, "Le serveur a renvoyé une réponse invalide. Veuillez réessayer."); }
     if (!response.ok) throw new ApiError(response.status, errorMessage(body));
     return body as T;
   }

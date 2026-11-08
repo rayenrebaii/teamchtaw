@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: teamchtaw-api
+    runtime: node
+    plan: free
+    rootDir: chtaw-team-backend
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: SWAGGER_ENABLED
+        value: "false"
+      - key: REFRESH_COOKIE_SAMESITE
+        value: lax
+      - key: MEDIA_STORAGE
+        value: postgres
+      - key: MEDIA_MAX_TOTAL_BYTES
+        value: "104857600"
+      - key: NOTIFICATION_TIMEZONE
+        value: Africa/Tunis
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_DIRECT_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

@@ -4,7 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { ApiTags } from "@nestjs/swagger";
 import { validateEnvironment } from "./config/environment";
-import { PrismaModule } from "./prisma/prisma.module";
+import { PrismaModule, PrismaService } from "./prisma/prisma.module";
 import { EventsModule } from "./common/events";
 import { AuthModule } from "./auth/auth.module";
 import { JwtGuard, PermissionsGuard, Public } from "./auth/security";
@@ -28,7 +28,9 @@ class HttpThrottleGuard extends ThrottlerGuard {
 @ApiTags("Health")
 @Controller("health")
 class HealthController {
-  @Public() @Get() health() {
+  constructor(private db: PrismaService) {}
+  @Public() @Get() async health() {
+    await this.db.$queryRaw`SELECT 1`;
     return { status: "ok" };
   }
 }

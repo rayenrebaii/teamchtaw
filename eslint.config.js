@@ -12,6 +12,8 @@ export default tseslint.config(
       "**/.next/**",
       "**/node_modules/**",
       ".output/**",
+      ".vercel/**",
+      ".deployment-private/**",
       ".vinxi/**",
       ".wrangler/**",
       ".tanstack/**",

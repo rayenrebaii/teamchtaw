@@ -10,7 +10,13 @@ import { PreferenceEffects } from "@/components/preference-effects";
 import { useCopy } from "@/lib/i18n";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import { useNotifications } from "@/stores/notifications";
+import { usePathname } from "next/navigation";
 export function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (pathname === "/install") return <>{children}<PreferenceEffects /><PwaUpdates /><Toaster richColors /></>;
+  return <SessionProviders>{children}</SessionProviders>;
+}
+function SessionProviders({ children }: { children: React.ReactNode }) {
   const store = useCommunity();
   const { t, error } = useCopy();
   const realtime = useRef<RealtimeService | null>(null);

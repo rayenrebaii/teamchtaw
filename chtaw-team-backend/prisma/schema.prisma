@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+model StoredMedia {
+  key       String   @id @db.VarChar(41)
+  content   Bytes
+  createdAt DateTime @default(now())
+}
+
 enum Role {
   ADMIN
   USER

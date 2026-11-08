@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
+import { createRequire } from "node:module";
 import sharp from "sharp";
 import { io, type Socket } from "socket.io-client";
 import { api, ApiClient } from "@/services/api-client";
@@ -10,6 +11,36 @@ import { pollsService } from "@/services/polls.service";
 import { attendanceService, type Roster, type StudentHistory } from "@/services/attendance.service";
 import type { User, Group, Message, Poll } from "@/types";
 const nativeFetch = globalThis.fetch.bind(globalThis);
+// Move only the disposable fixture's schedule after exercising future voting.
+// The backend correctly rejects attendance for the original 2099 slots.
+async function startFixtureSession(pollId: string) {
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url || !/^\/chtaw_test_[a-f0-9]{12}$/.test(new URL(url).pathname) ||
+      process.env.ISOLATED_TEST_DATABASE !== new URL(url).pathname.slice(1))
+    throw Error("An isolated test database is required to advance this fixture.");
+  const { Client } = createRequire(import.meta.url)("../../chtaw-team-backend/node_modules/pg") as {
+    Client: new (config: { connectionString: string }) => {
+      connect(): Promise<void>; end(): Promise<void>;
+      query(sql: string, values: string[]): Promise<{ rows: { startsAt: Date; endsAt: Date; deadline: Date; position: number }[] }>;
+    };
+  };
+  const db = new Client({ connectionString: url });
+  try {
+    await db.connect();
+    const { rows } = await db.query(`WITH changed AS (
+      UPDATE "Poll" SET "endsAt"=now()-interval '2 hours' WHERE id=$1::uuid RETURNING id, "endsAt" AS deadline
+    ) UPDATE "PollOption" SET "startsAt"=now()-interval '1 hour'+position*interval '1 minute',
+      "endsAt"=now()+interval '1 hour'+position*interval '1 minute'
+      FROM changed WHERE "pollId"=changed.id
+      RETURNING "PollOption"."startsAt" AT TIME ZONE 'UTC' AS "startsAt",
+        "PollOption"."endsAt" AT TIME ZONE 'UTC' AS "endsAt",
+        changed.deadline AT TIME ZONE 'UTC' AS deadline, position`, [pollId]);
+    rows.sort((a, b) => a.position - b.position);
+    return { endsAt: rows[0]!.deadline.toISOString(),
+      startsAt: rows.map((row) => row.startsAt.toISOString()),
+      slotEndsAt: rows.map((row) => row.endsAt.toISOString()) };
+  } finally { await db.end(); }
+}
 function browserFetch() {
   const cookies = new Map<string, string>();
   const fetcher: typeof fetch = async (input, init) => {
@@ -252,6 +283,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
     await expect(attendanceService.roster(session.id)).rejects.toMatchObject({ status: 403 });
     const roster = await admin.request<Roster>(`/polls/${session.id}/attendance`);
     expect(roster.slots[1]!.students).toHaveLength(0);
+    await startFixtureSession(session.id);
     await admin.request(`/polls/${session.id}/attendance`, {
       method: "PUT",
       body: JSON.stringify({
@@ -372,6 +404,11 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
     const first = before.slots[0]!;
     const candidate = first.students.find((s) => s.user.id === member.id)!;
     expect(candidate.voted).toBe(false);
+    await expect(attendanceService.save(mandatory.id, [{
+      userId: member.id, optionId: first.id, status: "PRESENT",
+      version: candidate.version, participantVersion: candidate.participantVersion,
+    }])).rejects.toMatchObject({ status: 409 });
+    const startedSchedule = await startFixtureSession(mandatory.id);
     const pointed = await attendanceService.save(mandatory.id, [
       {
         userId: member.id,
@@ -399,7 +436,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
         },
       ]),
     ).rejects.toMatchObject({ status: 409 });
-    await attendanceService.update(mandatory.id, { ...mandatoryInput, status: "CANCELLED" });
+    await attendanceService.update(mandatory.id, { ...mandatoryInput, ...startedSchedule, status: "CANCELLED" });
     expect(
       (await attendanceService.history(member.id)).sessions.find((s) => s.id === mandatory.id)
         ?.final,

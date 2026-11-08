@@ -9,6 +9,11 @@ const pair = {
   sessionId: "session",
 };
 describe("Session HTTP réelle", () => {
+  it.each([200, 404, 503])("rejects HTML as an unavailable API instead of accepting it: %s", async (status) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response("<!DOCTYPE html><h1>Not found</h1>", { status, headers: { "Content-Type": "text/html" } }));
+    await expect(new ApiClient("https://api.test/api/v1", fetcher).login("test@example.test", "test-password"))
+      .rejects.toMatchObject({ status: status === 200 ? 502 : status, message: expect.stringContaining("indisponible") });
+  });
   it("transporte le cookie sans rendre le refresh token au JavaScript", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json(pair));
     const client = new ApiClient("http://api.test/api/v1", fetcher);
