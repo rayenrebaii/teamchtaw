@@ -1,7 +1,7 @@
 "use client";
 import { useCopy, currentLanguage } from "@/lib/i18n";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Search, SlidersHorizontal, ChevronDown, ChevronRight, RotateCcw, CalendarDays, Users, Eye, Check, X, UserPlus, History, Ban } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronDown, ChevronRight, RotateCcw, CalendarDays, Users, Eye, Check, X, UserPlus, History, Ban, MailCheck, MailWarning } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { Avatar, Empty, StatusBadge, attempt } from "@/components/shared";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,22 @@ import type { User } from "@/types";
 import { usersService, type AdmissionDecision } from "@/services/users.service";
 import { useRemote, LoadState } from "./attendance-panel";
 import styles from "./members-panel.module.css";
+
+function MemberStatus({ user }: { user: User }) {
+  const { text: copy } = useCopy();
+  const EmailIcon = user.emailVerified ? MailCheck : MailWarning;
+  return (
+    <div className={styles.statusStack}>
+      <StatusBadge status={user.status} />
+      {process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && (
+        <span className={styles.emailStatus}>
+          <EmailIcon size={13} aria-hidden="true" />
+          <span>{copy(user.emailVerified ? "E-mail vérifié" : "E-mail non vérifié")}</span>
+        </span>
+      )}
+    </div>
+  );
+}
 
 function Assignment({ user, close }: { user: User; close: () => void }) {
   const { text: copy } = useCopy();
@@ -501,8 +517,7 @@ export function MembersPanel({
                       )}</time>
                     </td>
                     <td data-label={copy("Statut")} className={styles.status}>
-                      <StatusBadge status={u.status} />
-                      {process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && <small>{u.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}</small>}
+                      <MemberStatus user={u} />
                     </td>
                     <td data-label={copy("Groupes")} className={styles.groups}>
                       <span className={styles.infoLabel} aria-hidden="true"><Users size={14} />{copy("Groupes")}</span>
@@ -660,8 +675,7 @@ export function MembersPanel({
               <div>
                 <dt> {copy("Statut")} </dt>
                 <dd>
-                  <StatusBadge status={detail.status} />
-                  {process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && <p>{detail.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}</p>}
+                  <MemberStatus user={detail} />
                 </dd>
               </div>
               <div>

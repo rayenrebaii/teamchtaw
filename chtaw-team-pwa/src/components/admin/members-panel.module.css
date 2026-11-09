@@ -34,9 +34,9 @@
 
 .table th:first-child { width: 22%; }
 .table th:nth-child(2) { width: 10%; }
-.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(3) { width: 12%; }
 .table th:nth-child(4) { width: 14%; }
-.table th:last-child { width: 44%; }
+.table th:last-child { width: 42%; }
 
 .table .memberRow:hover {
   background: color-mix(in srgb, var(--surface-alt) 55%, var(--surface));
@@ -92,7 +92,30 @@
   outline-offset: 3px;
 }
 
-.status :global(.badge) {
+.statusStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.emailStatus {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.emailStatus svg { flex-shrink: 0; margin-top: 1px; color: var(--primary); }
+
+.statusStack :global(.badge) {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 4px 8px;
   font-size: 11px;
   line-height: 1.4;
