@@ -123,14 +123,20 @@ export class ApiClient {
     return this.flight;
   }
   async login<T extends TokenResponse>(email: string, password: string) {
+    return this.authenticate<T>("/auth/login", { email, password });
+  }
+  async firebaseLogin<T extends TokenResponse>(idToken: string, profile?: { firstName: string; lastName: string }) {
+    return this.authenticate<T>("/auth/firebase", { idToken, ...(profile ? { firstName: profile.firstName, lastName: profile.lastName } : {}) });
+  }
+  private async authenticate<T extends TokenResponse>(path: string, body: object) {
     this.clear();
     const epoch = this.generation;
     if (isSignedOut()) await this.revokeBrowserSession();
     const result = await this.checked<T>(
-      await this.raw("/auth/login", {
+      await this.raw(path, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Session-Transport": "cookie" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       }),
     );
     if (epoch !== this.generation) throw new ApiError(409, "La session a changé.");

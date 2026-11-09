@@ -63,6 +63,7 @@ export class CommunityGateway
       const raw: unknown = socket.handshake.auth?.token;
       if (typeof raw !== "string" || raw.length > 2048) throw Error();
       const actor = await this.auth.verifyAccess(raw);
+      if (actor.emailVerified === false) throw Error();
       socket.data.token = raw;
       socket.data.actor = actor;
       socket.data.count = 0;
@@ -97,6 +98,7 @@ export class CommunityGateway
     socket.data.count = Number(socket.data.count) + 1;
     if (Number(socket.data.count) > 60) throw Error();
     socket.data.actor = await this.auth.verifyAccess(String(socket.data.token));
+    if (socket.data.actor.emailVerified === false) throw Error();
   }
   @SubscribeMessage("group:join") async join(
     @ConnectedSocket() socket: Socket,
@@ -165,7 +167,7 @@ export class CommunityGateway
       await Promise.all(sockets.map(async (socket) => {
         try {
           const actor = await this.auth.verifyAccess(String(socket.data.token));
-          if (actor.id === event.userId && actor.status === "APPROVED") socket.emit("notification:changed", {});
+          if (actor.id === event.userId && actor.status === "APPROVED" && actor.emailVerified !== false) socket.emit("notification:changed", {});
         } catch { socket.disconnect(true); }
       }));
       return;

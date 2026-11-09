@@ -11,6 +11,7 @@ import { useCommunity } from "@/stores/community";
 import { Button } from "@/components/ui/button";
 import { attempt } from "@/components/shared";
 import { destination } from "@/lib/utils";
+import { firebaseEnabled } from "@/services/firebase";
 const schema = z
   .object({
     firstName: z.string().trim().min(2, "Au moins 2 caractères.").max(60),
@@ -89,7 +90,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
           <h2>{register ? "L’aventure commence ici." : "Heureux de vous retrouver."}</h2>
           <p className="muted">
             {register
-              ? "Créez votre compte. Notre administrateur validera votre inscription."
+              ? (firebaseEnabled ? "Créez votre compte, confirmez votre e-mail puis attendez la validation de l’administrateur." : "Créez votre compte. Notre administrateur validera votre inscription.")
               : "Connectez-vous pour retrouver votre communauté."}
           </p>
           <form
@@ -163,6 +164,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
               <ArrowRight size={17} />
             </Button>
           </form>
+          {!register && firebaseEnabled && <p><Link href="/forgot-password">Mot de passe oublié ?</Link></p>}
           <p className="small muted">
             {register ? "Déjà membre ?" : "Pas encore dans la team ?"}{" "}
             <Link href={register ? "/login" : "/register"}>

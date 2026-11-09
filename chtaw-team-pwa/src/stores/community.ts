@@ -197,7 +197,7 @@ export const useCommunity = create<Store>((set, get) => ({
             get().clear();
             return;
           }
-          if (user.status !== "APPROVED") {
+          if (user.status !== "APPROVED" || (process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && user.emailVerified === false)) {
             if (version === revision)
               set({
                 ...empty,

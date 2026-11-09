@@ -14,7 +14,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Actor } from "../common/access";
 import { AuthService } from "./auth.service";
-import { LoginDto, RefreshDto, RegisterDto } from "./auth.dto";
+import { FirebaseLoginDto, LoginDto, RefreshDto, RegisterDto } from "./auth.dto";
 import { AllowUnapproved, CurrentUser, Public } from "./security";
 @ApiTags("Auth")
 @Controller("auth")
@@ -40,6 +40,17 @@ export class AuthController {
     if (browser) this.cookie.assertOrigin(request);
     const result = await this.auth.login(dto);
     response.setHeader("Cache-Control", "no-store");
+    if (!browser) return result;
+    this.cookie.set(response, result.refreshToken);
+    const { refreshToken: _, ...safe } = result;
+    return safe;
+  }
+  @Public() @Throttle({ default: { limit: 5, ttl: 60000 } }) @Post("firebase") @HttpCode(200)
+  async firebaseLogin(@Body() dto: FirebaseLoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const browser = this.cookie.browser(request);
+    if (browser) this.cookie.assertOrigin(request);
+    response.setHeader("Cache-Control", "no-store");
+    const result = await this.auth.firebaseLogin(dto);
     if (!browser) return result;
     this.cookie.set(response, result.refreshToken);
     const { refreshToken: _, ...safe } = result;

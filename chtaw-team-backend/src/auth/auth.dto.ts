@@ -37,3 +37,13 @@ export class RefreshDto {
   @MaxLength(2048)
   refreshToken?: string;
 }
+export class FirebaseLoginDto {
+  @IsString() @MinLength(100) @MaxLength(8192)
+  idToken!: string;
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(60)
+  @Transform(({ value }: { value: unknown }) => typeof value === "string" ? value.trim() : value)
+  firstName?: string;
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(60)
+  @Transform(({ value }: { value: unknown }) => typeof value === "string" ? value.trim() : value)
+  lastName?: string;
+}

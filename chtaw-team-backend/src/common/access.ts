@@ -16,6 +16,7 @@ export interface Actor {
   lastName: string;
   bio: string;
   joinedAt: Date;
+  emailVerified?: boolean;
 }
 @Injectable()
 export class AccessService {
@@ -37,6 +38,8 @@ export class AccessService {
     )
       throw new UnauthorizedException("Session expirée.");
     const user = session.user;
+    if (requireApproved && actor.emailVerified === false)
+      throw new ForbiddenException("Vérifiez votre adresse e-mail.");
     if (requireApproved && user.status !== "APPROVED")
       throw new ForbiddenException("Compte non approuvé.");
     if (requireAdmin && user.role !== "ADMIN")

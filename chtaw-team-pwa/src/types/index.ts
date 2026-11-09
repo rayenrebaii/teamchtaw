@@ -7,6 +7,7 @@ export interface User {
   email: string;
   role: Role;
   status: Status;
+  emailVerified?: boolean;
   joinedAt: string;
   bio: string;
 }

@@ -45,7 +45,7 @@ export class PermissionsGuard implements CanActivate {
         ctx.getHandler(),
         ctx.getClass(),
       ]) &&
-      user.status !== "APPROVED"
+      (user.status !== "APPROVED" || user.emailVerified === false)
     )
       throw new ForbiddenException("Compte non approuvé.");
     if (

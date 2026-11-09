@@ -28,7 +28,7 @@ export function Shell({ children, admin = false }: { children: React.ReactNode; 
   const user = store.users.find((u) => u.id === store.session?.userId);
   const router = useRouter();
   const path = usePathname();
-  const valid = user?.status === "APPROVED" && (!admin || user.role === "ADMIN");
+  const valid = user?.status === "APPROVED" && (process.env.NEXT_PUBLIC_AUTH_PROVIDER !== "firebase" || user.emailVerified !== false) && (!admin || user.role === "ADMIN");
   useEffect(() => {
     if (!user) router.replace("/login");
     else if (!valid) router.replace(destination(user));

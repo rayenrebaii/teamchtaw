@@ -18,6 +18,10 @@ for (const value of [process.env.NEXT_PUBLIC_API_URL, process.env.NEXT_PUBLIC_SO
   connect.add(url.origin.replace(/^http/, "ws"));
 }
 if (!production) { connect.add("http://127.0.0.1:3002"); connect.add("ws://127.0.0.1:3002"); }
+if (process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase") {
+  connect.add("https://identitytoolkit.googleapis.com");
+  connect.add("https://securetoken.googleapis.com");
+}
 const csp = [
   "default-src 'self'", `script-src 'self' 'unsafe-inline'${production ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self'",

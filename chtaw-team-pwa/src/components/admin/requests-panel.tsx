@@ -502,6 +502,7 @@ export function MembersPanel({
                     </td>
                     <td data-label={copy("Statut")} className={styles.status}>
                       <StatusBadge status={u.status} />
+                      {process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && <small>{u.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}</small>}
                     </td>
                     <td data-label={copy("Groupes")} className={styles.groups}>
                       <span className={styles.infoLabel} aria-hidden="true"><Users size={14} />{copy("Groupes")}</span>
@@ -660,6 +661,7 @@ export function MembersPanel({
                 <dt> {copy("Statut")} </dt>
                 <dd>
                   <StatusBadge status={detail.status} />
+                  {process.env.NEXT_PUBLIC_AUTH_PROVIDER === "firebase" && <p>{detail.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}</p>}
                 </dd>
               </div>
               <div>

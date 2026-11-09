@@ -53,11 +53,20 @@ export function validateEnvironment(env: Record<string, unknown>) {
     } catch { throw Error("Invalid VAPID configuration."); }
   }
   const notificationZone = text("NOTIFICATION_TIMEZONE", "Africa/Tunis");
+  const authProvider = text("AUTH_PROVIDER", "legacy");
+  if (!["legacy", "firebase"].includes(authProvider)) throw Error("Invalid AUTH_PROVIDER.");
+  if (authProvider === "firebase") {
+    text("FIREBASE_PROJECT_ID");
+    text("FIREBASE_CLIENT_EMAIL");
+    text("FIREBASE_PRIVATE_KEY");
+    text("FIREBASE_WEB_API_KEY");
+  }
   new Intl.DateTimeFormat("fr", { timeZone: notificationZone });
   const pushOrigins = typeof env.PUSH_ALLOWED_ORIGINS === "string" ? env.PUSH_ALLOWED_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean) : [];
   for (const origin of pushOrigins) { const url = new URL(origin); if (url.protocol !== "https:" || url.origin !== origin || url.username || url.password) throw Error("Invalid PUSH_ALLOWED_ORIGINS."); }
   return {
     ...env,
+    AUTH_PROVIDER: authProvider,
     PUSH_ENABLED: pushEnabled,
     VAPID_PUBLIC_KEY: vapid[0], VAPID_PRIVATE_KEY: vapid[1], VAPID_SUBJECT: vapid[2],
     NOTIFICATION_TIMEZONE: notificationZone, PUSH_ALLOWED_ORIGINS: pushOrigins,

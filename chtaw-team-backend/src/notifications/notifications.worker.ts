@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
@@ -7,6 +7,7 @@ import { DomainEvents } from "../common/events";
 import { NotificationsService } from "./notifications.service";
 import { PushTransport } from "./push.transport";
 import { permits, reminderPlan } from "./notifications.rules";
+import { FirebaseIdentity } from "../auth/firebase.service";
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -21,6 +22,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     private service: NotificationsService,
     private push: PushTransport,
     private config: ConfigService,
+    @Optional() private firebase?: FirebaseIdentity,
   ) {}
   onModuleInit() {
     if (this.config.get("NODE_ENV") === "test") return;
@@ -301,12 +303,20 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
         if (!rows.length) return null;
         const delivery = await tx.pushDelivery.findUnique({
           where: { id: job.id },
-          include: { notification: true, subscription: { include: { session: true } } },
+          include: { notification: true, subscription: { include: { session: { include: { user: { select: { firebaseUid: true, email: true } } } } } } },
         });
         if (!delivery) return null;
         const sub = delivery.subscription;
+        let identityAllowed = true;
+        if (this.config.get("AUTH_PROVIDER") === "firebase") {
+          try {
+            const identity = await this.firebase?.session(sub.session.user.firebaseUid, sub.session.firebaseAuthTime);
+            identityAllowed = !!identity?.emailVerified && identity.email?.trim().toLowerCase() === sub.session.user.email;
+          } catch { identityAllowed = false; }
+        }
         if (
           delivery.attempts >= 5 ||
+          !identityAllowed ||
           sub.userId !== delivery.notification.userId ||
           sub.session.revokedAt ||
           sub.session.expiresAt <= now ||
