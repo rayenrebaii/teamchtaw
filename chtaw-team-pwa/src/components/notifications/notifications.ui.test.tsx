@@ -161,6 +161,19 @@ describe("Notification settings for both roles", () => {
   });
 });
 describe("Notification center and compact header", () => {
+  it.each(["USER", "COLLABORATOR"] as const)("keeps personal links exclusively in the top menu for %s", (role) => {
+    useCommunity.setState({ users: [{ ...user, role }] });
+    const { container } = render(<Shell><p>Page content</p></Shell>);
+    const personalLinks = Array.from(container.querySelectorAll('a[href="/app/profile"], a[href="/app/settings"]'));
+    expect(personalLinks).toHaveLength(2);
+    expect(personalLinks.every((link) => !!link.closest(".workspace-topbar .user-menu"))).toBe(true);
+    if (role === "COLLABORATOR") {
+      fireEvent.click(screen.getByRole("button", { name: "Plus" }));
+      const more = screen.getByRole("dialog");
+      expect(within(more).queryByRole("link", { name: "Mon profil" })).toBeNull();
+      expect(within(more).queryByRole("link", { name: "Paramètres" })).toBeNull();
+    }
+  });
   it.each(["fr", "en"] as const)("keeps admin navigation ordered and personal actions only in the header (%s)", (language) => {
     usePreferences.setState({ language });
     useCommunity.setState({ users: [{ ...user, role: "ADMIN" }], theme: "light" });
@@ -180,7 +193,7 @@ describe("Notification center and compact header", () => {
     expect(usePreferences.getState().theme).toBe("dark");
     expect(header.querySelector("details")?.hasAttribute("open")).toBe(false);
   });
-  it.each(["USER", "ADMIN"] as const)(
+  it.each(["USER", "ADMIN", "COLLABORATOR"] as const)(
     "keeps logo, bell and initials-only avatar for %s",
     (role) => {
       useCommunity.setState({ users: [{ ...user, role }] });

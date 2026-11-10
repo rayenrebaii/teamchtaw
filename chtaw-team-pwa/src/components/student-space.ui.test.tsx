@@ -101,7 +101,7 @@ afterEach(() => {
 });
 describe("Espace étudiant simplifié", () => {
   it.each([320, 375, 390, 430, 768, 1440])(
-    "conserve exactement quatre destinations et une section active à %s px",
+    "conserve les deux destinations principales et une section active à %s px",
     (width) => {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
       const result = render(
@@ -113,8 +113,6 @@ describe("Espace étudiant simplifié", () => {
       expect(nav.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
         "/app",
         "/app/attendance",
-        "/app/profile",
-        "/app/settings",
       ]);
       expect(nav.getByRole("link", { name: "Présences" }).getAttribute("aria-current")).toBe(
         "page",

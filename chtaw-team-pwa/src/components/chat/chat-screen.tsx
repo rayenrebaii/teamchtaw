@@ -137,12 +137,6 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
             <Empty title={t("Aucun groupe trouvé")}>{t("Essayez un autre nom.")}</Empty>
           )}
         </div>
-        {user.role !== "ADMIN" && <div className="team-card">
-          <span>↗</span>
-          <strong>{t("Chaque message nous rapproche.")}</strong>
-          <p>{t("Un objectif commun. Une énergie collective.")}</p>
-          <span className="tiny">{t("C’EST ÇA, L’ESPRIT CHTAW.")}</span>
-        </div>}
         <div className="local-note">
           <span className="live-dot" />{" "}
           {store.connection === "online"

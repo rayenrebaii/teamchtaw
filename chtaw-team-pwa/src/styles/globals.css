@@ -857,39 +857,6 @@ form label small {
   text-overflow: ellipsis;
   margin: 7px 0 0;
 }
-.team-card {
-  margin: auto 24px 20px;
-  padding: 24px;
-  background: #f1e8fb;
-  border-radius: 15px;
-  color: #432363;
-  position: relative;
-  overflow: hidden;
-  min-height: 165px;
-}
-.team-card > span:first-child {
-  position: absolute;
-  right: 14px;
-  top: 12px;
-  font-size: 76px;
-  color: #dac1f4;
-  line-height: 1;
-}
-.team-card strong {
-  font-size: 20px;
-  line-height: 1.2;
-  letter-spacing: -0.045em;
-  position: relative;
-}
-.team-card p {
-  font-size: 11px;
-  color: #80658e;
-  line-height: 1.55;
-}
-.team-card .tiny {
-  font-size: 8px;
-  letter-spacing: 0.07em;
-}
 .local-note {
   text-align: center;
   font-size: 9px;
@@ -2823,9 +2790,6 @@ td strong {
   .stat-card {
     padding: 18px;
   }
-  .team-card {
-    min-height: 145px;
-  }
 }
 @media (max-width: 800px) {
   .auth-layout {
@@ -2997,10 +2961,6 @@ td strong {
   .group-item .avatar {
     height: 49px;
     width: 49px;
-  }
-  .team-card {
-    margin: 18px 24px;
-    min-height: 145px;
   }
   .local-note {
     padding-bottom: 18px;

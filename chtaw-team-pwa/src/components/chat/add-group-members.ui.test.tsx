@@ -20,6 +20,14 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); useCommunity.setState(actions); });
 
+it.each(["USER", "COLLABORATOR"] as const)("removes the promotional chat card for %s", (role) => {
+  useCommunity.setState({ users: [{ ...admin, role }] });
+  const { container } = render(<ChatScreen />);
+  expect(container.querySelector(".team-card")).toBeNull();
+  expect(screen.queryByText("Chaque message nous rapproche.")).toBeNull();
+  expect(screen.getByRole("heading", { name: /Conversations/ })).toBeTruthy();
+});
+
 it("opens the current group's member picker and searches by name or email without creating a group", async () => {
   let finish!: () => void;
   const add = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {

@@ -9,8 +9,6 @@ import {
   Layers,
   ChartNoAxesColumn,
   CalendarDays,
-  UserRound,
-  Settings,
 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { destination } from "@/lib/utils";
@@ -57,8 +55,6 @@ export function Shell({ children, admin = false, organizer = false }: { children
       ? [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/app/attendance", label: t("Présences"), Icon: CalendarDays },
-          { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
-          { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ]
       : user.role === "ADMIN" ? [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
@@ -70,12 +66,10 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
         ] : [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
-          { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
           { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },
           { href: "/collaborator/polls", label: t("Mes sondages"), Icon: ChartNoAxesColumn },
           { href: "/collaborator/attendance", label: t("Présences"), Icon: CalendarDays },
           { href: "/collaborator/reports", label: t("Signalements"), Icon: Layers },
-          { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ];
   const mobileItems = user.role === "ADMIN" ? links.slice(0, 4) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
   const moreItems = user.role === "ADMIN" ? links.slice(4) : user.role === "COLLABORATOR" ? links.filter((link) => !mobileItems.includes(link)) : [];
