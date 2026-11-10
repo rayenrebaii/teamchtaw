@@ -15,6 +15,7 @@ model StoredMedia {
 enum Role {
   ADMIN
   USER
+  COLLABORATOR
 }
 
 enum AccountStatus {
@@ -77,6 +78,13 @@ model User {
   notificationPreference NotificationPreference?
   pushSubscriptions PushSubscription[]
   reminderDeliveries SessionReminderDelivery[]
+  disabledAt DateTime?
+  activatedAt DateTime?
+  accountLinks AccountLink[]
+  organizerAbsences OrganizerAbsenceState[] @relation("AbsenceOrganizer")
+  studentOrganizerAbsences OrganizerAbsenceState[] @relation("AbsenceStudent")
+  organizerAlerts OrganizerAbsenceAlert[] @relation("AlertOrganizer")
+  studentOrganizerAlerts OrganizerAbsenceAlert[] @relation("AlertStudent")
 
   @@index([status, joinedAt, id])
 }
@@ -186,6 +194,49 @@ model Poll {
   @@unique([id, groupId])
   @@index([groupId, createdAt, id])
   @@index([type, status, createdAt])
+  @@index([authorId, type, createdAt])
+}
+
+// Poll.authorId is the immutable organizer, including historical sessions.
+// Existing GroupMember membership is the explicit admin-managed group grant.
+model AccountLink {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String @unique @db.VarChar(64)
+  purpose String @db.VarChar(16)
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId, purpose, createdAt])
+}
+
+model OrganizerAbsenceState {
+  userId String @db.Uuid
+  organizerId String @db.Uuid
+  user User @relation("AbsenceStudent", fields: [userId], references: [id], onDelete: Restrict)
+  organizer User @relation("AbsenceOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  total Int @default(0)
+  generation Int @default(0)
+  @@id([userId, organizerId])
+  @@index([organizerId, total])
+}
+
+model OrganizerAbsenceAlert {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  organizerId String @db.Uuid
+  user User @relation("AlertStudent", fields: [userId], references: [id], onDelete: Restrict)
+  organizer User @relation("AlertOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  generation Int
+  groupName String
+  pollIds String[] @db.Uuid
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  confirmedAt DateTime?
+  resolvedAt DateTime?
+  @@unique([userId, organizerId, generation])
+  @@index([organizerId, resolvedAt, createdAt])
 }
 
 model PollOption {

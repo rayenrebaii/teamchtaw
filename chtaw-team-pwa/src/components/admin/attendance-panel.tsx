@@ -106,6 +106,7 @@ export function AttendanceBadge({ value, global = false }: { value: string; glob
 
 export function AttendanceHistory({ userId, onClose }: { userId?: string; onClose: () => void }) {
   const { text: copy } = useCopy();
+  const actor = useCommunity((store) => store.users.find((user) => user.id === store.session?.userId));
   const load = useCallback(() => attendanceService.history(userId), [userId]);
   const remote = useRemote(load);
   return (
@@ -185,7 +186,7 @@ export function AttendanceHistory({ userId, onClose }: { userId?: string; onClos
               ))}
               {userId && session.selections.length > 0 && session.status !== "CANCELLED" && (
                 <Button asChild size="sm" variant="secondary">
-                  <Link href={attendanceSessionHref(session.id)}>
+                  <Link href={attendanceSessionHref(session.id, actor?.role)}>
                     {" "}
                     {copy("Corriger les présences")}{" "}
                   </Link>
@@ -487,7 +488,7 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
             <div className="panel">
               <p className="muted">
                 {copy(
-                  "Les dates filtrent la création des sondages (UTC). Les présences et les indicateurs suivent les séances filtrées. Le total des absences, le seuil d’alerte et les alertes portent sur l’ensemble des séances de l’étudiant.",
+                  "Les dates filtrent la création des sondages (UTC). Les présences suivent les séances filtrées. Le total des absences et le seuil de trois absences sont calculés séparément pour chaque organisateur.",
                 )}{" "}
               </p>
               <div className="request-filters">
@@ -677,7 +678,7 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
                   )}{" "}
                 </p>
                 <p>
-                  {copy("Total actuel :")} {alert.user?.absenceState?.total ?? 0}{" "}
+                  {copy("Total actuel :")} {alert.pollIds?.length ?? 0}{" "}
                   {copy("· Déclenchée le")}{" "}
                   {new Date(alert.createdAt).toLocaleString(
                     currentLanguage() === "en" ? "en-GB" : "fr-FR",
@@ -738,7 +739,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
   const store = useCommunity();
   const id = useId();
   const actor = store.users.find((user) => user.id === store.session?.userId);
-  const canManage = actor?.role === "ADMIN";
+  const canManage = actor?.role === "ADMIN" || actor?.role === "COLLABORATOR";
   const [tab, setTab] = useState("polls");
   const [editing, setEditing] = useState<Poll | "new" | null>(createSession ? "new" : null);
   const [ordinary, setOrdinary] = useState(false);
@@ -756,7 +757,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
     setFilters((current) => ({ ...current, ...patch }));
     setPage(1);
   };
-  const results = filterActivities(store.polls, filters, now);
+  const results = filterActivities(store.polls.filter((poll) => actor?.role === "USER" || poll.type !== "SESSION" || poll.authorId === actor?.id), filters, now);
   const pages = Math.max(1, Math.ceil(results.length / 10));
   const currentPage = Math.min(page, pages);
   const detail = store.polls.find((poll) => poll.id === detailId);
@@ -764,7 +765,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
   const types = [
     { value: "ALL", label: "Toutes" },
     { value: "SESSION", label: pollsOnly ? "Sondages de séance" : "Séances" },
-    { value: "ORDINARY", label: pollsOnly ? "Sondages simples" : "Sondages" },
+    ...(actor?.role === "COLLABORATOR" ? [] : [{ value: "ORDINARY" as const, label: pollsOnly ? "Sondages simples" : "Sondages" }]),
   ] as const;
   const dateTime = (date: string) =>
     new Date(date).toLocaleString(currentLanguage() === "en" ? "en-GB" : "fr-FR", {
@@ -852,7 +853,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                     <Plus size={16} aria-hidden="true" /> {copy(pollsOnly ? "Créer un sondage de séance" : "Créer une séance")}{" "}
                   </Button>
                 </section>
-                <section className="activity-create-card">
+                {actor?.role === "ADMIN" && (                <section className="activity-create-card">
                   <span className="activity-icon">
                     <ChartNoAxesColumn size={22} aria-hidden="true" />
                   </span>
@@ -872,7 +873,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                   >
                     <Plus size={16} aria-hidden="true" /> {copy(pollsOnly ? "Créer un sondage simple" : "Créer un sondage")}{" "}
                   </Button>
-                </section>
+                </section>)}
               </div>
             )}
             {canManage && !store.groups.length && !store.loading && !store.error && (
@@ -1094,6 +1095,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                           >
                             {session && !pollsOnly ? copy("Voir les détails") : copy("Voir les résultats")}
                           </Button>
+                          {session && canManage && pollsOnly && <Button size="sm" variant="secondary" disabled={poll.status === "CANCELLED"} onClick={() => setEditing(poll)}>{copy("Modifier / annuler")}</Button>}
                           {session && canManage && pollsOnly && <Button size="sm" variant="secondary" aria-label={`${copy("Gérer la séance")} : ${poll.question}`} onClick={() => setManageId(poll.id)}>{copy("Gérer la séance")}</Button>}
                           {session && canManage && !pollsOnly && (
                             <Button
@@ -1101,7 +1103,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                               aria-label={`Gérer les présences : ${poll.question}`}
                               asChild
                             >
-                              <Link href={attendanceSessionHref(poll.id)}>
+                              <Link href={attendanceSessionHref(poll.id, actor?.role)}>
                                 <ClipboardCheck size={15} aria-hidden="true" />{" "}
                                 {copy("Gérer les présences")}{" "}
                               </Link>
@@ -1206,7 +1208,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
             {canManage && !pollsOnly && detail.type === "SESSION" && (
               <div className="row wrap activity-detail-actions">
                 <Button asChild>
-                  <Link href={attendanceSessionHref(detail.id)}>
+                  <Link href={attendanceSessionHref(detail.id, actor?.role)}>
                     <ClipboardCheck size={16} aria-hidden="true" />{" "}
                     {copy("Gérer les présences")}{" "}
                   </Link>

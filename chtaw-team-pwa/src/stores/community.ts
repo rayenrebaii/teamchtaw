@@ -211,7 +211,7 @@ export const useCommunity = create<Store>((set, get) => ({
           const responses = await Promise.allSettled([
             groupsService.list(),
             pollsService.all(),
-            user.role === "ADMIN" ? usersService.all() : Promise.resolve([user]),
+            user.role === "ADMIN" ? usersService.all() : user.role === "COLLABORATOR" ? api.request<User[]>("/organizer/participants") : Promise.resolve([user]),
             user.role === "ADMIN" ? usersService.stats() : Promise.resolve(null),
           ]);
           if (owner !== get().session?.userId) return;

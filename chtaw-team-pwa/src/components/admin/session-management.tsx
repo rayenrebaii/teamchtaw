@@ -18,7 +18,7 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
   const [failed, setFailed] = useState(false);
   const option = poll.options.find((slot) => slot.id === target);
   const actor = store.users.find((user) => user.id === store.session?.userId);
-  if (actor?.role !== "ADMIN" || poll.type !== "SESSION") return null;
+  if ((actor?.role !== "ADMIN" && actor?.role !== "COLLABORATOR") || poll.authorId !== actor?.id || poll.type !== "SESSION") return null;
   return <Modal open title={copy("Gérer la séance")} onClose={() => { if (!busy) close(); }}>
     <div className={`form-stack ${styles.management}`}>
       <h3>{poll.question}</h3>

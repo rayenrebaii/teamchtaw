@@ -81,7 +81,7 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
               onClick={() => {
                 void attempt(async () => {
                   const target = await notificationsService.target(item.id);
-                  if (!target.href.startsWith("/app/") || target.href.startsWith("//"))
+                  if (!/^\/(app|admin|collaborator)\//.test(target.href) || target.href.startsWith("//"))
                     throw Error("Contenu indisponible.");
                   await notificationsService.read(item.id);
                   await store.sync();
@@ -170,7 +170,7 @@ export function NotificationsPage({ openId }: { openId?: string }) {
     void attempt(async () => {
       const target = await notificationsService.target(openId);
       if (!active || useCommunity.getState().session?.userId !== owner) return;
-      if (!target.href.startsWith("/app/") || target.href.startsWith("//"))
+      if (!/^\/(app|admin|collaborator)\//.test(target.href) || target.href.startsWith("//"))
         throw Error("Contenu indisponible.");
       await notificationsService.read(openId);
       if (active && useCommunity.getState().session?.userId === owner) router.replace(target.href);

@@ -36,13 +36,14 @@ for (const width of [320, 375, 390, 430, 768, 1024, 1440]) for (const theme of [
             await expect(page.locator(".rail")).not.toBeVisible();
             await nav.getByRole("button").click();
             const menu = page.getByRole("navigation", { name: language === "fr" ? "Toutes les sections" : "All sections" });
-            await expect(menu.getByRole("link")).toHaveCount(4);
+            await expect(menu.getByRole("link")).toHaveCount(5);
+            await expect(menu.locator('a[href="/admin/collaborators"]')).toBeVisible();
             await menu.getByRole("link", { name: language === "fr" ? "Paramètres" : "Settings", exact: true }).click();
             await expect(nav.getByRole("button")).toHaveAttribute("aria-current", "page");
           }
         } else {
           await expect(page.locator(".rail .brand")).toBeVisible();
-          await expect(page.locator(".rail nav .nav-item")).toHaveCount(role === "USER" ? 4 : 8);
+          await expect(page.locator(".rail nav .nav-item")).toHaveCount(role === "USER" ? 4 : 9);
         }
         if (role === "ADMIN" && [375, 1440].includes(width)) {
           for (const route of ["/app", "/admin/groups", "/admin/polls", "/admin/attendance", "/app/profile", "/app/settings"]) {

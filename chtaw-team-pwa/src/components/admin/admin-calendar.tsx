@@ -15,6 +15,8 @@ const statusLabels = { UPCOMING: "À venir", ONGOING: "En cours", COMPLETED: "Ac
 
 export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
   const store = useCommunity();
+  const actor = store.users.find((user) => user.id === store.session?.userId);
+  const prefix = actor?.role === "COLLABORATOR" ? "/collaborator" : "/admin";
   const { text: copy, locale } = useCopy();
   const [now, setNow] = useState(() => Date.now());
   const [selectedWeek, setSelectedWeek] = useState<string | null>(() => isCalendarDay(initialWeek) ? calendarWeek(initialWeek) : null);
@@ -31,7 +33,7 @@ export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
   const today = calendarDay(now);
   const current = calendarWeek(today);
   const week = selectedWeek ?? current;
-  const allSlots = useMemo(() => calendarSlots(store.polls), [store.polls]);
+  const allSlots = useMemo(() => calendarSlots(store.polls.filter((poll) => poll.authorId === actor?.id)), [store.polls, actor?.id]);
   const filtered = allSlots.filter((slot) => !groupId || slot.groupId === groupId);
   const visible = slotsInWeek(filtered, week);
   const weeks = calendarWeeks(filtered, current, week);
@@ -51,9 +53,9 @@ export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
   return (
     <div className={`admin-page ${styles.page}`}>
       <header className="page-heading">
-        <div><span className="eyebrow">{copy("ESPACE ADMIN")}</span><h1>{copy("Calendrier admin")}</h1>
+        <div><span className="eyebrow">{copy(actor?.role === "COLLABORATOR" ? "ESPACE COLLABORATEUR" : "ESPACE ADMIN")}</span><h1>{copy(actor?.role === "COLLABORATOR" ? "Mon calendrier" : "Calendrier admin")}</h1>
           <p className="muted">{copy("Retrouvez automatiquement les créneaux de vos sondages de séance, semaine par semaine.")}</p></div>
-        <Button asChild><Link href="/admin/polls?create=session"><Plus size={16} aria-hidden="true" />{copy("Créer un sondage de séance")}</Link></Button>
+        <Button asChild><Link href={`${prefix}/polls?create=session`}><Plus size={16} aria-hidden="true" />{copy("Créer un sondage de séance")}</Link></Button>
       </header>
       <section className={`panel ${styles.calendar}`} aria-label={copy("Calendrier hebdomadaire")} aria-busy={store.loading}>
         <div className={styles.toolbar}>

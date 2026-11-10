@@ -49,7 +49,7 @@ export class ApprovalsService {
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
       const user = await tx.user.findUnique({ where: { id: userId }, select: userSelect });
       if (!user) throw new NotFoundException("Compte introuvable.");
-      if (user.status !== "PENDING")
+      if (user.role !== "USER" || user.status !== "PENDING")
         throw new ConflictException("Cette demande a déjà été traitée.");
       const updated = await tx.user.update({
         where: { id: userId },

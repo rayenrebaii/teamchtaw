@@ -1,8 +1,8 @@
 import type { Roster } from "@/services/attendance.service";
 
-export const attendanceSessionHref = (id: string) => `/admin/attendance/${encodeURIComponent(id)}`;
-export const attendanceReturnHref = (id: string) =>
-  `/admin/attendance?pollId=${encodeURIComponent(id)}`;
+export const attendanceSessionHref = (id: string, role = "ADMIN") => `${role === "COLLABORATOR" ? "/collaborator" : "/admin"}/attendance/${encodeURIComponent(id)}`;
+export const attendanceReturnHref = (id: string, role = "ADMIN") =>
+  `${role === "COLLABORATOR" ? "/collaborator" : "/admin"}/attendance?pollId=${encodeURIComponent(id)}`;
 
 // Summarize only server-provided global results. Never infer absence from draft marks.
 export function attendanceRosterSummary(roster: Roster) {

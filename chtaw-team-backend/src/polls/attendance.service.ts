@@ -15,7 +15,7 @@ import { AttendanceQueryDto, PersonalAttendanceQueryDto } from "./attendance.dto
 import { validatePoll } from "./polls.validation";
 import { DomainEvents } from "../common/events";
 import { MandatoryAttendanceService } from "./mandatory-attendance.service";
-import { attendanceAccess, mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
+import { mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
 import { assertAttendanceStarted } from "./attendance-time";
 
 @Injectable()
@@ -30,7 +30,7 @@ export class AttendanceService {
   private async lockedPoll(tx: Prisma.TransactionClient, actor: Actor, id: string) {
     const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
     if (!located) throw new NotFoundException("Sondage introuvable.");
-    await this.access.group(tx, actor, located.groupId, true);
+    await this.access.session(tx, actor, id);
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({
       where: { id },
@@ -227,12 +227,12 @@ export class AttendanceService {
           group: { select: { id: true, name: true } },
           options: { orderBy: { position: "asc" } },
           votes: {
-            include: { user: { select: { ...userSelect, absenceState: true } }, options: true },
+            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } }, options: true },
           },
         },
       });
       if (!poll) throw new NotFoundException("Sondage introuvable.");
-      await this.access.group(tx, actor, poll.groupId, true);
+      await this.access.session(tx, actor, id);
       if (poll.type !== "SESSION") throw new BadRequestException("Sondage ordinaire.");
       return {
         id: poll.id,
@@ -256,7 +256,7 @@ export class AttendanceService {
                     },
                     attendance: selection.attendance,
                     version: selection.version,
-                    absences: vote.user.absenceState?.total ?? 0,
+                    absences: vote.user.studentOrganizerAbsences[0]?.total ?? 0,
                     final: finalAttendance(vote.options.map((o) => o.attendance)),
                   },
                 ];
@@ -268,12 +268,13 @@ export class AttendanceService {
 
   overview(actor: Actor, query: AttendanceQueryDto) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor, true, true);
+      await this.access.organizer(tx, actor);
       if (query.from && query.to && query.from > query.to)
         throw new BadRequestException("Intervalle de dates invalide.");
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
+          authorId: actor.id,
           group: { members: { some: { userId: actor.id } } },
           groupId: query.groupId,
           id: query.pollId,
@@ -292,10 +293,10 @@ export class AttendanceService {
           group: { select: { name: true } },
           participants: {
             where: { included: true },
-            include: { marks: true, user: { select: { ...userSelect, absenceState: true } } },
+            include: { marks: true, user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } } },
           },
           votes: {
-            include: { user: { select: { ...userSelect, absenceState: true } }, options: true },
+            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } }, options: true },
           },
         },
       });
@@ -329,7 +330,7 @@ export class AttendanceService {
             groups: [],
             presences: 0,
             absences: 0,
-            totalAbsences: vote.user.absenceState?.total ?? 0,
+            totalAbsences: vote.user.studentOrganizerAbsences[0]?.total ?? 0,
             pending: 0,
           };
           if (!row.groups.includes(poll.group.name)) row.groups.push(poll.group.name);
@@ -360,11 +361,11 @@ export class AttendanceService {
               ? a.totalAbsences - b.totalAbsences
               : b.totalAbsences - a.totalAbsences) || a.user.id.localeCompare(b.user.id),
         );
-      const unreadAlerts = await tx.absenceAlert.count({
+      const unreadAlerts = await tx.organizerAbsenceAlert.count({
         where: {
           resolvedAt: null,
           readAt: null,
-          user: attendanceAccess(actor.id),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
         },
       });
       return {
@@ -392,13 +393,14 @@ export class AttendanceService {
 
   history(actor: Actor, userId: string, self = false) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor, true, !self);
+      if (self) await this.access.actor(tx, actor);
+      else await this.access.organizer(tx, actor);
       const user = await tx.user.findUnique({ where: { id: userId }, select: userSelect });
       if (!user) throw new NotFoundException("Étudiant introuvable.");
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
-          ...(self ? {} : { group: { members: { some: { userId: actor.id } } } }),
+          ...(self ? {} : { authorId: actor.id, group: { members: { some: { userId: actor.id } } } }),
           OR: [
             { votes: { some: { userId } } },
             { participants: { some: { userId } } },
@@ -477,8 +479,8 @@ export class AttendanceService {
                 edits: o.edits,
               })),
       }));
-      const alerts = await tx.absenceAlert.findMany({
-        where: { userId },
+      const alerts = await tx.organizerAbsenceAlert.findMany({
+        where: { userId, ...(self ? {} : { organizerId: actor.id }) },
         orderBy: { createdAt: "desc" },
       });
       return {
@@ -493,30 +495,55 @@ export class AttendanceService {
 
   alerts(actor: Actor) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor, true, true);
-      return tx.absenceAlert.findMany({
+      await this.access.organizer(tx, actor);
+      return tx.organizerAbsenceAlert.findMany({
         where: {
-          user: attendanceAccess(actor.id),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
         },
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { ...userSelect, absenceState: true } } },
+        include: { user: { select: userSelect }, organizer: { select: userSelect } },
       });
     });
   }
   readAlert(actor: Actor, id: string) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor, true, true);
-      const alert = await tx.absenceAlert.findFirst({
+      await this.access.organizer(tx, actor);
+      const alert = await tx.organizerAbsenceAlert.findFirst({
         where: {
           id,
-          user: attendanceAccess(actor.id),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
         },
       });
-      if (!alert) throw new NotFoundException("Alerte introuvable.");
-      return tx.absenceAlert.update({
+      if (!alert) {
+        // Previously issued admin links retain their meaning; collaborators never see legacy global alerts.
+        const legacy = actor.role === "ADMIN" ? await tx.absenceAlert.findUnique({ where: { id } }) : null;
+        if (!legacy) throw new NotFoundException("Alerte introuvable.");
+        return tx.absenceAlert.update({ where: { id }, data: { readAt: legacy.readAt ?? new Date() } });
+      }
+      return tx.organizerAbsenceAlert.update({
         where: { id },
         data: { readAt: alert.readAt ?? new Date() },
       });
+    });
+  }
+  alertDetail(actor: Actor, id: string, confirm = false) {
+    return this.db.$transaction(async (tx) => {
+      await this.access.organizer(tx, actor);
+      const alert = await tx.organizerAbsenceAlert.findFirst({ where: { id,
+        ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }) },
+        include: { user: { select: userSelect }, organizer: { select: userSelect } } });
+      if (!alert) throw new NotFoundException("Signalement introuvable.");
+      if (confirm) {
+        if (alert.resolvedAt) throw new ConflictException("Signalement résolu.");
+        await tx.organizerAbsenceAlert.update({ where: { id }, data: { confirmedAt: alert.confirmedAt ?? new Date() } });
+      }
+      const state = await tx.organizerAbsenceState.findUnique({ where: { userId_organizerId: { userId: alert.userId, organizerId: alert.organizerId } } });
+      const sessions = await tx.poll.findMany({ where: { authorId: alert.organizerId, type: "SESSION",
+        OR: [{ participants: { some: { userId: alert.userId } } }, { votes: { some: { userId: alert.userId } } }] },
+        select: { id: true, question: true, status: true, createdAt: true, options: true,
+          participants: { where: { userId: alert.userId }, include: { marks: true, edits: { orderBy: { createdAt: "asc" } } } },
+          votes: { where: { userId: alert.userId }, include: { options: { include: { edits: true } } } } }, orderBy: { createdAt: "desc" } });
+      return { alert, total: state?.total ?? 0, sessions };
     });
   }
 }

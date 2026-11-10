@@ -13,7 +13,7 @@ export class SessionManagementService {
   private async lock(tx: Prisma.TransactionClient, actor: Actor, id: string) {
     const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
     if (!located) throw new NotFoundException("Séance introuvable.");
-    await this.access.group(tx, actor, located.groupId, true);
+    await this.access.session(tx, actor, id);
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({ where: { id }, include: { options: { orderBy: { position: "asc" } }, votes: true, participants: true, group: true } });
     if (poll.type !== "SESSION") throw new BadRequestException("Ce sondage n’est pas une séance.");

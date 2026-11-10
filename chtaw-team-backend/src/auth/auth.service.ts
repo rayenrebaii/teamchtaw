@@ -85,10 +85,17 @@ export class AuthService {
     return this.openSession(user, token.auth_time);
   }
   private async openSession(user: Prisma.UserGetPayload<{ select: typeof userSelect }> & { passwordHash?: string }, firebaseAuthTime?: number) {
+    if (user.disabledAt || (user.role === "COLLABORATOR" && !user.activatedAt)) throw new UnauthorizedException("Compte désactivé ou invitation non activée.");
     const id = randomUUID();
     const pair = await this.tokens(user.id, id, 0);
     const tokenHash = await argon2.hash(pair.refreshToken, passwordOptions);
-    await this.db.refreshSession.create({
+    await this.db.$transaction(async (tx) => {
+      // Serialize login against disable/reset so an in-flight login cannot reopen a revoked session.
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id=${user.id}::uuid FOR UPDATE`;
+      const current = await tx.user.findUnique({ where: { id: user.id }, select: { role: true, disabledAt: true, activatedAt: true, passwordHash: true } });
+      if (!current || current.disabledAt || (current.role === "COLLABORATOR" && !current.activatedAt) ||
+        (user.passwordHash && current.passwordHash !== user.passwordHash)) throw new UnauthorizedException("Reconnectez-vous.");
+      await tx.refreshSession.create({
       data: {
         id,
         userId: user.id,
@@ -98,6 +105,7 @@ export class AuthService {
           Date.now() + this.config.getOrThrow<number>("REFRESH_TTL_SECONDS") * 1000,
         ),
       },
+      });
     });
     const { passwordHash: _, ...safe } = user;
     return { ...pair, user: safe };
@@ -168,7 +176,7 @@ export class AuthService {
             expiresAt: true,
             revokedAt: true,
             firebaseAuthTime: true,
-            user: { select: { firebaseUid: true, email: true } },
+            user: { select: { firebaseUid: true, email: true, disabledAt: true } },
           },
         });
         if (
@@ -178,6 +186,7 @@ export class AuthService {
           session.expiresAt <= new Date()
         )
           return null;
+        if (session.user.disabledAt) return null;
         if (this.firebase.enabled) {
           const identity = await this.firebase.session(session.user.firebaseUid, session.firebaseAuthTime);
           if (identity.email?.trim().toLowerCase() !== session.user.email) return null;
@@ -240,6 +249,7 @@ export class AuthService {
       session.expiresAt <= new Date()
     )
       throw new UnauthorizedException("Session révoquée.");
+    if (session.user.disabledAt) throw new UnauthorizedException("Compte désactivé.");
     const { firebaseUid, ...user } = session.user;
     if (this.firebase.enabled) {
       const identity = await this.firebase.session(firebaseUid, session.firebaseAuthTime);

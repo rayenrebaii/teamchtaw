@@ -64,7 +64,8 @@ test("admin English pages and compact More navigation", async ({ page }) => {
   await page.goto("/admin/users"); await expect(page.getByRole("heading", { name: "Member management" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Mohamed Rami fixture@example.invalid" })).toBeVisible();
   await page.getByRole("button", { name: "More", exact: true }).click();
-  const menu = page.getByRole("navigation", { name: "All sections" }); await expect(menu.getByRole("link")).toHaveCount(4);
+  const menu = page.getByRole("navigation", { name: "All sections" }); await expect(menu.getByRole("link")).toHaveCount(5);
+  await expect(menu.locator('a[href="/admin/collaborators"]')).toBeVisible();
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.locator(".admin-mobile-nav").getByRole("link", { name: "Groups", exact: true }).click();
   await expect(page.getByRole("heading", { name: "A community for everyone." })).toBeVisible();

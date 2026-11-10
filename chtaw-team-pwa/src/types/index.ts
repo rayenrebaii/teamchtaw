@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "USER";
+export type Role = "ADMIN" | "USER" | "COLLABORATOR";
 export type Status = "PENDING" | "APPROVED" | "REJECTED";
 export interface User {
   id: string;
@@ -8,6 +8,8 @@ export interface User {
   role: Role;
   status: Status;
   emailVerified?: boolean;
+  disabledAt?: string | null;
+  activatedAt?: string | null;
   joinedAt: string;
   bio: string;
 }

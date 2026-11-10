@@ -533,7 +533,7 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
         .set(auth(otherAdmin))
         .send({ entries: [{ ...entry, status: "ABSENT" }] }),
     ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 403]);
     await api()
       .put(`/api/v1/polls/${poll.id}/attendance`)
       .set(auth(student))

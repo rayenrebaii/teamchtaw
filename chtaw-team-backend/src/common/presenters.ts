@@ -17,6 +17,8 @@ export const userSelect = {
   status: true,
   emailVerified: true,
   joinedAt: true,
+  disabledAt: true,
+  activatedAt: true,
 } satisfies Prisma.UserSelect;
 export const groupInclude = { members: { select: { userId: true } } } satisfies Prisma.GroupInclude;
 export const pollInclude = {

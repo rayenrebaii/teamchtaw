@@ -65,7 +65,7 @@ export function ProfileScreen() {
           </div>
           <div>
             <dt>{t("Rôle")}</dt>
-            <dd>{user.role === "ADMIN" ? t("Administrateur") : t("Étudiant")}</dd>
+            <dd>{user.role === "ADMIN" ? t("Administrateur") : user.role === "COLLABORATOR" ? "Collaborateur" : t("Étudiant")}</dd>
           </div>
           <div>
             <dt>{t("Adhésion")}</dt>

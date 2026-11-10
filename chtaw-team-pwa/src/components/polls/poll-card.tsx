@@ -24,7 +24,7 @@ export function PollCard({ poll, showResults = false }: { poll: Poll; showResult
     !!poll.attendanceLockedAt;
   const adminSession =
     poll.type === "SESSION" &&
-    store.users.find((u) => u.id === store.session?.userId)?.role === "ADMIN";
+    store.users.find((u) => u.id === store.session?.userId)?.role !== "USER";
   const choices = editing ? selected : (mine?.optionIds ?? selected);
   return (
     <div className={`poll-card${poll.type === "SESSION" ? " session-poll" : ""}`}>

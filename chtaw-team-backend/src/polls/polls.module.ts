@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   ConflictException,
+  ForbiddenException,
   Controller,
   Get,
   Injectable,
@@ -19,7 +20,7 @@ import { AccessService, Actor } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { pollInclude, presentPoll, presentMessage, messageInclude } from "../common/presenters";
 import { PageDto } from "../common/query.dto";
-import { Admin, CurrentUser } from "../auth/security";
+import { Organizer, CurrentUser } from "../auth/security";
 import { CreatePollDto, VoteDto } from "./polls.dto";
 import { validatePoll } from "./polls.validation";
 @Injectable()
@@ -33,7 +34,7 @@ export class PollsService {
     return this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor);
       const items = await tx.poll.findMany({
-        where: { group: { members: { some: { userId: actor.id } } } },
+        where: { group: { members: { some: { userId: actor.id } } }, ...(actor.role === "COLLABORATOR" ? { authorId: actor.id } : {}) },
         include: pollInclude,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
@@ -52,7 +53,9 @@ export class PollsService {
     if (new Set(dto.options.map((o) => o.toLocaleLowerCase())).size !== dto.options.length)
       throw new BadRequestException("Les réponses doivent être différentes.");
     const result = await this.db.$transaction(async (tx) => {
-      await this.access.group(tx, actor, groupId, true);
+      const user = await this.access.organizer(tx, actor);
+      await this.access.group(tx, actor, groupId);
+      if (user.role === "COLLABORATOR" && dto.type !== "SESSION") throw new ForbiddenException("Seuls les sondages de séance sont autorisés.");
       const poll = await tx.poll.create({
         data: {
           groupId,
@@ -102,6 +105,8 @@ export class PollsService {
       const poll = await tx.poll.findUnique({ where: { id }, include: pollInclude });
       if (!poll) throw new NotFoundException("Sondage introuvable.");
       await this.access.group(tx, actor, poll.groupId);
+      if (actor.role === "COLLABORATOR" && poll.type === "SESSION" && poll.authorId !== actor.id)
+        throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
       return presentPoll(poll);
     });
   }
@@ -160,7 +165,7 @@ export class PollsController {
   @Get("polls/:id") get(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.polls.get(actor, id);
   }
-  @Admin() @Post("groups/:groupId/polls") create(
+  @Organizer() @Post("groups/:groupId/polls") create(
     @CurrentUser() actor: Actor,
     @Param("groupId", ParseUUIDPipe) groupId: string,
     @Body() dto: CreatePollDto,

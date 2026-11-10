@@ -15,6 +15,11 @@ jest.mock("firebase-admin/app", () => ({ getApps: () => [{ name: "chtaw-auth" }]
 jest.mock("firebase-admin/auth", () => ({ getAuth: () => ({ verifyIdToken, getUser }) }));
 
 describe("Firebase server identity", () => {
+  it("refuse un émulateur en production ou sur un hôte non local", () => {
+    const base = { DATABASE_URL: "postgresql://localhost/test", CORS_ORIGINS: "https://example.test", JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64) };
+    expect(() => validateEnvironment({ ...base, NODE_ENV: "production", FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099" })).toThrow("Firebase emulator");
+    expect(() => validateEnvironment({ ...base, NODE_ENV: "test", FIREBASE_AUTH_EMULATOR_HOST: "example.test:9099" })).toThrow("Firebase emulator");
+  });
   const identity = new FirebaseIdentity(new ConfigService({ AUTH_PROVIDER: "firebase" }));
   it("checks token revocation with the Admin SDK", async () => {
     verifyIdToken.mockResolvedValue({ uid: "uid", email: "test@example.test", firebase: { sign_in_provider: "password" } });
@@ -45,7 +50,12 @@ describe("Firebase account linking", () => {
   const firebase = { enabled: true, verify: jest.fn(), session: jest.fn(), passwordLogin: jest.fn().mockRejectedValue(new Error("Firebase credentials rejected")) };
   let auth: AuthService;
   beforeAll(() => {
-    auth = new AuthService({ user: { findUnique, create, update }, refreshSession: { create: sessionCreate } } as unknown as PrismaService,
+    auth = new AuthService({ user: { findUnique, create, update }, refreshSession: { create: sessionCreate },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({
+        $queryRaw: jest.fn(), refreshSession: { create: sessionCreate }, user: { findUnique: async () =>
+          await (update.mock.results.at(-1)?.value ?? create.mock.results.at(-1)?.value ?? findUnique.mock.results.at(-1)?.value) },
+      }),
+    } as unknown as PrismaService,
       { signAsync: jest.fn().mockResolvedValue("fictional-refresh-token") } as unknown as JwtService,
       new ConfigService({ ACCESS_TTL_SECONDS: 900, REFRESH_TTL_SECONDS: 3600, JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64) }), new DomainEvents(), firebase as unknown as FirebaseIdentity);
   });

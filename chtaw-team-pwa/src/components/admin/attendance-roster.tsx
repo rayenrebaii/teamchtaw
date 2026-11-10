@@ -37,6 +37,7 @@ export function AttendanceRosterPage({
 }) {
   const { text: copy } = useCopy();
   const store = useCommunity();
+  const actor = store.users.find((user) => user.id === store.session?.userId);
   const load = useCallback(() => attendanceService.roster(pollId), [pollId]);
   const remote = useRemote(load);
   const [slotId, setSlotId] = useState(initialSlotId ?? "");
@@ -126,7 +127,7 @@ export function AttendanceRosterPage({
   const disabled = saving || remote.loading || data?.status === "CANCELLED";
   return (
     <section className="attendance-roster" aria-label={copy("Page de pointage de la séance")}>
-      <Link className="roster-back" href={attendanceReturnHref(pollId)}>
+      <Link className="roster-back" href={attendanceReturnHref(pollId, actor?.role)}>
         <ArrowLeft size={17} aria-hidden="true" />
         {copy("Retour aux présences")}{" "}
       </Link>

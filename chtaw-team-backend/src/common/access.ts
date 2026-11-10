@@ -38,6 +38,7 @@ export class AccessService {
     )
       throw new UnauthorizedException("Session expirée.");
     const user = session.user;
+    if (user.disabledAt) throw new UnauthorizedException("Compte désactivé.");
     if (requireApproved && actor.emailVerified === false)
       throw new ForbiddenException("Vérifiez votre adresse e-mail.");
     if (requireApproved && user.status !== "APPROVED")
@@ -45,6 +46,20 @@ export class AccessService {
     if (requireAdmin && user.role !== "ADMIN")
       throw new ForbiddenException("Administrateur requis.");
     return user;
+  }
+  async organizer(tx: Prisma.TransactionClient, actor: Actor) {
+    const user = await this.actor(tx, actor);
+    if (user.role !== "ADMIN" && user.role !== "COLLABORATOR")
+      throw new ForbiddenException("Organisateur requis.");
+    return user;
+  }
+  async session(tx: Prisma.TransactionClient, actor: Actor, id: string) {
+    const poll = await tx.poll.findUnique({ where: { id }, select: { groupId: true, authorId: true } });
+    if (!poll) throw new NotFoundException("Séance introuvable.");
+    await this.group(tx, actor, poll.groupId);
+    await this.organizer(tx, actor);
+    if (poll.authorId !== actor.id) throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
+    return poll;
   }
   async lockGroup(tx: Prisma.TransactionClient, groupId: string) {
     await tx.$queryRaw`SELECT id FROM "Group" WHERE id = ${groupId}::uuid FOR UPDATE`;

@@ -42,6 +42,7 @@ export class UsersService {
       const search = query.search;
       const where: Prisma.UserWhereInput = {
         status: query.status,
+        role: { not: "COLLABORATOR" },
         ...(search
           ? {
               OR: [

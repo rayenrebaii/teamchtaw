@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import type { Auth, DecodedIdToken } from "firebase-admin/auth";
@@ -7,6 +7,47 @@ import type { Auth, DecodedIdToken } from "firebase-admin/auth";
 export class FirebaseIdentity {
   constructor(private config: ConfigService) {}
   get enabled() { return this.config.get<string>("AUTH_PROVIDER") === "firebase"; }
+  async createCollaborator(uid: string, email: string) {
+    // Never adopt an existing Firebase identity by email.
+    await (await this.client()).createUser({ uid, email, emailVerified: false });
+  }
+  async setPassword(uid: string | null, password: string, verifyEmail: boolean) {
+    if (!uid) throw new UnauthorizedException("Identité Firebase absente.");
+    const client = await this.client();
+    await client.updateUser(uid, { password, ...(verifyEmail ? { emailVerified: true } : {}) });
+    await client.revokeRefreshTokens(uid);
+  }
+  async sendPasswordReset(email: string, continueUrl: string) {
+    await this.emailRequest("sendOobCode", { requestType: "PASSWORD_RESET", email, continueUrl });
+    return { sent: true, provider: "firebase" as const };
+  }
+  async activateInvitation(uid: string | null, email: string, idToken: string, issuedAt: Date) {
+    if (!uid) throw new BadRequestException("Identité Firebase absente.");
+    const token = await this.verify(idToken);
+    const identity = await this.session(token.uid, token.auth_time);
+    if (token.uid !== uid || token.email?.trim().toLowerCase() !== email ||
+      identity.email?.trim().toLowerCase() !== email || token.auth_time < Math.floor(issuedAt.getTime() / 1000))
+      throw new BadRequestException("Compte indisponible.");
+    // The independently checked, unexpired application nonce was sent only in
+    // Firebase's email. Combined with a fresh, matching password identity it
+    // proves invitation ownership; a client emailVerified flag grants nothing.
+    await (await this.client()).updateUser(uid, { emailVerified: true });
+    await (await this.client()).revokeRefreshTokens(uid);
+  }
+  private async emailRequest(action: "sendOobCode" | "resetPassword", body: object): Promise<{ email?: string; requestType?: string }> {
+    let response: Response;
+    try {
+      const emulator = this.config.get<string>("FIREBASE_AUTH_EMULATOR_HOST");
+      if (emulator && (this.config.get("NODE_ENV") !== "test" || !/^127\.0\.0\.1:\d+$/.test(emulator))) throw Error("Unsafe emulator configuration");
+      const base = emulator ? `http://${emulator}/identitytoolkit.googleapis.com` : "https://identitytoolkit.googleapis.com";
+      response = await fetch(`${base}/v1/accounts:${action}?key=${encodeURIComponent(this.config.getOrThrow<string>("FIREBASE_WEB_API_KEY"))}`, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Firebase-Locale": "fr" },
+        body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
+      });
+    } catch { throw new ServiceUnavailableException("Service d’e-mail Firebase indisponible."); }
+    if (!response.ok) throw new BadRequestException("Action Firebase impossible. Le lien peut être invalide ou expiré.");
+    return response.json() as Promise<{ email?: string; requestType?: string }>;
+  }
   async passwordLogin(email: string, password: string): Promise<string> {
     // Compatibility for installed PWAs during rollout; credentials are checked by Firebase only.
     try {

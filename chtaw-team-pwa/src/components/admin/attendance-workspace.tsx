@@ -40,6 +40,7 @@ const date = (value: string) =>
 export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: string }) {
   const { text: copy } = useCopy();
   const store = useCommunity();
+  const actor = store.users.find((user) => user.id === store.session?.userId);
   const [tab, setTab] = useState("pointage");
   const [filters, setFilters] = useState<Record<string, string>>({
     page: "1",
@@ -92,7 +93,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
     <>
       <header className="page-heading">
         <div>
-          <span className="eyebrow"> {copy("ESPACE ADMIN · SUIVI DES ÉTUDIANTS")} </span>
+          <span className="eyebrow"> {copy(actor?.role === "COLLABORATOR" ? "ESPACE COLLABORATEUR" : "ESPACE ADMIN · SUIVI DES ÉTUDIANTS")} </span>
           <h1> {copy("Gestion des présences")} </h1>
           <p className="muted">
             {copy("Suivez les séances, effectuez les pointages et gérez les absences.")}{" "}
@@ -166,10 +167,10 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                 onChange={(e) => update({ pollId: e.target.value })}
               >
                 <option value=""> {copy("Toutes les séances")} </option>
-                {store.polls
+                  {store.polls
                   .filter(
                     (p) =>
-                      p.type === "SESSION" && (!filters.groupId || p.groupId === filters.groupId),
+                      p.type === "SESSION" && p.authorId === actor?.id && (!filters.groupId || p.groupId === filters.groupId),
                   )
                   .map((p) => (
                     <option key={p.id} value={p.id}>
@@ -278,7 +279,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   )}
                 </div>
                 <Button asChild size="sm">
-                  <Link href={attendanceSessionHref(session.id)}>
+                  <Link href={attendanceSessionHref(session.id, actor?.role)}>
                     {" "}
                     {copy("Gérer les présences")}{" "}
                   </Link>

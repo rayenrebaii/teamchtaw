@@ -1,0 +1,9 @@
+{
+  "title": "Chtaw Collaborator Provisioner",
+  "description": "Additional permissions for the admin-only collaborator invitation flow; retain the existing Firebase Auth Viewer role.",
+  "stage": "GA",
+  "includedPermissions": [
+    "firebaseauth.users.create",
+    "firebaseauth.users.update"
+  ]
+}

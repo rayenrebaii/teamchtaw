@@ -28,6 +28,9 @@ export function validateEnvironment(env: Record<string, unknown>) {
   }
   const mode = text("NODE_ENV", "development");
   if (!["development", "test", "production"].includes(mode)) throw Error("Invalid NODE_ENV.");
+  if (env.FIREBASE_AUTH_EMULATOR_HOST && (mode !== "test" ||
+    typeof env.FIREBASE_AUTH_EMULATOR_HOST !== "string" || !/^127\.0\.0\.1:\d+$/.test(env.FIREBASE_AUTH_EMULATOR_HOST)))
+    throw Error("Firebase emulator is allowed only in local tests.");
   const directDatabase = text("DATABASE_DIRECT_URL", database);
   if (!/^postgres(ql)?:\/\//.test(directDatabase)) throw Error("DATABASE_DIRECT_URL must use PostgreSQL.");
   const mediaStorage = text("MEDIA_STORAGE", "local");

@@ -12,6 +12,7 @@ import { Actor } from "../common/access";
 export const Public = () => SetMetadata("public", true);
 export const AllowUnapproved = () => SetMetadata("unapproved", true);
 export const Admin = () => SetMetadata("admin", true);
+export const Organizer = () => SetMetadata("organizer", true);
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): Actor =>
     ctx.switchToHttp().getRequest<{ user: Actor }>().user,
@@ -40,6 +41,9 @@ export class PermissionsGuard implements CanActivate {
     )
       return true;
     const user = ctx.switchToHttp().getRequest<{ user: Actor }>().user;
+    if (this.reflector.getAllAndOverride<boolean>("organizer", [ctx.getHandler(), ctx.getClass()]) &&
+      user.role !== "ADMIN" && user.role !== "COLLABORATOR")
+      throw new ForbiddenException("Organisateur requis.");
     if (
       !this.reflector.getAllAndOverride<boolean>("unapproved", [
         ctx.getHandler(),

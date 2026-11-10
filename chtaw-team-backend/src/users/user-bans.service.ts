@@ -42,6 +42,8 @@ export class UserBansService {
         select: { id: true },
       });
       const polls = await tx.poll.findMany({ where: ownPoll, select: { id: true } });
+      await tx.organizerAbsenceAlert.deleteMany({ where: { OR: [{ userId }, { organizerId: userId }] } });
+      await tx.organizerAbsenceState.deleteMany({ where: { OR: [{ userId }, { organizerId: userId }] } });
       // Remove dependent rows in FK order. The transaction rolls back every change on failure.
       await tx.sessionAttendanceEdit.deleteMany({ where: {
         OR: [{ actorId: userId }, { userId }, { participant: { poll: ownPoll } }],

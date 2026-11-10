@@ -20,7 +20,7 @@ export function notificationWhere(actor: Actor): Prisma.NotificationWhereInput {
   return {
     userId: actor.id,
     group: { members: { some: { userId: actor.id } } },
-    ...(actor.role === "ADMIN" ? { type: { in: ["MESSAGE", "POLL"] } } : {}),
+    ...(actor.role !== "USER" ? { type: { in: ["MESSAGE", "POLL", "ABSENCE_ALERT"] } } : {}),
   };
 }
 @Injectable()
@@ -128,6 +128,12 @@ export class NotificationsService {
       await this.access.actor(tx, actor);
       const item = await tx.notification.findFirst({ where: { ...notificationWhere(actor), id } });
       if (!item) throw new NotFoundException("Notification introuvable.");
+      if (item.type === "ABSENCE_ALERT") {
+        const alert = await tx.organizerAbsenceAlert.findFirst({ where: { id: item.entityId,
+          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }) } });
+        if (!alert) throw new NotFoundException("Signalement indisponible.");
+        return { href: actor.role === "ADMIN" ? "/admin/collaborator-reports" : "/collaborator/reports" };
+      }
       if (item.type === "MESSAGE") {
         if (!(await tx.message.findFirst({ where: { id: item.entityId, groupId: item.groupId } })))
           throw new NotFoundException("Contenu indisponible.");
@@ -192,7 +198,7 @@ export class NotificationsService {
   }
   async deliveryAllowed(tx: Prisma.TransactionClient, item: Notification, now: Date) {
     const user = await tx.user.findUnique({ where: { id: item.userId } });
-    if (!user || user.status !== "APPROVED" || item.readAt || item.expiresAt <= now) return false;
+    if (!user || user.disabledAt || user.status !== "APPROVED" || item.readAt || item.expiresAt <= now) return false;
     if (
       !(await tx.groupMember.findUnique({
         where: { groupId_userId: { groupId: item.groupId, userId: user.id } },
@@ -232,6 +238,9 @@ export class NotificationsService {
         },
       }));
     }
+    if (item.type === "ABSENCE_ALERT") return !!(await tx.organizerAbsenceAlert.findFirst({
+      where: { id: item.entityId, resolvedAt: null, ...(user.role === "ADMIN" ? {} : { organizerId: user.id }) },
+    }));
     return true;
   }
 }

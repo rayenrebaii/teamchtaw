@@ -20,7 +20,7 @@ import { InstallPWAButton } from "@/components/pwa/InstallPWAButton";
 import { BrandLogo } from "@/components/brand-logo";
 import { AppHeader, MobileNavigation, NavigationItems } from "@/components/app-navigation";
 import { useCopy } from "@/lib/i18n";
-export function Shell({ children, admin = false }: { children: React.ReactNode; admin?: boolean }) {
+export function Shell({ children, admin = false, organizer = false }: { children: React.ReactNode; admin?: boolean; organizer?: boolean }) {
   const store = useCommunity();
   const content = useRef<HTMLDivElement>(null);
   const { t } = useCopy();
@@ -28,7 +28,7 @@ export function Shell({ children, admin = false }: { children: React.ReactNode; 
   const user = store.users.find((u) => u.id === store.session?.userId);
   const router = useRouter();
   const path = usePathname();
-  const valid = user?.status === "APPROVED" && (process.env.NEXT_PUBLIC_AUTH_PROVIDER !== "firebase" || user.emailVerified !== false) && (!admin || user.role === "ADMIN");
+  const valid = user?.status === "APPROVED" && (process.env.NEXT_PUBLIC_AUTH_PROVIDER !== "firebase" || user.emailVerified !== false) && (!admin || user.role === "ADMIN") && (!organizer || user.role === "COLLABORATOR" || user.role === "ADMIN");
   useEffect(() => {
     if (!user) router.replace("/login");
     else if (!valid) router.replace(destination(user));
@@ -52,7 +52,7 @@ export function Shell({ children, admin = false }: { children: React.ReactNode; 
       viewport?.removeEventListener("scroll", resize);
       window.removeEventListener("resize", resize);
     };
-  }, [user?.role]);
+  }, [user]);
   useEffect(() => { if (content.current) { content.current.scrollTop = 0; content.current.scrollLeft = 0; } }, [path]);
   if (!valid || !user) return <div className="boot">{t("Ouverture de votre espace…")}</div>;
   const links =
@@ -68,17 +68,23 @@ export function Shell({ children, admin = false }: { children: React.ReactNode; 
           { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
           ...(user.role === "ADMIN"
             ? [
+                { href: "/admin/collaborators", label: "Collaborateurs", Icon: Users },
                 { href: "/admin/users", label: t("Membres"), Icon: Users },
                 { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
                 { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
                 { href: "/admin/calendar", label: t("Calendrier"), Icon: CalendarDays },
                 { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
               ]
-            : []),
+            : user.role === "COLLABORATOR" ? [
+                { href: "/collaborator", label: "Mon calendrier", Icon: CalendarDays },
+                { href: "/collaborator/polls", label: "Mes sondages", Icon: ChartNoAxesColumn },
+                { href: "/collaborator/attendance", label: "Présences", Icon: CalendarDays },
+                { href: "/collaborator/reports", label: "Signalements", Icon: Layers },
+              ] : []),
           { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ];
-  const mobileItems = user.role === "ADMIN" ? ["/app", "/admin/users", "/admin/groups", "/admin/attendance"].map((href) => links.find((item) => item.href === href)!) : links;
-  const moreItems = user.role === "ADMIN" ? ["/admin/calendar", "/admin/polls", "/app/profile", "/app/settings"].map((href) => links.find((item) => item.href === href)!) : [];
+  const mobileItems = user.role === "ADMIN" ? ["/app", "/admin/users", "/admin/groups", "/admin/attendance"].map((href) => links.find((item) => item.href === href)!) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
+  const moreItems = user.role === "ADMIN" ? ["/admin/calendar", "/admin/polls", "/admin/collaborators", "/app/profile", "/app/settings"].map((href) => links.find((item) => item.href === href)!) : user.role === "COLLABORATOR" ? links.filter((link) => !mobileItems.includes(link)) : [];
   return (
     <div
       ref={workspace}
@@ -96,7 +102,7 @@ export function Shell({ children, admin = false }: { children: React.ReactNode; 
           <div className="user-card"><Avatar user={user} /><div><strong>{user.firstName} {user.lastName}</strong><span>{t("Administrateur")}</span></div></div>
         </div>}
       </aside>
-      {user.role === "ADMIN" && <MobileNavigation items={mobileItems} moreItems={moreItems} path={path} label={t("Navigation administrateur")} className="admin-mobile-nav" />}
+      {user.role !== "USER" && <MobileNavigation items={mobileItems} moreItems={moreItems} path={path} label={t(user.role === "COLLABORATOR" ? "Navigation collaborateur" : "Navigation administrateur")} className="admin-mobile-nav" />}
       <main className="workspace-main">
         <AppHeader user={user} />
         <div className="workspace-content" ref={content}>{children}</div>

@@ -49,6 +49,10 @@ export interface Roster {
   }[];
 }
 export interface AbsenceAlert {
+  organizerId?: string;
+  organizer?: User;
+  pollIds?: string[];
+  confirmedAt?: string | null;
   id: string;
   userId: string;
   generation: number;

@@ -25,7 +25,7 @@ import { assertAttendanceStarted } from "./attendance-time";
 
 const personInclude = {
   marks: true,
-  user: { select: { ...userSelect, absenceState: true } },
+  user: { select: { ...userSelect, studentOrganizerAbsences: true } },
 } satisfies Prisma.SessionParticipantInclude;
 type Person = Prisma.SessionParticipantGetPayload<{ include: typeof personInclude }>;
 type Session = Prisma.PollGetPayload<{ include: { options: true; group: true } }>;
@@ -62,7 +62,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
   private async locked(tx: Prisma.TransactionClient, actor: Actor, id: string) {
     const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
     if (!located) throw new NotFoundException("Séance introuvable.");
-    await this.access.group(tx, actor, located.groupId, true);
+    await this.access.session(tx, actor, id);
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({
       where: { id },
@@ -416,6 +416,9 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       payload: presentPoll(poll),
     });
   }
+  private safeUser(user: Person["user"]) {
+    const { studentOrganizerAbsences: _, ...safe } = user; return safe;
+  }
   async roster(actor: Actor, id: string) {
     // Authorize before running the idempotent catch-up for this session.
     await this.db.$transaction((tx) => this.locked(tx, actor, id));
@@ -440,7 +443,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         finished: sessionFinished(poll.options),
         attendanceLockedAt: poll.attendanceLockedAt,
         participants: people.map((p) => ({
-          user: p.user,
+          user: this.safeUser(p.user),
           included: p.included,
           version: p.version,
           final: mandatoryFinal(p),
@@ -455,11 +458,11 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
                 const mark = person.marks.find((m) => m.optionId === option.id);
                 const vote = votes.find((v) => v.userId === person.userId);
                 return {
-                  user: person.user,
+                  user: this.safeUser(person.user),
                   attendance: mark?.attendance ?? "NON_VERIFIE",
                   version: mark?.version ?? 0,
                   participantVersion: person.version,
-                  absences: person.user.absenceState?.total ?? 0,
+                  absences: person.user.studentOrganizerAbsences.find((state) => state.organizerId === actor.id)?.total ?? 0,
                   final: mandatoryFinal(person),
                   voted: !!vote?.options.some((o) => o.optionId === option.id),
                   hasVoted: !!vote,
@@ -472,12 +475,13 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
   async sessions(actor: Actor, query: AttendanceQueryDto) {
     if (query.from && query.to && query.from > query.to)
       throw new BadRequestException("Période invalide.");
-    await this.db.$transaction((tx) => this.access.actor(tx, actor, true, true));
+    await this.db.$transaction((tx) => this.access.organizer(tx, actor));
     await this.processDueSessions();
     const polls = await this.db.poll.findMany({
       where: {
         type: "SESSION",
-        group: { members: { some: { userId: actor.id } } },
+        authorId: actor.id,
+          group: { members: { some: { userId: actor.id } } },
         groupId: query.groupId,
         id: query.pollId,
       },
@@ -545,7 +549,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
   async reports(actor: Actor, query: AttendanceQueryDto) {
     if (query.from && query.to && query.from > query.to)
       throw new BadRequestException("Période invalide.");
-    await this.db.$transaction((tx) => this.access.actor(tx, actor, true, true));
+    await this.db.$transaction((tx) => this.access.organizer(tx, actor));
     await this.processDueSessions();
     const rows = await this.db.sessionParticipant.findMany({
       where: {
@@ -554,6 +558,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           ? {}
           : { reportResolvedAt: query.reportStatus === "RESOLVED" ? { not: null } : null }),
         poll: {
+          authorId: actor.id,
           group: { members: { some: { userId: actor.id } } },
           groupId: query.groupId,
           id: query.pollId,
@@ -592,7 +597,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       total: filtered.length,
       items: filtered.slice((query.page - 1) * query.limit, query.page * query.limit).map((p) => ({
         pollId: p.pollId,
-        user: p.user,
+        user: this.safeUser(p.user),
         question: p.poll.question,
         group: { id: p.poll.groupId, name: p.poll.group.name },
         options: p.poll.options,

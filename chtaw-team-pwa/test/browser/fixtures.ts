@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-export async function fixture(page: Page, role: "USER" | "ADMIN", theme: string, language = "fr") {
+export async function fixture(page: Page, role: "USER" | "ADMIN" | "COLLABORATOR", theme: string, language = "fr") {
   const user = { id: "fixture-account", firstName: "Mohamed", lastName: "Rami", email: "fixture@example.invalid", role, status: "APPROVED", joinedAt: "2026-01-01T10:00:00Z", bio: "" };
   const groups = [{ id: "fixture-group", name: "Nom métier conservé", description: "", color: "#aabbcc", isGeneral: true, memberIds: [user.id] }];
   await page.addInitScript(({ theme, language }) => { if (!localStorage.getItem("chtaw-theme")) localStorage.setItem("chtaw-theme", theme); if (!localStorage.getItem("chtaw-language")) localStorage.setItem("chtaw-language", language); }, { theme, language });
@@ -12,6 +12,7 @@ export async function fixture(page: Page, role: "USER" | "ADMIN", theme: string,
     else if (path === "/auth/me" || path === "/users/me") body = user;
     else if (path === "/groups") body = groups;
     else if (path === "/users") body = { items: [user], nextCursor: null };
+    else if (path === "/organizer/participants") body = [];
     else if (path === "/polls") body = { items: [], nextCursor: null };
     else if (path === "/admin/stats") body = { totalUsers: 1, pendingUsers: 0, approvedUsers: 1, groups: 1, messages: 0, polls: 0 };
     else if (path === "/notifications") body = { items: [], unreadCount: 0, nextCursor: null };

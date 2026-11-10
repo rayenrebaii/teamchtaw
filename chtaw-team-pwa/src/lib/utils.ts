@@ -11,5 +11,5 @@ export function destination(user: { status: string; role: string; emailVerified?
       ? "/account-rejected"
       : user.role === "ADMIN"
         ? "/admin"
-        : "/app";
+        : user.role === "COLLABORATOR" ? "/collaborator" : "/app";
 }
