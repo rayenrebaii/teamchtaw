@@ -25,8 +25,10 @@ it("loads and filters the administrator collaborator directory", async () => {
   const request = vi.spyOn(api, "request").mockResolvedValue([{ ...actor, activatedAt: "2026-01-01", memberships: [] }]);
   render(<CollaboratorsScreen />);
   await screen.findByRole("heading", { name: "Alice Test" });
-  fireEvent.change(screen.getByLabelText("Rechercher"), { target: { value: "Alice" } });
-  await waitFor(() => expect(request).toHaveBeenCalledWith("/admin/collaborators?search=Alice&status="));
+  fireEvent.change(screen.getByLabelText("Rechercher un collaborateur"), { target: { value: "Alice" } });
+  expect(request).toHaveBeenCalledWith("/admin/collaborators?search=&status=");
+  expect(screen.getByRole("heading", { name: "Alice Test" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Voir les groupes" }));
   expect(screen.getByLabelText("G1").hasAttribute("checked")).toBe(false);
 });
 it("shows collaborator directory errors with retry", async () => {
@@ -118,4 +120,69 @@ it("translates organizer reports and their empty state into English", async () =
   expect(screen.getByRole("heading", { name: "Reports by organizer" })).toBeTruthy();
   expect(await screen.findByText("No reports.")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Refresh" }).querySelector("svg")).toBeTruthy();
+});
+
+const directory = [
+  { ...actor, activatedAt: "2026-03-01", joinedAt: "2026-03-01T12:00:00Z", memberships: [{ groupId: "group" }] },
+  { ...actor, id: "invited", firstName: "Bruno", activatedAt: null, joinedAt: "2026-01-01T12:00:00Z", memberships: [] },
+  { ...actor, id: "banned", firstName: "Charlie", activatedAt: "2026-01-01", disabledAt: "2026-02-02", joinedAt: "2026-02-01T12:00:00Z", memberships: [{ groupId: "group" }] },
+];
+
+it("keeps deduplicated status totals stable when tabs and search filter the table", async () => {
+  vi.spyOn(api, "request").mockResolvedValue([...directory, directory[0]]);
+  render(<CollaboratorsScreen />);
+  await screen.findByRole("heading", { name: "Alice Test" });
+  const count = (label: string) => screen.getByText(label).closest(".stat-card")?.querySelector("strong")?.textContent;
+  expect(count("Total des collaborateurs")).toBe("3");
+  expect(count("Invitations en attente")).toBe("1");
+  expect(count("Collaborateurs actifs")).toBe("1");
+  expect(count("Collaborateurs bannis")).toBe("1");
+  fireEvent.click(screen.getByRole("tab", { name: /^Invités/ }));
+  expect(screen.getByRole("heading", { name: "Bruno Test" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Alice Test" })).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: /^Tous les collaborateurs/ }));
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "charlie" } });
+  expect(screen.getByRole("heading", { name: "Charlie Test" })).toBeTruthy();
+  expect(count("Total des collaborateurs")).toBe("3");
+  expect(count("Collaborateurs bannis")).toBe("1");
+});
+
+it("sorts by joined date and filters by actual collaborator group grants", async () => {
+  vi.spyOn(api, "request").mockResolvedValue(directory);
+  render(<CollaboratorsScreen />);
+  await screen.findByRole("heading", { name: "Alice Test" });
+  fireEvent.change(screen.getByLabelText("Trier par date"), { target: { value: "oldest" } });
+  expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual(["Bruno Test", "Charlie Test", "Alice Test"]);
+  fireEvent.change(screen.getByLabelText("Groupe"), { target: { value: "group" } });
+  expect(screen.queryByRole("heading", { name: "Bruno Test" })).toBeNull();
+  expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(2);
+});
+
+it("validates and applies joined-date bounds, then resets all filters", async () => {
+  vi.spyOn(api, "request").mockResolvedValue(directory);
+  render(<CollaboratorsScreen />);
+  await screen.findByRole("heading", { name: "Alice Test" });
+  fireEvent.click(screen.getByRole("button", { name: "Filtres avancés" }));
+  fireEvent.change(screen.getByLabelText("Date de début"), { target: { value: "2026-02-01" } });
+  fireEvent.change(screen.getByLabelText("Date de fin"), { target: { value: "2026-01-01" } });
+  expect((screen.getByRole("button", { name: "Appliquer la période" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole("alert")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Date de fin"), { target: { value: "2026-02-28" } });
+  fireEvent.click(screen.getByRole("button", { name: "Appliquer la période" }));
+  expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual(["Charlie Test"]);
+  fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
+  expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(3);
+});
+
+it("updates group grants from the table's group dialog", async () => {
+  let memberships: { groupId: string }[] = [];
+  const request = vi.spyOn(api, "request").mockImplementation(async (_path, init) => {
+    if (init?.method === "PUT") { memberships = [{ groupId: "group" }]; return { success: true }; }
+    return [{ ...actor, activatedAt: "2026-01-01", memberships }];
+  });
+  render(<CollaboratorsScreen />);
+  fireEvent.click(await screen.findByRole("button", { name: "Voir les groupes" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "G1" }));
+  await waitFor(() => expect((screen.getByRole("checkbox", { name: "G1" }) as HTMLInputElement).checked).toBe(true));
+  expect(request).toHaveBeenCalledWith("/admin/collaborators/collab-a/groups/group", { method: "PUT", body: JSON.stringify({ granted: true }) });
 });
