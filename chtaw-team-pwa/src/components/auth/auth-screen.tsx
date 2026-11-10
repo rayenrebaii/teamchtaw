@@ -1,6 +1,6 @@
 ﻿"use client";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { attempt } from "@/components/shared";
 import { destination } from "@/lib/utils";
 import { firebaseEnabled } from "@/services/firebase";
+import { PasswordInput } from "./password-input";
 const schema = z
   .object({
     firstName: z.string().trim().min(2, "Au moins 2 caractères.").max(60),
@@ -33,6 +34,7 @@ const loginSchema = z.object({
   confirm: z.string(),
 });
 export function AuthScreen({ register = false }: { register?: boolean }) {
+  const [remember, setRemember] = useState(false);
   const router = useRouter();
   const store = useCommunity();
   const currentUser = store.users.find((u) => u.id === store.session?.userId);
@@ -105,7 +107,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
                         email: v.email,
                         password: v.password,
                       })
-                    : await store.login(v.email, v.password);
+                    : await store.login(v.email, v.password, remember);
                   router.push(destination(user));
                 } finally {
                   resetField("password");
@@ -138,21 +140,27 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
               />
               <small className="error">{errors.email?.message}</small>
             </label>
-            <label>
-              Mot de passe
-              <input
-                type="password"
+            <div>
+              <label htmlFor="auth-password">Mot de passe</label>
+              <PasswordInput
+                id="auth-password"
                 autoComplete={register ? "new-password" : "current-password"}
                 placeholder="Au moins 12 caractères"
                 {...field("password")}
               />
               <small className="error">{errors.password?.message}</small>
-            </label>
+            </div>
             {register && (
-              <label>
-                Confirmer le mot de passe
-                <input type="password" autoComplete="new-password" {...field("confirm")} />
+              <div>
+                <label htmlFor="auth-confirm">Confirmer le mot de passe</label>
+                <PasswordInput id="auth-confirm" autoComplete="new-password" {...field("confirm")} />
                 <small className="error">{errors.confirm?.message}</small>
+              </div>
+            )}
+            {!register && (
+              <label className="check-label">
+                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
+                Rester connecté
               </label>
             )}
             <Button disabled={isSubmitting} type="submit">

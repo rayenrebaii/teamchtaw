@@ -1,4 +1,4 @@
-import { isSignedOut, markSignedOut, allowSession } from "./session-control";
+import { isSignedOut, markSignedOut, allowSession, setRememberSession } from "./session-control";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -122,13 +122,13 @@ export class ApiClient {
     });
     return this.flight;
   }
-  async login<T extends TokenResponse>(email: string, password: string) {
-    return this.authenticate<T>("/auth/login", { email, password });
+  async login<T extends TokenResponse>(email: string, password: string, remember = true) {
+    return this.authenticate<T>("/auth/login", { email, password }, remember);
   }
-  async firebaseLogin<T extends TokenResponse>(idToken: string, profile?: { firstName: string; lastName: string }) {
-    return this.authenticate<T>("/auth/firebase", { idToken, ...(profile ? { firstName: profile.firstName, lastName: profile.lastName } : {}) });
+  async firebaseLogin<T extends TokenResponse>(idToken: string, profile?: { firstName: string; lastName: string }, remember = true) {
+    return this.authenticate<T>("/auth/firebase", { idToken, ...(profile ? { firstName: profile.firstName, lastName: profile.lastName } : {}) }, remember);
   }
-  private async authenticate<T extends TokenResponse>(path: string, body: object) {
+  private async authenticate<T extends TokenResponse>(path: string, body: object, remember: boolean) {
     this.clear();
     const epoch = this.generation;
     if (isSignedOut()) await this.revokeBrowserSession();
@@ -140,6 +140,7 @@ export class ApiClient {
       }),
     );
     if (epoch !== this.generation) throw new ApiError(409, "La session a changé.");
+    setRememberSession(remember);
     allowSession();
     this.setSession(result);
     return result;

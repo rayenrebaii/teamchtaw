@@ -53,7 +53,7 @@ interface Store {
   connection: "connecting" | "online" | "offline";
   theme: "light" | "dark";
   restore: () => Promise<void>;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, remember?: boolean) => Promise<User>;
   register: (
     input: Pick<User, "email" | "firstName" | "lastName"> & { password: string },
   ) => Promise<User>;
@@ -148,8 +148,8 @@ export const useCommunity = create<Store>((set, get) => ({
     });
     return restoreFlight;
   },
-  login: async (email, password) => {
-    const result = await authService.login(email, password);
+  login: async (email, password, remember) => {
+    const result = await authService.login(email, password, remember);
     revision++;
     set({
       ...empty,

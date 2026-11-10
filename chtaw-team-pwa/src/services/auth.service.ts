@@ -4,11 +4,11 @@ import type { User } from "@/types";
 import { firebaseAuth, firebaseEnabled, emailActionSettings } from "./firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, signOut } from "firebase/auth";
 export const authService = {
-  async login(email: string, password: string) {
-    if (!firebaseEnabled) return api.login<TokenResponse & { user: User }>(email, password);
+  async login(email: string, password: string, remember = true) {
+    if (!firebaseEnabled) return api.login<TokenResponse & { user: User }>(email, password, remember);
     try {
       const credential = await signInWithEmailAndPassword(firebaseAuth(), email.trim().toLowerCase(), password);
-      return await api.firebaseLogin<TokenResponse & { user: User }>(await credential.user.getIdToken(true));
+      return await api.firebaseLogin<TokenResponse & { user: User }>(await credential.user.getIdToken(true), undefined, remember);
     } catch (error) {
       if (error instanceof ApiError) throw error;
       throw new ApiError(401, "Connexion impossible. Vérifiez vos identifiants ou utilisez Mot de passe oublié.");
