@@ -2,12 +2,13 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, UserRound } from "lucide-react";
+import { LogOut, Moon, Settings, Sun, UserRound } from "lucide-react";
 import { Avatar, attempt } from "@/components/shared";
 import { useCommunity } from "@/stores/community";
 import { useCopy } from "@/lib/i18n";
 import type { User } from "@/types";
 export function UserMenu({ user }: { user: User }) {
+  const theme = useCommunity((state) => state.theme);
   const { t } = useCopy();
   const menu = useRef<HTMLDetailsElement>(null);
   const router = useRouter();
@@ -24,6 +25,7 @@ export function UserMenu({ user }: { user: User }) {
     <nav aria-label={t("Mon profil")}>
       <Link href="/app/profile" onClick={close}><UserRound size={17} />{t("Mon profil")}</Link>
       <Link href="/app/settings" onClick={close}><Settings size={17} />{t("Paramètres")}</Link>
+      {user.role === "ADMIN" && <button onClick={() => { useCommunity.getState().toggleTheme(); close(); }}>{theme === "light" ? <Moon size={17} aria-hidden="true" /> : <Sun size={17} aria-hidden="true" />}{t(theme === "light" ? "Mode sombre" : "Mode clair")}</button>}
       <button data-confirm-navigation onClick={() => { close(); void attempt(async () => { await useCommunity.getState().logout(); router.replace("/login"); }); }}><LogOut size={17} />{t("Déconnexion")}</button>
     </nav>
   </details>;

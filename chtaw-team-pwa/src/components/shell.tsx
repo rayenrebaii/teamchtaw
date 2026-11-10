@@ -8,16 +8,12 @@ import {
   UserRoundCog,
   Layers,
   ChartNoAxesColumn,
-  Sun,
-  Moon,
   CalendarDays,
   UserRound,
   Settings,
 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { destination } from "@/lib/utils";
-import { Avatar } from "@/components/shared";
-import { InstallPWAButton } from "@/components/pwa/InstallPWAButton";
 import { BrandLogo } from "@/components/brand-logo";
 import { AppHeader, MobileNavigation, NavigationItems } from "@/components/app-navigation";
 import { useCopy } from "@/lib/i18n";
@@ -64,28 +60,25 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
           { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ]
-      : [
+      : user.role === "ADMIN" ? [
+          { href: "/app", label: t("Conversations"), Icon: MessageCircle },
+          { href: "/admin/users", label: t("Membres"), Icon: Users },
+          { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
+          { href: "/admin/calendar", label: t("Calendrier"), Icon: CalendarDays },
+          { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
+          { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
+          { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
+        ] : [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
-          ...(user.role === "ADMIN"
-            ? [
-                { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
-                { href: "/admin/users", label: t("Membres"), Icon: Users },
-                { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
-                { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
-                { href: "/admin/calendar", label: t("Calendrier"), Icon: CalendarDays },
-                { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
-              ]
-            : user.role === "COLLABORATOR" ? [
-                { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },
-                { href: "/collaborator/polls", label: t("Mes sondages"), Icon: ChartNoAxesColumn },
-                { href: "/collaborator/attendance", label: t("Présences"), Icon: CalendarDays },
-                { href: "/collaborator/reports", label: t("Signalements"), Icon: Layers },
-              ] : []),
+          { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },
+          { href: "/collaborator/polls", label: t("Mes sondages"), Icon: ChartNoAxesColumn },
+          { href: "/collaborator/attendance", label: t("Présences"), Icon: CalendarDays },
+          { href: "/collaborator/reports", label: t("Signalements"), Icon: Layers },
           { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ];
-  const mobileItems = user.role === "ADMIN" ? ["/app", "/admin/users", "/admin/groups", "/admin/attendance"].map((href) => links.find((item) => item.href === href)!) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
-  const moreItems = user.role === "ADMIN" ? ["/admin/calendar", "/admin/polls", "/admin/collaborators", "/app/profile", "/app/settings"].map((href) => links.find((item) => item.href === href)!) : user.role === "COLLABORATOR" ? links.filter((link) => !mobileItems.includes(link)) : [];
+  const mobileItems = user.role === "ADMIN" ? links.slice(0, 4) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
+  const moreItems = user.role === "ADMIN" ? links.slice(4) : user.role === "COLLABORATOR" ? links.filter((link) => !mobileItems.includes(link)) : [];
   return (
     <div
       ref={workspace}
@@ -97,11 +90,6 @@ export function Shell({ children, admin = false, organizer = false }: { children
         </Link>
         <div className="rail-caption">{t("VOTRE ESPACE")}</div>
         {user.role === "USER" ? <MobileNavigation items={links} path={path} label={t("VOTRE ESPACE")} /> : <nav aria-label={t("VOTRE ESPACE")}><NavigationItems items={links} path={path} /></nav>}
-        {user.role === "ADMIN" && <div className="rail-bottom">
-          <div className="install-wrapper"><InstallPWAButton /></div>
-          <button className="nav-item" onClick={store.toggleTheme}>{store.theme === "light" ? <Moon size={20} /> : <Sun size={20} />}<span>{t(store.theme === "light" ? "Mode sombre" : "Mode clair")}</span></button>
-          <div className="user-card"><Avatar user={user} /><div><strong>{user.firstName} {user.lastName}</strong><span>{t("Administrateur")}</span></div></div>
-        </div>}
       </aside>
       {user.role !== "USER" && <MobileNavigation items={mobileItems} moreItems={moreItems} path={path} label={t(user.role === "COLLABORATOR" ? "Navigation collaborateur" : "Navigation administrateur")} className="admin-mobile-nav" />}
       <main className="workspace-main">

@@ -161,6 +161,25 @@ describe("Notification settings for both roles", () => {
   });
 });
 describe("Notification center and compact header", () => {
+  it.each(["fr", "en"] as const)("keeps admin navigation ordered and personal actions only in the header (%s)", (language) => {
+    usePreferences.setState({ language });
+    useCommunity.setState({ users: [{ ...user, role: "ADMIN" }], theme: "light" });
+    const { container } = render(<Shell admin><p>Page content</p></Shell>);
+    const rail = container.querySelector(".rail") as HTMLElement;
+    expect(Array.from(rail.querySelectorAll("nav a")).map((link) => link.getAttribute("href"))).toEqual([
+      "/app", "/admin/users", "/admin/collaborators", "/admin/calendar", "/admin/polls", "/admin/attendance", "/admin/groups",
+    ]);
+    expect(rail.querySelector('a[href="/app/profile"]')).toBeNull();
+    expect(rail.querySelector('a[href="/app/settings"]')).toBeNull();
+    expect(rail.querySelector(".rail-bottom")).toBeNull();
+    const header = container.querySelector(".workspace-topbar") as HTMLElement;
+    fireEvent.click(header.querySelector("summary")!);
+    expect(within(header).getByRole("link", { name: language === "fr" ? "Mon profil" : "My profile" })).toBeTruthy();
+    expect(within(header).getByRole("link", { name: language === "fr" ? "Paramètres" : "Settings" })).toBeTruthy();
+    fireEvent.click(within(header).getByRole("button", { name: language === "fr" ? "Mode sombre" : "Dark mode" }));
+    expect(usePreferences.getState().theme).toBe("dark");
+    expect(header.querySelector("details")?.hasAttribute("open")).toBe(false);
+  });
   it.each(["USER", "ADMIN"] as const)(
     "keeps logo, bell and initials-only avatar for %s",
     (role) => {
