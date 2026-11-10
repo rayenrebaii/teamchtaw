@@ -226,6 +226,17 @@ Le groupe «|The group “
 Nom du groupe|Group name
 Description|Description
 Image du groupe|Group image
+Choisir un fichier|Choose a file
+Aucun fichier choisi|No file selected
+Créer le groupe|Create group
+Créer le groupe avec {count} membre|Create group with {count} member
+Créer le groupe avec {count} membres|Create group with {count} members
+{count} utilisateur|{count} user
+{count} utilisateurs|{count} users
+{count} sélectionné|{count} selected
+{count} sélectionnés|{count} selected
+Admin, ajout automatique|Admin, added automatically
+Ajouter {name} au groupe|Add {name} to group
 Ajouter des membres approuvés|Add approved members
 Choisissez les membres à ajouter au nouveau groupe. Les administrateurs approuvés sont ajoutés automatiquement.|Choose members for the new group. Approved administrators are added automatically.
 La sélection est conservée lorsque vous changez les filtres. Vous pouvez créer le groupe sans ajouter de membre.|Your selection is kept when filters change. You may create the group without adding members.

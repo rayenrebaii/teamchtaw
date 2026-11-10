@@ -77,7 +77,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
           <p className="small muted">{t("Votre dose quotidienne d’esprit d’équipe.")}</p>
           {user.role === "ADMIN" && (
             <Button className="conversation-create-group" onClick={() => setCreatingGroup(true)}>
-              <Plus size={17} aria-hidden="true" /> Créer un groupe
+              <Plus size={17} aria-hidden="true" /> {t("Créer un groupe")}
             </Button>
           )}
           <label className="search-box">

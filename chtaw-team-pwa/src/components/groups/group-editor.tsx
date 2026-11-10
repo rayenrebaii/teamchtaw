@@ -16,6 +16,7 @@ import type { Group } from "@/types";
 import { defaultRequestFilters, filterRequests, isValidRequestPeriod } from "@/features/requests";
 import { addSelectedGroupMembers } from "@/features/group-creation";
 import { groupsService } from "@/services/groups.service";
+import styles from "./group-editor.module.css";
 const groupSchema = z.object({
   name: z.string().trim().min(2, "Au moins 2 caractères.").max(80),
   description: z.string().trim().max(500),
@@ -29,7 +30,7 @@ export function GroupEditor({
   close: () => void;
   onSaved?: (group: Group) => void;
 }) {
-  const { text: copy } = useCopy();
+  const { text: copy, error: failure } = useCopy();
   const store = useCommunity();
   const { file, preview, select } = useImagePreview();
   const [savedId, setSavedId] = useState(group?.id);
@@ -108,27 +109,35 @@ export function GroupEditor({
       >
         <label>
           {copy("Nom du groupe")} <input {...register("name")} disabled={isSubmitting} />
-          <small className="error">{errors.name?.message}</small>
+          <small className="error">{errors.name?.message && copy(errors.name.message)}</small>
         </label>
         <label>
           {copy("Description")} <textarea {...register("description")} disabled={isSubmitting} />
           <small className="error">{errors.description?.message}</small>
         </label>
-        <label>
-          {copy("Image du groupe")}{" "}
+        <div>
+          <label htmlFor={`${pickerId}-image`}>{copy("Image du groupe")}</label>
+          <div className={styles.filePicker}>
+          <span className={styles.fileButton} aria-hidden="true">{copy("Choisir un fichier")}</span>
+          <span className={styles.fileName} id={`${pickerId}-filename`} role="status" title={file?.name}>{file?.name ?? copy("Aucun fichier choisi")}</span>
           <input
+            id={`${pickerId}-image`}
+            className={styles.fileInput}
             type="file"
+            aria-describedby={`${pickerId}-filename`}
             disabled={isSubmitting}
             accept="image/png,image/jpeg,image/webp,image/gif"
             onChange={async (e) => {
               try {
                 select(e.target.files?.[0]);
               } catch (error) {
-                toast.error((error as Error).message);
+                e.target.value = "";
+                toast.error(failure((error as Error).message));
               }
             }}
           />
-        </label>
+          </div>
+        </div>
         {(preview || group?.image) && (
           <PrivateImage
             className="image-preview"
@@ -186,8 +195,8 @@ export function GroupEditor({
             )}
             <div className="row between wrap group-member-summary">
               <span className="tiny muted" role="status">
-                {candidates.length} {copy("utilisateur")} {candidates.length !== 1 ? "s" : ""} ·{" "}
-                {selectedCount} {copy("sélectionné")} {selectedCount !== 1 ? "s" : ""}
+                {copy(candidates.length === 1 ? "{count} utilisateur" : "{count} utilisateurs", { count: candidates.length })} ·{" "}
+                {copy(selectedCount === 1 ? "{count} sélectionné" : "{count} sélectionnés", { count: selectedCount })}
               </span>
               <Button
                 type="button"
@@ -208,7 +217,7 @@ export function GroupEditor({
               <div role="alert">
                 <p className="error">
                   {" "}
-                  {copy("La liste n’a pas pu être actualisée :")} {store.error}
+                  {copy("La liste n’a pas pu être actualisée :")} {failure(store.error)}
                 </p>
                 <Button
                   type="button"
@@ -236,7 +245,7 @@ export function GroupEditor({
                         {new Date(member.joinedAt).toLocaleDateString(
                           currentLanguage() === "en" ? "en-GB" : "fr-FR",
                         )}
-                        {member.role === "ADMIN" ? " · Admin, ajout automatique" : ""}
+                        {member.role === "ADMIN" ? ` · ${copy("Admin, ajout automatique")}` : ""}
                       </span>
                     </span>
                   </span>
@@ -244,7 +253,7 @@ export function GroupEditor({
                     type="checkbox"
                     checked={member.role === "ADMIN" || selectedIds.includes(member.id)}
                     disabled={member.role === "ADMIN"}
-                    aria-label={`Ajouter ${member.firstName} ${member.lastName} au groupe`}
+                    aria-label={copy("Ajouter {name} au groupe", { name: `${member.firstName} ${member.lastName}` })}
                     onChange={(e) =>
                       setSelectedIds((ids) =>
                         e.target.checked
@@ -282,7 +291,9 @@ export function GroupEditor({
               ? copy("Enregistrer le groupe")
               : savedId
                 ? copy("Terminer la création")
-                : `Créer le groupe${selectedCount ? ` avec ${selectedCount} membre${selectedCount > 1 ? "s" : ""}` : ""}`}
+                : selectedCount
+                  ? copy(selectedCount === 1 ? "Créer le groupe avec {count} membre" : "Créer le groupe avec {count} membres", { count: selectedCount })
+                  : copy("Créer le groupe")}
         </Button>
       </form>
     </Modal>
