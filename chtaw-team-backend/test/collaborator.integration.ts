@@ -202,6 +202,26 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     await api().post(`/api/v1/admin/collaborators/${created.id}/invitation`).set(auth()).expect(201);
     await redeem(old).expect(400); await redeem(deliveries.get(email)!).expect(201);
   });
+  it("supprime un collaborateur invité et invalide son lien sans toucher aux autres comptes", async () => {
+    const email = `remove-invited-${suffix}@test.invalid`;
+    const created = (await api().post("/api/v1/admin/collaborators").set(auth()).send({ email, firstName: "Pending", lastName: "Deletion" }).expect(201)).body.user;
+    const invitation = deliveries.get(email)!;
+    student = await login((await db.user.findUniqueOrThrow({ where: { id: studentId }, select: { email: true } })).email);
+    await api().delete(`/api/v1/users/${created.id}`).set(auth(student)).expect(403);
+    await api().delete(`/api/v1/users/${created.id}`).set(auth(collaboratorB)).expect(403);
+    expect(await db.user.count({ where: { id: created.id } })).toBe(1);
+    await api().delete(`/api/v1/users/${created.id}`).set(auth()).expect(204);
+    expect(await db.user.count({ where: { id: created.id } })).toBe(0);
+    expect(await db.accountLink.count({ where: { userId: created.id } })).toBe(0);
+    await redeem(invitation).expect(400);
+    expect(await db.user.count({ where: { id: { in: [adminId, studentId, aId, bId] } } })).toBe(4);
+  });
+  it("protège les administrateurs et les étudiants en attente contre la suppression", async () => {
+    await api().delete(`/api/v1/users/${adminId}`).set(auth()).expect(403);
+    const pending = await db.user.create({ data: { email: `pending-delete-${suffix}@test.invalid`, firstName: "Pending", lastName: "Student", passwordHash: await argon2.hash(password) } });
+    await api().delete(`/api/v1/users/${pending.id}`).set(auth()).expect(409);
+    expect(await db.user.count({ where: { id: pending.id } })).toBe(1);
+  });
   it("limite les demandes publiques de réinitialisation à cinq par minute", async () => {
     for (let index = 0; index < 5; index++) await api().post("/api/v1/auth/account-links/forgot").send({ email: "missing@test.invalid" }).expect(201);
     await api().post("/api/v1/auth/account-links/forgot").send({ email: "missing@test.invalid" }).expect(429);

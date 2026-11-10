@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   MessageCircle,
   Users,
+  UserRoundCog,
   Layers,
   ChartNoAxesColumn,
   Sun,
@@ -68,7 +69,7 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/app/profile", label: t("Mon profil"), Icon: UserRound },
           ...(user.role === "ADMIN"
             ? [
-                { href: "/admin/collaborators", label: "Collaborateurs", Icon: Users },
+                { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
                 { href: "/admin/users", label: t("Membres"), Icon: Users },
                 { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
                 { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
@@ -76,10 +77,10 @@ export function Shell({ children, admin = false, organizer = false }: { children
                 { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
               ]
             : user.role === "COLLABORATOR" ? [
-                { href: "/collaborator", label: "Mon calendrier", Icon: CalendarDays },
-                { href: "/collaborator/polls", label: "Mes sondages", Icon: ChartNoAxesColumn },
-                { href: "/collaborator/attendance", label: "Présences", Icon: CalendarDays },
-                { href: "/collaborator/reports", label: "Signalements", Icon: Layers },
+                { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },
+                { href: "/collaborator/polls", label: t("Mes sondages"), Icon: ChartNoAxesColumn },
+                { href: "/collaborator/attendance", label: t("Présences"), Icon: CalendarDays },
+                { href: "/collaborator/reports", label: t("Signalements"), Icon: Layers },
               ] : []),
           { href: "/app/settings", label: t("Paramètres"), Icon: Settings },
         ];

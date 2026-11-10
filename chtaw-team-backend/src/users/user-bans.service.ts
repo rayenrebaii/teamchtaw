@@ -29,7 +29,7 @@ export class UserBansService {
       if (!user) throw new NotFoundException("Compte introuvable.");
       if (user.id === actor.id || user.role === "ADMIN")
         throw new ForbiddenException("Un compte administrateur ne peut pas être supprimé.");
-      if (user.status !== "APPROVED")
+      if (user.status !== "APPROVED" && user.role !== "COLLABORATOR")
         throw new ConflictException("Seul un membre approuvé peut être banni.");
 
       const memberships = await tx.groupMember.findMany({ where: { userId }, select: { groupId: true } });

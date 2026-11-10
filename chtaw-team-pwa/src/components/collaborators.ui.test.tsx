@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CollaboratorsScreen, OrganizerReports } from "./collaborators";
 import { api } from "@/services/api-client";
 import { attendanceService } from "@/services/attendance.service";
@@ -43,4 +43,79 @@ it("shows only report actions, with no student suspension controls for a collabo
   await screen.findByText("3 absences actuelles chez cet organisateur.");
   expect(screen.getByRole("button", { name: "Confirmer le signalement" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Suspendre le compte étudiant" })).toBeNull();
+});
+
+it("translates the directory and invitation dialog into English with button icons", async () => {
+  usePreferences.setState({ language: "en" });
+  vi.spyOn(api, "request").mockResolvedValue([{ ...actor, activatedAt: "2026-01-01", memberships: [] }]);
+  render(<CollaboratorsScreen />);
+  await screen.findByRole("heading", { name: "Alice Test" });
+  expect(screen.getByRole("heading", { name: "Collaborator management" })).toBeTruthy();
+  expect(screen.queryByRole("textbox", { name: "First name" })).toBeNull();
+  for (const name of ["Invite a collaborator", "Reset password", "Ban", "Delete"]) {
+    expect(screen.getByRole("button", { name }).querySelector("svg")).toBeTruthy();
+  }
+  fireEvent.click(screen.getByRole("button", { name: "Invite a collaborator" }));
+  const dialog = screen.getByRole("dialog", { name: "Invite a collaborator" });
+  expect(within(dialog).getByLabelText("First name")).toBeTruthy();
+  expect(within(dialog).getByLabelText("Last name")).toBeTruthy();
+  expect(within(dialog).getByRole("button", { name: "Create and invite" })).toBeTruthy();
+  expect(screen.queryByText("Gestion des collaborateurs")).toBeNull();
+});
+
+it("bans only after confirmation and offers reactivation without deleting data", async () => {
+  let disabledAt: string | undefined;
+  const request = vi.spyOn(api, "request").mockImplementation(async (_path, init) => {
+    if (init?.method === "PATCH") { disabledAt = "2026-11-10"; return { success: true }; }
+    return [{ ...actor, activatedAt: "2026-01-01", disabledAt, memberships: [] }];
+  });
+  render(<CollaboratorsScreen />);
+  fireEvent.click(await screen.findByRole("button", { name: "Bannir" }));
+  expect(request.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0);
+  expect(screen.getByRole("dialog", { name: "Bannir ce collaborateur ?" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+  expect(request.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Bannir" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirmer le bannissement" }));
+  await screen.findByRole("button", { name: "Réactiver" });
+  expect(request).toHaveBeenCalledWith("/admin/collaborators/collab-a/disabled", { method: "PATCH", body: JSON.stringify({ disabled: true }) });
+  expect(request.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+});
+
+it("confirms permanent deletion explicitly and refreshes the directory", async () => {
+  let removed = false;
+  const request = vi.spyOn(api, "request").mockImplementation(async (_path, init) => {
+    if (init?.method === "DELETE") { removed = true; return undefined; }
+    return removed ? [] : [{ ...actor, activatedAt: "2026-01-01", memberships: [] }];
+  });
+  render(<CollaboratorsScreen />);
+  fireEvent.click(await screen.findByRole("button", { name: "Supprimer" }));
+  expect(request.mock.calls.filter(([, init]) => init?.method)).toHaveLength(0);
+  expect(screen.getByText(/présences associées, seront supprimés définitivement/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer définitivement" }));
+  await screen.findByRole("heading", { name: "Aucun collaborateur trouvé." });
+  expect(request).toHaveBeenCalledWith("/users/collab-a", { method: "DELETE" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("keeps the confirmation and collaborator when deletion fails", async () => {
+  vi.spyOn(api, "request").mockImplementation(async (_path, init) => {
+    if (init?.method === "DELETE") throw Error("Suppression refusée");
+    return [{ ...actor, activatedAt: "2026-01-01", memberships: [] }];
+  });
+  render(<CollaboratorsScreen />);
+  fireEvent.click(await screen.findByRole("button", { name: "Supprimer" }));
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer définitivement" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Suppression refusée");
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Alice Test", hidden: true })).toBeTruthy();
+});
+
+it("translates organizer reports and their empty state into English", async () => {
+  usePreferences.setState({ language: "en" });
+  vi.spyOn(attendanceService, "alerts").mockResolvedValue([]);
+  render(<OrganizerReports />);
+  expect(screen.getByRole("heading", { name: "Reports by organizer" })).toBeTruthy();
+  expect(await screen.findByText("No reports.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Refresh" }).querySelector("svg")).toBeTruthy();
 });
