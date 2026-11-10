@@ -1,10 +1,12 @@
 "use client";
 import { adminEnglish } from "./admin-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
+import { groupsEnglish } from "./groups-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
   ...adminEnglish,
   ...collaboratorEnglish,
+  ...groupsEnglish,
   Conversations: "Conversations",
   Présences: "Attendance",
   "Mon profil": "My profile",

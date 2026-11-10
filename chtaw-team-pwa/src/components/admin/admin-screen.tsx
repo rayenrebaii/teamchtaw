@@ -11,18 +11,16 @@ import {
   MessageCircle,
   ChartNoAxesColumn,
   ArrowUpRight,
-  Plus,
-  Trash2,
 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { Avatar, Empty, attempt } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/dialog";
 import type { Group } from "@/types";
 import { GroupEditor } from "@/components/groups/group-editor";
 import { MembersPanel } from "./requests-panel";
 import { AttendanceDashboard, SessionPollsScreen } from "./attendance-panel";
 import styles from "./group-detail.module.css";
+import { GroupsDirectory } from "./groups-directory";
 export function AdminScreen({
   page = "dashboard",
   groupId,
@@ -34,13 +32,10 @@ export function AdminScreen({
 }) {
   const { text: copy } = useCopy();
   const store = useCommunity();
-  const [groupSearch, setGroupSearch] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
   const matches = (value: string, query: string) =>
     value.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-  const visibleGroups = store.groups.filter((group) => matches(group.name + " " + group.description, groupSearch));
   const [editing, setEditing] = useState<Group | "new" | null>(null);
-  const [deleting, setDeleting] = useState<Group | null>(null);
   const group = store.groups.find((g) => g.id === groupId);
   const titles = {
     dashboard: "Une team qui avance.",
@@ -67,7 +62,7 @@ export function AdminScreen({
   ];
   return (
     <div className="admin-page">
-      {page !== "approvals" && page !== "users" && (
+      {page !== "approvals" && page !== "users" && !(page === "groups" && !groupId) && (
         <header className="page-heading">
           <div>
             <span className="eyebrow"> {copy("LE COLLECTIF, CÔTÉ COULISSES")} </span>
@@ -128,7 +123,6 @@ export function AdminScreen({
           </div>
           <div className="group-grid">
             {store.groups
-              .filter((g) => matches(g.name + " " + g.description, groupSearch))
               .map((g) => (
                 <Link className="group-card" key={g.id} href={`/app/groups/${g.id}`}>
                   <Avatar group={g} />
@@ -144,62 +138,7 @@ export function AdminScreen({
       )}
       {(page === "approvals" || page === "users") && <MembersPanel />}
       {page === "groups" && !groupId && (
-        <>
-          <label className="admin-group-search">
-            {" "}
-            {copy("Rechercher un groupe")}{" "}
-            <input
-              type="search"
-              value={groupSearch}
-              onChange={(event) => setGroupSearch(event.target.value)}
-            />
-          </label>
-          <div className="row between section-heading">
-            <h2>
-              {visibleGroups.length} {copy("espaces pour se retrouver")}{" "}
-            </h2>
-            <Button onClick={() => setEditing("new")}>
-              <Plus size={17} />
-              {copy("Créer un groupe")}{" "}
-            </Button>
-          </div>
-          {!visibleGroups.length && <Empty title={copy("Aucun groupe trouvé.")} />}
-          <div className="group-grid">
-            {visibleGroups.map((g) => (
-              <div className="group-card" key={g.id}>
-                <Avatar group={g} />
-                <span className="badge">
-                  {g.isGeneral ? copy("GROUPE SYSTÈME") : copy("PRIVÉ")}
-                </span>
-                <h3>{g.name}</h3>
-                <p>{g.description}</p>
-                <span>
-                  {g.memberIds.length} {copy("membres")}{" "}
-                </span>
-                <div className="row">
-                  <Button variant="secondary" asChild>
-                    <Link href={`/admin/groups/${g.id}`}>
-                      {copy("Gérer")} <ArrowUpRight size={16} />
-                    </Link>
-                  </Button>
-                  <Button variant="secondary" onClick={() => setEditing(g)}>
-                    {copy("Modifier")}{" "}
-                  </Button>
-                  {!g.isGeneral && (
-                    <Button
-                      variant="secondary"
-                      aria-label={`Supprimer ${g.name}`}
-                      onClick={() => setDeleting(g)}
-                    >
-                      <Trash2 size={16} />
-                      {copy("Supprimer")}{" "}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
+        <GroupsDirectory onCreate={() => setEditing("new")} onEdit={setEditing} />
       )}
       {page === "groups" &&
         groupId &&
@@ -279,34 +218,6 @@ export function AdminScreen({
           close={() => setEditing(null)}
         />
       )}
-      <Modal
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        title={copy("Supprimer ce groupe ?")}
-      >
-        <p>
-          {copy("Le groupe «")} {deleting?.name}{" "}
-          {copy(
-            "», ses messages et ses sondages seront supprimés de la communauté. Cette action est définitive.",
-          )}{" "}
-        </p>
-        <div className="row">
-          <Button variant="secondary" onClick={() => setDeleting(null)}>
-            {copy("Annuler")}{" "}
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() =>
-              attempt(async () => {
-                await store.deleteGroup(deleting!.id);
-                setDeleting(null);
-              }, copy("Groupe supprimé"))
-            }
-          >
-            {copy("Supprimer le groupe")}{" "}
-          </Button>
-        </div>
-      </Modal>
     </div>
   );
 }
