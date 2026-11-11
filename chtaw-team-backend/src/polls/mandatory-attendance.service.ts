@@ -141,15 +141,16 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       async (tx) => {
         const found = await tx.poll.findUnique({
           where: { id },
-          select: { groupId: true, mandatoryAttendance: true },
+          select: { groupId: true, mandatoryAttendance: true, archivedAt: true },
         });
-        if (!found?.mandatoryAttendance) return;
+        if (!found?.mandatoryAttendance || found.archivedAt) return;
         await this.access.lockGroup(tx, found.groupId);
         await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
         const poll = await tx.poll.findUniqueOrThrow({
           where: { id },
           include: { options: true, group: true },
         });
+        if (poll.archivedAt) return;
         const participants = await tx.sessionParticipant.findMany({
           where: { pollId: id },
           include: personInclude,
@@ -183,6 +184,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
     const due = await this.db.poll.findMany({
       where: {
         mandatoryAttendance: true,
+        archivedAt: null,
         type: "SESSION",
         status: { not: "CANCELLED" },
         OR: [
@@ -480,8 +482,9 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
     const polls = await this.db.poll.findMany({
       where: {
         type: "SESSION",
+        archivedAt: null,
         authorId: actor.id,
-          group: { members: { some: { userId: actor.id } } },
+          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
         groupId: query.groupId,
         id: query.pollId,
       },
@@ -559,7 +562,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           : { reportResolvedAt: query.reportStatus === "RESOLVED" ? { not: null } : null }),
         poll: {
           authorId: actor.id,
-          group: { members: { some: { userId: actor.id } } },
+          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
           groupId: query.groupId,
           id: query.pollId,
         },

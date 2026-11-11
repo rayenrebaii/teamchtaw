@@ -94,8 +94,13 @@ export class CollaboratorsService {
   }
   async participants(actor: Actor) {
     return this.db.$transaction(async (tx) => {
-      await this.access.organizer(tx, actor);
-      return tx.user.findMany({ where: { role: "USER", status: "APPROVED", memberships: { some: { group: { members: { some: { userId: actor.id } } } } } }, select: userSelect });
+      const user = await this.access.organizer(tx, actor);
+      return tx.user.findMany({
+        where: { role: "USER", status: "APPROVED",
+          ...(user.role === "ADMIN" ? {} : { memberships: { some: { group: { members: { some: { userId: actor.id } } } } } }),
+        },
+        select: userSelect,
+      });
     });
   }
 }

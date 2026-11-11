@@ -14,7 +14,7 @@ import { hash } from "argon2";
 import { PrismaService } from "../src/prisma/prisma.module";
 import { configureApp } from "../src/bootstrap";
 import { MEDIA_STORAGE, MediaStorage } from "../src/uploads/storage.module";
-import { AuthService } from "../src/auth/auth.service";
+import { ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
 interface Session {
   accessToken: string;
   refreshToken: string;
@@ -683,8 +683,11 @@ describe("API réelle PostgreSQL et Socket.IO", () => {
     await api().delete(`/api/v1/users/${randomUUID()}`).set(auth(admin)).expect(404);
     await api().patch(`/api/v1/approvals/${target.id}`).set(auth(admin)).send({ status: "APPROVED" }).expect(200);
     await db.groupMember.create({ data: { userId: target.id, groupId: secondId } });
-    // Create fixture sessions through the real service without consuming the shared HTTP login quota.
-    const login = () => app.get(AuthService).login({ email: target.email, password });
+    // Each fixture login uses the official HTTP route and a separate test request budget.
+    const login = async () => {
+      app.get<ThrottlerStorageService>(ThrottlerStorage).onApplicationShutdown();
+      return (await api().post("/api/v1/auth/login").send({ email: target.email, password }).expect(200)).body as Session;
+    };
     const first = await login(), second = await login();
     await api().delete(`/api/v1/users/${admin.user.id}`).set(auth(first)).expect(403);
     const connected = await socket(first);

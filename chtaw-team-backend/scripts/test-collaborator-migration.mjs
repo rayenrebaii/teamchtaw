@@ -1,15 +1,12 @@
-import "dotenv/config";
+import safety from "./test-safety.cjs";
 import pg from "pg";
 import { readFile, readdir } from "node:fs/promises";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 
-const source = new URL(process.env.DATABASE_URL);
-if (!["127.0.0.1", "localhost"].includes(source.hostname)) throw Error("This verification runs only on local PostgreSQL.");
-const name = "chtaw_test_" + randomBytes(6).toString("hex");
-const control = new pg.Client({ connectionString: source.href }); await control.connect();
-try { await control.query(`CREATE DATABASE "${name}"`); } finally { await control.end(); }
-source.pathname = "/" + name;
+safety.assertTestContext();
+const source = safety.assertDatabase(process.env.TEST_DATABASE_URL, process.env.ISOLATED_TEST_DATABASE);
+const name = process.env.ISOLATED_TEST_DATABASE;
 const db = new pg.Client({ connectionString: source.href }); await db.connect();
 try {
   const migrations = (await readdir("prisma/migrations")).filter((name) => /^\d/.test(name)).sort();

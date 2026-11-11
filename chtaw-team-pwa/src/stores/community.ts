@@ -81,6 +81,7 @@ interface Store {
   vote: (id: string, options: string[], replace?: boolean) => Promise<void>;
   profile: (values: Pick<User, "firstName" | "lastName" | "bio">) => Promise<void>;
   receiveMessage: (message: Message) => void;
+  removeMessage: (id: string) => void;
   receivePoll: (poll: Poll) => void;
   removePoll: (id: string) => void;
   receiveGroup: (group: Group) => void;
@@ -423,6 +424,10 @@ export const useCommunity = create<Store>((set, get) => ({
         ? { messages: mergeMessages(s.messages, [message]) }
         : {},
     ),
+  removeMessage: (id) => {
+    revision++;
+    set((s) => ({ messages: s.messages.filter((message) => message.id !== id) }));
+  },
   receivePoll: (poll) => {
     if (!get().groups.some((g) => g.id === poll.groupId)) return;
     revision++;
@@ -434,7 +439,8 @@ export const useCommunity = create<Store>((set, get) => ({
   },
   receiveGroup: (group) => {
     const userId = get().session?.userId;
-    if (!userId || !group.memberIds.includes(userId)) return;
+    const admin = get().users.find((user) => user.id === userId)?.role === "ADMIN";
+    if (!userId || (!admin && !group.memberIds.includes(userId))) return;
     revision++;
     set((s) => ({ groups: mergeById(s.groups, [group]) }));
   },

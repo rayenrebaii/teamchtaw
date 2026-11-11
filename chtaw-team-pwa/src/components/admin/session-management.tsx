@@ -31,7 +31,7 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
       {target && <section className={styles.confirmation} aria-label={copy("Confirmation de suppression")}>
         <h4>{target === "session" ? copy("Supprimer définitivement cette séance ?") : copy("Retirer ce créneau ?")}</h4>
         {option && <p><strong>{option.label}</strong></p>}
-        <p className="small">{copy(target === "session" ? "La séance, tous ses créneaux, ses votes et ses pointages seront supprimés. Les compteurs seront recalculés. Cette action est irréversible." : "Les votes et pointages liés à ce créneau seront supprimés. Les autres créneaux seront conservés et les compteurs recalculés.")}</p>
+        <p className="small">{copy(target === "session" ? "Suppression possible jusqu’à deux heures avant le premier créneau, ou après la fin de tous les créneaux et la validation de toutes les présences. Les présences, absences et leur historique seront conservés." : "Le retrait d’un créneau est autorisé uniquement jusqu’à deux heures avant le premier créneau. Les autres créneaux seront conservés.")}</p>
         <div className="row wrap"><Button variant="secondary" disabled={busy} onClick={() => setTarget(null)}>{copy("Annuler")}</Button>
           <Button variant="destructive" disabled={busy} onClick={async () => {
             if (busy) return;

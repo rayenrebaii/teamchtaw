@@ -29,7 +29,14 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     slotEndsAt: [1, 2].map((offset) => new Date(Date.now() + offset * 3600000 + 1800000).toISOString()) });
   const login = async (email: string, pass = password) => (await api().post("/api/v1/auth/login").send({ email, password: pass }).expect(200)).body.accessToken as string;
   const redeem = (token: string, pass = password) => api().post("/api/v1/auth/account-links/redeem").send({ token, password: pass });
-  const create = async (token: string) => (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth(token)).send(input()).expect(201)).body as typeof aPoll;
+  let fixtureSchedule = 0;
+  const create = async (token: string) => {
+    const scheduled = input();
+    const offset = ++fixtureSchedule * 86400000;
+    scheduled.startsAt = scheduled.startsAt.map((value) => new Date(Date.parse(value) + offset).toISOString());
+    scheduled.slotEndsAt = scheduled.slotEndsAt.map((value) => new Date(Date.parse(value) + offset).toISOString());
+    return (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth(token)).send(scheduled).expect(201)).body as typeof aPoll;
+  };
   const finish = async (id: string) => {
     await db.poll.update({ where: { id }, data: { endsAt: new Date(Date.now() - 7200000) } });
     await db.pollOption.updateMany({ where: { pollId: id }, data: { startsAt: new Date(Date.now() - 3600000), endsAt: new Date(Date.now() - 1800000) } });
@@ -123,6 +130,52 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     await api().put(`/api/v1/polls/${bPoll.id}/attendance`).set(auth(collaboratorA)).send({ entries: [{ userId: studentId, optionId: bPoll.options[0]!.id, status: "PRESENT", version: 0, participantVersion: 0 }] }).expect(403);
     await api().patch(`/api/v1/polls/${bPoll.id}`).set(auth(collaboratorA)).send(input()).expect(403);
     await api().delete(`/api/v1/polls/${bPoll.id}`).set(auth(collaboratorA)).expect(403);
+  });
+  it("reserves message deletion to admins, including the author's own messages", async () => {
+    for (const token of [admin, student, collaboratorA]) {
+      const sent = await api().post(`/api/v1/groups/${groupId}/messages`).set(auth(token)).send({ text: "Deletion fixture" }).expect(201);
+      const path = `/api/v1/groups/${groupId}/messages/${sent.body.id}`;
+      await api().delete(path).set(auth(student)).expect(403);
+      await api().delete(path).set(auth(collaboratorA)).expect(403);
+      await api().delete(`/api/v1/groups/${forbiddenGroup}/messages/${sent.body.id}`).set(auth()).expect(404);
+      expect(await db.message.count({ where: { id: sent.body.id } })).toBe(1);
+      await api().delete(path).set(auth()).expect(200);
+      expect(await db.message.count({ where: { id: sent.body.id } })).toBe(0);
+    }
+  });
+  it("allows admins to delete anyone's polls and collaborators only their own", async () => {
+    for (const [creator, remover] of [[admin, admin], [collaboratorA, admin], [collaboratorA, collaboratorA]]) {
+      const scheduled = input();
+      scheduled.startsAt = [3, 4].map((hours) => new Date(Date.now() + hours * 3600000).toISOString());
+      scheduled.slotEndsAt = [3, 4].map((hours) => new Date(Date.now() + (hours + 0.5) * 3600000).toISOString());
+      const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth(creator!)).send(scheduled).expect(201)).body as typeof aPoll;
+      await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[0]!.id] }).expect(201);
+      await api().delete(`/api/v1/polls/${poll.id}`).set(auth(student)).expect(403);
+      await api().delete(`/api/v1/polls/${poll.id}`).set(auth(collaboratorB)).expect(403);
+      if (creator === admin) await api().delete(`/api/v1/polls/${poll.id}`).set(auth(collaboratorA)).expect(403);
+      await api().delete(`/api/v1/polls/${poll.id}`).set(auth(remover!)).expect(204);
+      expect(await db.poll.count({ where: { id: poll.id } })).toBe(0);
+      expect(await db.message.count({ where: { pollId: poll.id } })).toBe(0);
+      expect(await db.pollVote.count({ where: { pollId: poll.id } })).toBe(0);
+      expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(0);
+    }
+    const ordinary = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send({ question: "Ordinary deletion", singleChoice: true, options: ["Yes", "No"] }).expect(201)).body;
+    await api().delete(`/api/v1/polls/${ordinary.id}`).set(auth(collaboratorA)).expect(403);
+    await api().delete(`/api/v1/polls/${ordinary.id}`).set(auth()).expect(204);
+    expect(await db.poll.count({ where: { id: ordinary.id } })).toBe(0);
+  });
+  it("prevents another collaborator from reserving the group's slots until the first session is removed", async () => {
+    const scheduled = input();
+    scheduled.startsAt = scheduled.startsAt.map((value) => new Date(Date.parse(value) + 180 * 86400000).toISOString());
+    scheduled.slotEndsAt = scheduled.slotEndsAt.map((value) => new Date(Date.parse(value) + 180 * 86400000).toISOString());
+    const publish = (token: string) => api().post(`/api/v1/groups/${groupId}/polls`).set(auth(token)).send(scheduled);
+    const first = (await publish(collaboratorA).expect(201)).body;
+    await publish(collaboratorB).expect(409);
+    await api().delete(`/api/v1/polls/${first.id}`).set(auth(collaboratorB)).expect(403);
+    await publish(collaboratorB).expect(409);
+    await api().delete(`/api/v1/polls/${first.id}`).set(auth(collaboratorA)).expect(204);
+    const replacement = (await publish(collaboratorB).expect(201)).body;
+    await api().delete(`/api/v1/polls/${replacement.id}`).set(auth(collaboratorB)).expect(204);
   });
   it("autorise le pointage des non-votants et préserve les votes", async () => {
     await absent(collaboratorA, aPoll.id).then((response) => expect(response.status).toBe(200));

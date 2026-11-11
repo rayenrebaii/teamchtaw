@@ -9,7 +9,7 @@ import { randomUUID, createECDH, randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import * as argon2 from "argon2";
 import { PrismaService } from "../src/prisma/prisma.module";
-import { AuthService } from "../src/auth/auth.service";
+import { ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
 import { AccessService } from "../src/common/access";
 import { DomainEvents } from "../src/common/events";
 import { configureApp } from "../src/bootstrap";
@@ -59,8 +59,10 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     const password = "Notifications-Test-Only-2026!", passwordHash = await argon2.hash(password);
     async function account(role: "ADMIN" | "USER" = "USER", status: "APPROVED" | "PENDING" = "APPROVED"): Promise<Account> {
       const user = await db.user.create({ data: { email: randomUUID() + "@test.invalid", firstName: "Notification", lastName: "Fixture", passwordHash, role, status } });
-      const login = await app.get(AuthService).login({ email: user.email, password });
-      return { id: user.id, token: login.accessToken };
+      // Give each disposable fixture its own login budget; keep HTTP authentication enabled.
+      app.get<ThrottlerStorageService>(ThrottlerStorage).onApplicationShutdown();
+      const login = await api().post("/api/v1/auth/login").send({ email: user.email, password }).expect(200);
+      return { id: user.id, token: login.body.accessToken };
     }
     admin = await account("ADMIN"); student = await account(); another = await account(); pending = await account("USER", "PENDING"); outsider = await account(); muted = await account();
     const group = await db.group.create({ data: { name: "Notifications private", members: { create: [admin, student, another, pending, muted].map((actor) => ({ userId: actor.id })) } } });

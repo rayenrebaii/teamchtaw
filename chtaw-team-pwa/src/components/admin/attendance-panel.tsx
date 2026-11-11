@@ -1,4 +1,5 @@
 "use client";
+import { DeleteContent } from "@/components/delete-content";
 import { useCopy, currentLanguage } from "@/lib/i18n";
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
@@ -184,7 +185,8 @@ export function AttendanceHistory({ userId, onClose }: { userId?: string; onClos
                   )}
                 </div>
               ))}
-              {userId && session.selections.length > 0 && session.status !== "CANCELLED" && (
+              {session.archivedAt && <p className="small muted">{copy("Séance archivée · Présences conservées")}</p>}
+              {userId && !session.archivedAt && session.selections.length > 0 && session.status !== "CANCELLED" && (
                 <Button asChild size="sm" variant="secondary">
                   <Link href={attendanceSessionHref(session.id, actor?.role)}>
                     {" "}
@@ -1095,6 +1097,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                           >
                             {session && !pollsOnly ? copy("Voir les détails") : copy("Voir les résultats")}
                           </Button>
+                          <DeleteContent poll={poll} />
                           {session && canManage && pollsOnly && <Button size="sm" variant="secondary" disabled={poll.status === "CANCELLED"} onClick={() => setEditing(poll)}>{copy("Modifier / annuler")}</Button>}
                           {session && canManage && pollsOnly && <Button size="sm" variant="secondary" aria-label={`${copy("Gérer la séance")} : ${poll.question}`} onClick={() => setManageId(poll.id)}>{copy("Gérer la séance")}</Button>}
                           {session && canManage && !pollsOnly && (

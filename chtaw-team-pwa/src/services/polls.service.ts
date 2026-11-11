@@ -7,6 +7,7 @@ export const pollsService = {
         "/polls?limit=100" + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""),
       ),
     ),
+  remove: (id: string) => api.request(`/polls/${encodeURIComponent(id)}`, { method: "DELETE" }),
   get: (id: string) => api.request<Poll>(`/polls/${encodeURIComponent(id)}`),
   create: (
     groupId: string,

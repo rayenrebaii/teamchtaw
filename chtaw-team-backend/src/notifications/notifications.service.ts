@@ -19,7 +19,7 @@ import { PushTransport } from "./push.transport";
 export function notificationWhere(actor: Actor): Prisma.NotificationWhereInput {
   return {
     userId: actor.id,
-    group: { members: { some: { userId: actor.id } } },
+    ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
     ...(actor.role !== "USER" ? { type: { in: ["MESSAGE", "POLL", "ABSENCE_ALERT"] } } : {}),
   };
 }
@@ -139,7 +139,7 @@ export class NotificationsService {
           throw new NotFoundException("Contenu indisponible.");
         return { href: `/app/groups/${item.groupId}?message=${item.entityId}` };
       }
-      const poll = await tx.poll.findFirst({ where: { id: item.entityId, groupId: item.groupId } });
+      const poll = await tx.poll.findFirst({ where: { id: item.entityId, groupId: item.groupId, archivedAt: null } });
       if (!poll) throw new NotFoundException("Contenu indisponible.");
       return {
         href:

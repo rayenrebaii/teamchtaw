@@ -4,6 +4,7 @@ import { AccessService, Actor } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { groupInclude, presentGroup } from "../common/presenters";
 import { Storage, MediaStorage } from "../uploads/storage.module";
+import { reconcileAbsences } from "../polls/attendance.reconcile";
 
 @Injectable()
 export class UserBansService {
@@ -24,13 +25,25 @@ export class UserBansService {
         UNION SELECT "groupId" FROM "Media" WHERE "uploaderId" = ${userId}::uuid
         UNION SELECT "groupId" FROM "Poll" WHERE "authorId" = ${userId}::uuid
       ) ORDER BY id FOR UPDATE`;
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId}::uuid FOR UPDATE`;
+      // Lock the removed account and students affected by its authored sessions in stable order.
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id IN (
+        SELECT ${userId}::uuid
+        UNION SELECT s."userId" FROM "SessionParticipant" s JOIN "Poll" p ON p.id=s."pollId" WHERE p."authorId"=${userId}::uuid
+        UNION SELECT v."userId" FROM "PollVote" v JOIN "Poll" p ON p.id=v."pollId" WHERE p."authorId"=${userId}::uuid
+      ) ORDER BY id FOR UPDATE`;
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException("Compte introuvable.");
       if (user.id === actor.id || user.role === "ADMIN")
         throw new ForbiddenException("Un compte administrateur ne peut pas être supprimé.");
       if (user.status !== "APPROVED" && user.role !== "COLLABORATOR")
         throw new ConflictException("Seul un membre approuvé peut être banni.");
+      const affectedStudents = await tx.user.findMany({
+        where: { id: { not: userId }, role: "USER", OR: [
+          { sessionParticipants: { some: { poll: { authorId: userId } } } },
+          { votes: { some: { poll: { authorId: userId } } } },
+        ] },
+        select: { id: true },
+      });
 
       const memberships = await tx.groupMember.findMany({ where: { userId }, select: { groupId: true } });
       const sessions = await tx.refreshSession.findMany({ where: { userId }, select: { id: true } });
@@ -65,6 +78,7 @@ export class UserBansService {
         WHERE ${userId}::uuid = ANY("recipientIds")`;
       // Cascades also remove every group membership, session and personal notification.
       await tx.user.delete({ where: { id: userId } });
+      await reconcileAbsences(tx, affectedStudents.map((student) => student.id), "Séances supprimées");
       const groups = await tx.group.findMany({
         where: { id: { in: memberships.map((membership) => membership.groupId) } }, include: groupInclude,
       });

@@ -23,10 +23,10 @@ export class GroupsService {
   ) {}
   list(actor: Actor) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor);
+      const user = await this.access.actor(tx, actor);
       return (
         await tx.group.findMany({
-          where: { members: { some: { userId: actor.id } } },
+          where: user.role === "ADMIN" ? {} : { members: { some: { userId: actor.id } } },
           include: groupInclude,
           orderBy: [{ isGeneral: "desc" }, { createdAt: "asc" }],
         })

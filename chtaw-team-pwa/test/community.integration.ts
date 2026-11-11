@@ -28,9 +28,9 @@ async function startFixtureSession(pollId: string) {
   try {
     await db.connect();
     const { rows } = await db.query(`WITH changed AS (
-      UPDATE "Poll" SET "endsAt"=now()-interval '2 hours' WHERE id=$1::uuid RETURNING id, "endsAt" AS deadline
-    ) UPDATE "PollOption" SET "startsAt"=now()-interval '1 hour'+position*interval '1 minute',
-      "endsAt"=now()+interval '1 hour'+position*interval '1 minute'
+      UPDATE "Poll" SET "endsAt"=now()-interval '5 hours' WHERE id=$1::uuid RETURNING id, "endsAt" AS deadline
+    ) UPDATE "PollOption" SET "startsAt"=now()-interval '4 hours'+position*interval '1 hour',
+      "endsAt"=now()-interval '3 hours'+position*interval '1 hour'
       FROM changed WHERE "pollId"=changed.id
       RETURNING "PollOption"."startsAt" AT TIME ZONE 'UTC' AS "startsAt",
         "PollOption"."endsAt" AT TIME ZONE 'UTC' AS "endsAt",
@@ -436,11 +436,11 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
         },
       ]),
     ).rejects.toMatchObject({ status: 409 });
-    await attendanceService.update(mandatory.id, { ...mandatoryInput, ...startedSchedule, status: "CANCELLED" });
+    await expect(attendanceService.update(mandatory.id, { ...mandatoryInput, ...startedSchedule, status: "CANCELLED" })).rejects.toMatchObject({ status: 409 });
     expect(
       (await attendanceService.history(member.id)).sessions.find((s) => s.id === mandatory.id)
         ?.final,
-    ).toBe("ANNULE");
+    ).toBe("PRESENT");
     await state().logout();
     await admin.request(`/groups/${privateGroup.id}`, { method: "DELETE" });
     await admin.request(`/groups/${otherGroup.id}`, { method: "DELETE" });

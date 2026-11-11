@@ -31,9 +31,12 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
       new Date(Date.UTC(2099, 0, 2 + i, 10)).toISOString(),
     ),
   });
+  let fixtureSchedule = 0;
   async function create(count: number) {
+    const scheduled = input(count);
+    scheduled.startsAt = scheduled.startsAt.map((value) => new Date(Date.parse(value) + ++fixtureSchedule * 7 * 86400000).toISOString());
     return (
-      await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(input(count)).expect(201)
+      await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(scheduled).expect(201)
     ).body;
   }
   async function vote(
@@ -240,15 +243,15 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
         startsAt: poll.options.map((o: { startsAt: string }) => o.startsAt),
         status: "CANCELLED",
       })
-      .expect(200);
+      .expect(409);
     expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(
-      2,
+      3,
     );
     const history = (
       await api().get(`/api/v1/users/${studentId}/attendance`).set(auth()).expect(200)
     ).body;
-    expect(history.absences).toBe(2);
-    expect(history.sessions.find((p: { id: string }) => p.id === first.id).final).toBe("ANNULE");
+    expect(history.absences).toBe(3);
+    expect(history.sessions.find((p: { id: string }) => p.id === first.id).final).toBe("ABSENT");
   });
   it("contrôle autorisations, non-inscrits, retraits de groupe et anciens sondages", async () => {
     const poll = await create(2);
@@ -314,10 +317,12 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
   });
   it("modifie les horaires avant le premier vote et impose la date limite", async () => {
     const poll = await create(1);
+    const updated = input(10);
+    updated.startsAt = updated.startsAt.map((value) => new Date(Date.parse(value) + 730 * 86400000).toISOString());
     const changed = await api()
       .patch(`/api/v1/polls/${poll.id}`)
       .set(auth())
-      .send(input(10))
+      .send(updated)
       .expect(200);
     expect(changed.body.options).toHaveLength(10);
     await db.poll.update({

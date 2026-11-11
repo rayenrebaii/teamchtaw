@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  HttpCode,
   Get,
   Module,
   Param,
@@ -43,9 +42,6 @@ export class AttendanceController {
   @Organizer() @Delete("polls/:id/options/:optionId") removeSlot(
     @CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("optionId", ParseUUIDPipe) optionId: string,
   ) { return this.management.removeSlot(actor, id, optionId); }
-  @Organizer() @Delete("polls/:id") @HttpCode(204) remove(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
-    return this.management.remove(actor, id);
-  }
   @Organizer() @Get("admin/attendance/sessions") sessions(
     @CurrentUser() actor: Actor,
     @Query() query: AttendanceQueryDto,

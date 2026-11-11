@@ -48,7 +48,8 @@ describe("Sécurité des liens de compte", () => {
   it("place le jeton dans un fragment et impose une configuration explicite", () => {
     const mailer = new AccountMailer(new ConfigService({ ACCOUNT_ACTION_ORIGIN: "https://example.test", NODE_ENV: "production" }));
     expect(mailer.actionUrl("secret-token")).toBe("https://example.test/account-action#secret-token");
-    expect(() => new AccountMailer(new ConfigService()).actionUrl("token")).toThrow();
+    const emptyConfig = new ConfigService({ ACCOUNT_ACTION_ORIGIN: "" });
+    expect(() => new AccountMailer(emptyConfig).actionUrl("token")).toThrow();
   });
   it("définit le mot de passe Firebase et révoque les jetons avant activation locale", async () => {
     const calls: string[] = [];

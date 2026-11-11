@@ -16,6 +16,8 @@ import { validatePoll } from "./polls.validation";
 import { DomainEvents } from "../common/events";
 import { MandatoryAttendanceService } from "./mandatory-attendance.service";
 import { mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
+import { assertSessionCancellationAllowed } from "./session-deletion.rules";
+import { assertNoSessionOverlap } from "./session-overlap";
 import { assertAttendanceStarted } from "./attendance-time";
 
 @Injectable()
@@ -132,9 +134,11 @@ export class AttendanceService {
             (o) =>
               dto.options[o.position] !== o.label ||
               new Date(dto.startsAt![o.position] ?? 0).getTime() !== o.startsAt?.getTime() ||
-              (poll.mandatoryAttendance &&
+              (dto.slotEndsAt !== undefined &&
                 new Date(dto.slotEndsAt![o.position] ?? 0).getTime() !== o.endsAt?.getTime()),
           );
+        if (structureChanged || (dto.status === "CANCELLED" && poll.status !== "CANCELLED"))
+          assertSessionCancellationAllowed(poll.options);
         if (structureChanged && (poll.votes.length || poll.attendanceLockedAt))
           throw new ConflictException(
             "Les horaires sont verrouillés dès le premier vote. Annulez la séance pour la remplacer.",
@@ -147,6 +151,7 @@ export class AttendanceService {
             "Les votes et horaires sont verrouillés après le premier pointage. Clôture ou annulation uniquement.",
           );
         if (structureChanged) {
+          await assertNoSessionOverlap(tx, poll.groupId, dto, id);
           await tx.pollOption.deleteMany({ where: { pollId: id } });
           await tx.pollOption.createMany({
             data: dto.options.map((label, position) => ({
@@ -154,7 +159,7 @@ export class AttendanceService {
               label,
               position,
               startsAt: new Date(dto.startsAt![position]!),
-              endsAt: poll.mandatoryAttendance ? new Date(dto.slotEndsAt![position]!) : null,
+              endsAt: dto.slotEndsAt?.[position] ? new Date(dto.slotEndsAt[position]!) : null,
             })),
           });
         }
@@ -275,7 +280,7 @@ export class AttendanceService {
         where: {
           type: "SESSION",
           authorId: actor.id,
-          group: { members: { some: { userId: actor.id } } },
+          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
           groupId: query.groupId,
           id: query.pollId,
           ...(query.from || query.to
@@ -400,7 +405,7 @@ export class AttendanceService {
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
-          ...(self ? {} : { authorId: actor.id, group: { members: { some: { userId: actor.id } } } }),
+          ...(self ? {} : { authorId: actor.id, ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }) }),
           OR: [
             { votes: { some: { userId } } },
             { participants: { some: { userId } } },
@@ -447,6 +452,7 @@ export class AttendanceService {
         slots: poll.options.map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
         status: poll.status,
         createdAt: poll.createdAt,
+        archivedAt: poll.archivedAt,
         mandatoryAttendance: poll.mandatoryAttendance,
         globalEdits: poll.participants[0]?.edits.filter((e) => !e.optionId) ?? [],
         final:

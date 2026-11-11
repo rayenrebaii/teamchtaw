@@ -36,7 +36,7 @@ it("confirms complete deletion and removes the session from the page and calenda
   fireEvent.click(screen.getByRole("button", { name: "Gérer la séance : Séance test" }));
   fireEvent.click(screen.getByRole("button", { name: "Supprimer la séance" }));
   expect(remove).not.toHaveBeenCalled();
-  expect(screen.getByText(/Cette action est irréversible/)).toBeTruthy();
+  expect(screen.getByText(/Les présences, absences et leur historique seront conservés/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Confirmer la suppression" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(remove).toHaveBeenCalledWith(poll.id);

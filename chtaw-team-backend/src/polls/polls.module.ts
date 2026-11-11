@@ -4,6 +4,8 @@ import {
   ConflictException,
   ForbiddenException,
   Controller,
+  Delete,
+  HttpCode,
   Get,
   Injectable,
   Module,
@@ -22,7 +24,9 @@ import { pollInclude, presentPoll, presentMessage, messageInclude } from "../com
 import { PageDto } from "../common/query.dto";
 import { Organizer, CurrentUser } from "../auth/security";
 import { CreatePollDto, VoteDto } from "./polls.dto";
+import { PollDeletionModule, PollDeletionService } from "./poll-deletion.service";
 import { validatePoll } from "./polls.validation";
+import { assertNoSessionOverlap } from "./session-overlap";
 @Injectable()
 export class PollsService {
   constructor(
@@ -32,9 +36,9 @@ export class PollsService {
   ) {}
   list(actor: Actor, query: PageDto) {
     return this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor);
+      const user = await this.access.actor(tx, actor);
       const items = await tx.poll.findMany({
-        where: { group: { members: { some: { userId: actor.id } } }, ...(actor.role === "COLLABORATOR" ? { authorId: actor.id } : {}) },
+        where: { archivedAt: null, ...(user.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }), ...(user.role === "COLLABORATOR" ? { authorId: actor.id } : {}) },
         include: pollInclude,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
@@ -56,6 +60,7 @@ export class PollsService {
       const user = await this.access.organizer(tx, actor);
       await this.access.group(tx, actor, groupId);
       if (user.role === "COLLABORATOR" && dto.type !== "SESSION") throw new ForbiddenException("Seuls les sondages de séance sont autorisés.");
+      await assertNoSessionOverlap(tx, groupId, dto);
       const poll = await tx.poll.create({
         data: {
           groupId,
@@ -102,7 +107,7 @@ export class PollsService {
   }
   get(actor: Actor, id: string) {
     return this.db.$transaction(async (tx) => {
-      const poll = await tx.poll.findUnique({ where: { id }, include: pollInclude });
+      const poll = await tx.poll.findUnique({ where: { id, archivedAt: null }, include: pollInclude });
       if (!poll) throw new NotFoundException("Sondage introuvable.");
       await this.access.group(tx, actor, poll.groupId);
       if (actor.role === "COLLABORATOR" && poll.type === "SESSION" && poll.authorId !== actor.id)
@@ -112,7 +117,7 @@ export class PollsService {
   }
   async vote(actor: Actor, id: string, dto: VoteDto, replace = false) {
     const poll = await this.db.$transaction(async (tx) => {
-      const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
+      const located = await tx.poll.findUnique({ where: { id, archivedAt: null }, select: { groupId: true } });
       if (!located) throw new NotFoundException("Sondage introuvable.");
       await this.access.group(tx, actor, located.groupId);
       await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
@@ -148,7 +153,7 @@ export class PollsService {
       await tx.pollVoteOption.createMany({
         data: dto.optionIds.map((optionId) => ({ voteId: vote.id, optionId, pollId: id })),
       });
-      return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id }, include: pollInclude }));
+      return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id, archivedAt: null }, include: pollInclude }));
     });
     await this.events.publish({ name: "poll:updated", groupId: poll.groupId, payload: poll });
     return poll;
@@ -158,7 +163,10 @@ export class PollsService {
 @ApiBearerAuth()
 @Controller()
 export class PollsController {
-  constructor(private polls: PollsService) {}
+  constructor(private polls: PollsService, private deletion: PollDeletionService) {}
+  @Organizer() @Delete("polls/:id") @HttpCode(204) remove(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
+    return this.deletion.remove(actor, id);
+  }
   @Get("polls") list(@CurrentUser() actor: Actor, @Query() query: PageDto) {
     return this.polls.list(actor, query);
   }
@@ -187,5 +195,5 @@ export class PollsController {
     return this.polls.vote(actor, id, dto, true);
   }
 }
-@Module({ providers: [PollsService], controllers: [PollsController], exports: [PollsService] })
+@Module({ imports: [PollDeletionModule], providers: [PollsService], controllers: [PollsController], exports: [PollsService] })
 export class PollsModule {}

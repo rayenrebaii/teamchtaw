@@ -73,6 +73,7 @@ export interface StudentHistory {
     groupName: string;
     status: string;
     createdAt: string;
+    archivedAt?: string | null;
     final: FinalStatus;
     mandatoryAttendance?: boolean;
     globalEdits?: {

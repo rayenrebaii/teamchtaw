@@ -1,3 +1,6 @@
+import { createRequire } from "node:module";
+const safety = createRequire(import.meta.url)("../chtaw-team-backend/scripts/test-safety.cjs");
+safety.assertTestContext();
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./test/browser",
@@ -6,5 +9,5 @@ export default defineConfig({
   workers: 1,
   timeout: 45000,
   reporter: "list",
-  use: { baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001", channel: "msedge", headless: true, screenshot: "only-on-failure" },
+  use: { baseURL: "http://127.0.0.1:3001", channel: "msedge", headless: true, screenshot: "only-on-failure" },
 });

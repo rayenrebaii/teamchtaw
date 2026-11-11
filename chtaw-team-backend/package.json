@@ -8,14 +8,18 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src test prisma/seed.ts",
-    "test": "jest --runInBand",
-    "test:integration": "jest --config jest.integration.cjs --runInBand",
+    "test": "node scripts/safe-command.mjs backend:test",
+    "test:integration": "node scripts/run-isolated-tests.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test:isolated": "node scripts/run-isolated-tests.mjs",
-    "test:frontend:isolated": "node scripts/run-isolated-tests.mjs --frontend"
+    "test:frontend:isolated": "node scripts/run-isolated-tests.mjs --frontend",
+    "test:firebase": "node scripts/run-isolated-tests.mjs --firebase",
+    "test:migration": "node scripts/run-isolated-tests.mjs --migration",
+    "test:safety": "node --test scripts/test-safety.test.cjs",
+    "build:local": "node scripts/safe-command.mjs backend:build"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

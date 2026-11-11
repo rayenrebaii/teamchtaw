@@ -1,3 +1,4 @@
+require('./scripts/test-safety.cjs').assertTestContext();
 const base = require('./jest.config.cjs');
 module.exports = {
   ...base,

@@ -52,7 +52,10 @@ export class FirebaseIdentity {
     // Compatibility for installed PWAs during rollout; credentials are checked by Firebase only.
     try {
       const key = this.config.getOrThrow<string>("FIREBASE_WEB_API_KEY");
-      const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`, {
+      const emulator = this.config.get<string>("FIREBASE_AUTH_EMULATOR_HOST");
+      if (emulator && (this.config.get("NODE_ENV") !== "test" || !/^127\.0\.0\.1:\d+$/.test(emulator))) throw Error("Unsafe emulator configuration");
+      const base = emulator ? `http://${emulator}/identitytoolkit.googleapis.com` : "https://identitytoolkit.googleapis.com";
+      const response = await fetch(`${base}/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, returnSecureToken: true }), signal: AbortSignal.timeout(15000),
       });
@@ -65,7 +68,12 @@ export class FirebaseIdentity {
   private async client(): Promise<Auth> {
     if (!this.enabled) throw new UnauthorizedException("Firebase n’est pas activé.");
     const name = "chtaw-auth";
-    const app = getApps().find((item) => item.name === name) ?? initializeApp({
+    const emulator = this.config.get<string>("FIREBASE_AUTH_EMULATOR_HOST");
+    if (emulator && (this.config.get("NODE_ENV") !== "test" || !/^127\.0\.0\.1:\d+$/.test(emulator) ||
+        !this.config.get<string>("FIREBASE_PROJECT_ID")?.startsWith("demo-"))) throw Error("Unsafe emulator configuration");
+    const app = getApps().find((item) => item.name === name) ?? initializeApp(emulator ? {
+      projectId: this.config.getOrThrow<string>("FIREBASE_PROJECT_ID"),
+    } : {
       credential: cert({
         projectId: this.config.getOrThrow<string>("FIREBASE_PROJECT_ID"),
         clientEmail: this.config.getOrThrow<string>("FIREBASE_CLIENT_EMAIL"),

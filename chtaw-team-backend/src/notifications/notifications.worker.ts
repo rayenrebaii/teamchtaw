@@ -222,7 +222,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     await this.db
       .$executeRaw`UPDATE "SessionReminderDelivery" d SET status=\'CANCELLED\' WHERE d.status=\'PENDING\' AND NOT EXISTS (SELECT 1 FROM "PollOption" o JOIN "Poll" p ON p.id=o."pollId" WHERE o.id=d."optionId" AND o."startsAt"=d."startsAt" AND p.status<>\'CANCELLED\')`;
     const options = await this.db.pollOption.findMany({
-      where: { startsAt: { gt: now }, poll: { type: "SESSION", status: { not: "CANCELLED" } } },
+      where: { startsAt: { gt: now }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
       include: { poll: true },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     });

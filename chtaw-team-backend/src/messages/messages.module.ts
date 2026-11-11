@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Delete,
+  NotFoundException,
   Get,
   Injectable,
   Module,
@@ -18,7 +20,7 @@ import { AccessService, Actor } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { presentMessage, messageInclude } from "../common/presenters";
 import { PageDto } from "../common/query.dto";
-import { CurrentUser } from "../auth/security";
+import { Admin, CurrentUser } from "../auth/security";
 export class SendMessageDto {
   @ApiProperty({ maxLength: 4000 })
   @IsString()
@@ -52,6 +54,17 @@ export class MessagesService {
       };
     });
   }
+  async remove(actor: Actor, groupId: string, id: string) {
+    await this.db.$transaction(async (tx) => {
+      await this.access.group(tx, actor, groupId, true);
+      const message = await tx.message.findFirst({ where: { id, groupId } });
+      if (!message) throw new NotFoundException("Message introuvable.");
+      await tx.notification.deleteMany({ where: { entityId: id } });
+      await tx.message.delete({ where: { id } });
+    });
+    await this.events.publish({ name: "message:deleted", groupId, payload: { messageId: id } });
+    return { messageId: id };
+  }
   async send(actor: Actor, groupId: string, dto: SendMessageDto) {
     const message = await this.db.$transaction(async (tx) => {
       await this.access.group(tx, actor, groupId);
@@ -71,6 +84,13 @@ export class MessagesService {
 @Controller("groups/:groupId/messages")
 export class MessagesController {
   constructor(private messages: MessagesService) {}
+  @Admin() @Delete(":id") remove(
+    @CurrentUser() actor: Actor,
+    @Param("groupId", ParseUUIDPipe) groupId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.messages.remove(actor, groupId, id);
+  }
   @Get() history(
     @CurrentUser() actor: Actor,
     @Param("groupId", ParseUUIDPipe) groupId: string,

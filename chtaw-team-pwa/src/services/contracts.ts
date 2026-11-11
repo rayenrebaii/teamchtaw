@@ -32,6 +32,8 @@ export interface CommunityService {
 }
 export interface RealtimeEvents {
   "message:created": Message;
+  "message:deleted": { messageId: string };
+  "poll:deleted": { pollId: string };
   "poll:updated": Poll;
   "group:updated": Group;
   "user:reviewed": User;

@@ -2,6 +2,7 @@ import { Global, Injectable, Logger, Module } from "@nestjs/common";
 export interface DomainEvent {
   name:
     | "message:created"
+    | "message:deleted"
     | "poll:created"
     | "poll:updated"
     | "poll:deleted"

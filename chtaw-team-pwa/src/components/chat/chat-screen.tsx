@@ -1,4 +1,5 @@
 "use client";
+import { DeleteContent } from "@/components/delete-content";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -240,6 +241,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                       })}
                     </span>
                     <p>{m.text}</p>
+                    <DeleteContent message={m} />
                   </div>
                 );
               const sender =
@@ -283,6 +285,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                       )}
                       {m.text && <p>{m.text}</p>}
                       {poll && <PollCard poll={poll} />}
+                      <DeleteContent message={m} />
                       <time dateTime={m.createdAt}>
                         {new Date(m.createdAt).toLocaleTimeString(locale, {
                           hour: "2-digit",

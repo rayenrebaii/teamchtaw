@@ -64,6 +64,7 @@ function SessionProviders({ children }: { children: React.ReactNode }) {
     const state = () => useCommunity.getState();
     const connection = new RealtimeService({
       message: (m) => state().receiveMessage(m),
+      messageDeleted: (id) => state().removeMessage(id),
       poll: (p) => state().receivePoll(p),
       pollDeleted: (id) => { state().removePoll(id); void state().sync(); },
       group: (g) => state().receiveGroup(g),

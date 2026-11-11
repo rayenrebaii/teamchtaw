@@ -54,10 +54,13 @@ export class AccessService {
     return user;
   }
   async session(tx: Prisma.TransactionClient, actor: Actor, id: string) {
-    const poll = await tx.poll.findUnique({ where: { id }, select: { groupId: true, authorId: true } });
-    if (!poll) throw new NotFoundException("Séance introuvable.");
-    await this.group(tx, actor, poll.groupId);
+    const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
+    if (!located) throw new NotFoundException("Séance introuvable.");
+    await this.group(tx, actor, located.groupId);
     await this.organizer(tx, actor);
+    // Archival holds the same group lock. Re-read after waiting for that lock.
+    const poll = await tx.poll.findUnique({ where: { id }, select: { groupId: true, authorId: true, archivedAt: true } });
+    if (!poll || poll.archivedAt) throw new NotFoundException("Séance introuvable.");
     if (poll.authorId !== actor.id) throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
     return poll;
   }
@@ -69,7 +72,8 @@ export class AccessService {
   }
   async group(tx: Prisma.TransactionClient, actor: Actor, groupId: string, admin = false) {
     const group = await this.lockGroup(tx, groupId);
-    await this.actor(tx, actor, true, admin);
+    const user = await this.actor(tx, actor, true, admin);
+    if (user.role === "ADMIN") return group;
     const member = await tx.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: actor.id } },
     });

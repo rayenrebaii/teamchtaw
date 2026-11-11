@@ -181,6 +181,7 @@ model Poll {
   type                PollType             @default(ORDINARY)
   status              PollStatus           @default(OPEN)
   attendanceLockedAt  DateTime?
+  archivedAt          DateTime?
   mandatoryAttendance Boolean              @default(false)
   participants        SessionParticipant[]
   singleChoice        Boolean              @default(true)
@@ -195,6 +196,7 @@ model Poll {
   @@index([groupId, createdAt, id])
   @@index([type, status, createdAt])
   @@index([authorId, type, createdAt])
+  @@index([archivedAt, type, createdAt])
 }
 
 // Poll.authorId is the immutable organizer, including historical sessions.

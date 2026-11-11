@@ -5,6 +5,7 @@ export interface RealtimeHandlers {
   notification?: () => void;
   message: (message: Message) => void;
   poll: (poll: Poll) => void;
+  messageDeleted?: (id: string) => void;
   pollDeleted?: (id: string) => void;
   group: (group: Group) => void;
   removed: (id: string) => void;
@@ -54,6 +55,7 @@ export class RealtimeService {
         .catch(() => this.handlers.status("offline"));
     });
     socket.on("message:created", this.handlers.message);
+    socket.on("message:deleted", (event: { messageId: string }) => this.handlers.messageDeleted?.(event.messageId));
     socket.on("poll:created", this.handlers.poll);
     socket.on("poll:updated", this.handlers.poll);
     socket.on("poll:deleted", (event: { pollId: string }) => this.handlers.pollDeleted?.(event.pollId));

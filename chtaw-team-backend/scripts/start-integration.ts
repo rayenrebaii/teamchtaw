@@ -1,5 +1,6 @@
 import "reflect-metadata";
-import "dotenv/config";
+const safety = require("./test-safety.cjs");
+safety.assertTestContext();
 import { execFileSync } from "node:child_process";
 import { NestFactory } from "@nestjs/core";
 async function main() {

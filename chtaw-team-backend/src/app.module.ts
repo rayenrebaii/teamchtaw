@@ -37,7 +37,7 @@ class HealthController {
 }
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
+    ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: process.env.CHTAW_ISOLATED_TESTS === "1", validate: validateEnvironment }),
     PrismaModule,
     EventsModule,
     AuthModule,

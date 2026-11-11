@@ -82,7 +82,7 @@ export class UsersService {
         tx.user.count({ where: { status: "APPROVED" } }),
         tx.group.count(),
         tx.message.count(),
-        tx.poll.count(),
+        tx.poll.count({ where: { archivedAt: null } }),
       ]);
       return { totalUsers, pendingUsers, approvedUsers, groups, messages, polls };
     });
