@@ -7,7 +7,7 @@ import { useCommunity } from "@/stores/community";
 import { useCopy } from "@/lib/i18n";
 import { attempt } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-export function PollCard({ poll, showResults = false }: { poll: Poll; showResults?: boolean }) {
+export function PollCard({ poll, showResults = false, hideDeleteAction = false }: { poll: Poll; showResults?: boolean; hideDeleteAction?: boolean }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [voting, setVoting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -34,7 +34,7 @@ export function PollCard({ poll, showResults = false }: { poll: Poll; showResult
         {poll.type === "SESSION" ? t("SONDAGE DE SÉANCE") : t("SONDAGE DE LA TEAM")}
       </span>
       <h3>{poll.question}</h3>
-      <DeleteContent poll={poll} />
+      {!hideDeleteAction && <DeleteContent poll={poll} />}
       {poll.description && <p>{poll.description}</p>}
       {poll.status === "CANCELLED" && (
         <p role="status">{t("Séance annulée · Exclue du calcul des absences")}</p>

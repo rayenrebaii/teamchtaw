@@ -931,7 +931,7 @@ form label small {
   color: var(--muted);
   font-size: 9px;
 }
-.system-message > span {
+.system-message > span:not([data-message-actions]) {
   display: inline-block;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1004,6 +1004,8 @@ form label small {
 .bubble time span {
   color: #9f71d2;
 }
+.message-footer { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.message-footer time { margin-top: 0; }
 .message-row.grouped {
   margin-top: -12px;
   margin-left: 40px;

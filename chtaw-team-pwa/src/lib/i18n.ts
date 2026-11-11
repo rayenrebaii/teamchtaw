@@ -7,6 +7,7 @@ export const english = {
   ...adminEnglish,
   ...collaboratorEnglish,
   ...groupsEnglish,
+  "Actions du message": "Message actions",
   "Chaque heure de fin fournie doit correspondre à un créneau et être postérieure à son début.": "Each provided end time must match a slot and be after its start.",
   "Les créneaux d’une même séance ne doivent pas se chevaucher.": "Slots within the same session must not overlap.",
   "Un créneau chevauche une autre séance de ce groupe, quel que soit son organisateur.": "A slot overlaps another session in this group, regardless of its organizer.",

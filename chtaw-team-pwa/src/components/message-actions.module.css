@@ -1,0 +1,23 @@
+.actions { display: inline-flex; align-items: center; vertical-align: middle; }
+.trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 26px; padding: 0; border: 0; border-radius: 999px;
+  color: var(--muted); background: transparent; cursor: pointer;
+  opacity: .65; transition: background-color 120ms, opacity 120ms;
+}
+.trigger:hover, .trigger[aria-expanded="true"] { background: var(--surface-alt); opacity: 1; }
+.trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; opacity: 1; }
+.menu {
+  position: fixed; z-index: 80; width: 208px; max-width: calc(100vw - 24px);
+  padding: 6px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 10px 36px #1a082b24;
+}
+.item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px;
+  padding: 10px 12px; border: 0; border-radius: 9px; text-align: left;
+  background: transparent; color: var(--danger); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.item:hover, .item:focus-visible { background: var(--surface-alt); outline: none; }
+@media (pointer: coarse) { .trigger { width: 36px; height: 32px; } .item { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .trigger { transition: none; } }

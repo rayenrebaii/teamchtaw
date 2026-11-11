@@ -1,6 +1,6 @@
 "use client";
 import { DeleteContent } from "@/components/delete-content";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
@@ -41,6 +41,12 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
   const [photo, setPhoto] = useState<string>();
   const [info, setInfo] = useState(false);
   const [sending, setSending] = useState(false);
+  const [messageMenu, setMessageMenu] = useState<string | null>(null);
+  const openMessageActions = (event: MouseEvent<HTMLElement>, id: string) => {
+    if (user?.role !== "ADMIN" || (event.target as Element).closest("button, a, input, textarea, select, summary, [role=button], [role=menu], [data-message-actions]")) return;
+    if (event.type === "contextmenu") event.preventDefault();
+    setMessageMenu(id);
+  };
   const loadingOlder = useRef(false);
   const scroll = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -232,7 +238,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
             {messages.map((m, index) => {
               if (m.kind === "system")
                 return (
-                  <div className="system-message" key={m.id}>
+                  <div className="system-message" key={m.id} onClick={(event) => openMessageActions(event, m.id)} onContextMenu={(event) => openMessageActions(event, m.id)}>
                     <span>
                       {new Date(m.createdAt).toLocaleDateString(locale, {
                         day: "numeric",
@@ -241,7 +247,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                       })}
                     </span>
                     <p>{m.text}</p>
-                    <DeleteContent message={m} />
+                    <DeleteContent message={m} menuOpen={messageMenu === m.id} onMenuOpenChange={(open) => setMessageMenu(open ? m.id : null)} />
                   </div>
                 );
               const sender =
@@ -270,7 +276,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                         {sender?.role === "ADMIN" && <span>COACH</span>}
                       </div>
                     )}
-                    <div className={`bubble ${m.kind === "poll" ? "poll-bubble" : ""}`}>
+                    <div className={`bubble ${m.kind === "poll" ? "poll-bubble" : ""}`} onClick={(event) => openMessageActions(event, m.id)} onContextMenu={(event) => openMessageActions(event, m.id)}>
                       {m.kind === "photo" && (
                         <button
                           className="photo-button"
@@ -284,8 +290,8 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                         </button>
                       )}
                       {m.text && <p>{m.text}</p>}
-                      {poll && <PollCard poll={poll} />}
-                      <DeleteContent message={m} />
+                      {poll && <PollCard poll={poll} hideDeleteAction={user.role === "ADMIN"} />}
+                      <div className="message-footer">
                       <time dateTime={m.createdAt}>
                         {new Date(m.createdAt).toLocaleTimeString(locale, {
                           hour: "2-digit",
@@ -293,6 +299,8 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                         })}
                         {mine && <span> ✓✓</span>}
                       </time>
+                      <DeleteContent message={m} poll={user.role === "ADMIN" ? poll : undefined} menuOpen={messageMenu === m.id} onMenuOpenChange={(open) => setMessageMenu(open ? m.id : null)} />
+                      </div>
                     </div>
                   </div>
                 </div>
