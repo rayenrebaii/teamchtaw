@@ -348,7 +348,9 @@ export const useCommunity = create<Store>((set, get) => ({
       users: s.users.filter((user) => user.id !== id),
       people: s.people.filter((user) => user.id !== id),
       groups: s.groups.map((group) => ({ ...group, memberIds: group.memberIds.filter((userId) => userId !== id) })),
-      messages: s.messages.filter((message) => message.authorId !== id),
+      messages: s.messages.filter((message) => message.authorId !== id).map((message) => message.poll
+        ? { ...message, poll: { ...message.poll, votes: message.poll.votes.filter((vote) => vote.userId !== id) } }
+        : message),
       polls: s.polls.filter((poll) => poll.authorId !== id).map((poll) => ({ ...poll, votes: poll.votes.filter((vote) => vote.userId !== id) })),
     }));
   },
@@ -431,7 +433,10 @@ export const useCommunity = create<Store>((set, get) => ({
   receivePoll: (poll) => {
     if (!get().groups.some((g) => g.id === poll.groupId)) return;
     revision++;
-    set((s) => ({ polls: mergeById(s.polls, [poll]) }));
+    set((s) => ({
+      polls: mergeById(s.polls, [poll]),
+      messages: s.messages.map((message) => message.pollId === poll.id ? { ...message, poll } : message),
+    }));
   },
   removePoll: (id) => {
     revision++;

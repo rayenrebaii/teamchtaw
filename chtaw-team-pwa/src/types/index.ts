@@ -67,6 +67,7 @@ export interface Message {
   createdAt: string;
   photoUrl?: string;
   pollId?: string;
+  poll?: Poll;
 }
 export interface PhotoMessage extends Message {
   kind: "photo";

@@ -42,6 +42,16 @@ describe("Organizer and client participation boundaries", () => {
     expect(await db.pollVote.count({ where: { pollId: session.id, userId: ids[role] } })).toBe(0);
     expect(await db.sessionParticipant.count({ where: { pollId: session.id, userId: ids[role] } })).toBe(0);
   });
+  it("includes the admin session card in group chat for a collaborator without granting session management access", async () => {
+    const history = await api().get(`/api/v1/groups/${groupId}/messages?limit=30`).set(auth("COLLABORATOR")).expect(200);
+    const message = history.body.items.find((item: { pollId?: string }) => item.pollId === session.id);
+    expect(message?.poll).toMatchObject({ id: session.id, authorId: ids.ADMIN, type: "SESSION", question: "Session fixture" });
+    expect(message.poll.options).toHaveLength(1);
+    expect(message.poll).not.toHaveProperty("participants");
+    await api().get(`/api/v1/polls/${session.id}`).set(auth("COLLABORATOR")).expect(403);
+    const other = await db.group.create({ data: { name: `Unassigned ${suffix}` } });
+    await api().get(`/api/v1/groups/${other.id}/messages`).set(auth("COLLABORATOR")).expect(403);
+  });
   it.each(["ADMIN", "COLLABORATOR", "USER"])("allows %s to vote in an ordinary poll", async (role) => {
     const listed = (await api().get("/api/v1/polls?limit=100").set(auth(role)).expect(200)).body.items as { id: string }[];
     expect(listed.some((poll) => poll.id === ordinary.id)).toBe(true);

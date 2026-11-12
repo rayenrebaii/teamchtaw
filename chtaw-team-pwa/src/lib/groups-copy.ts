@@ -1,4 +1,6 @@
 export const groupsEnglish: Record<string, string> = {
+  "Rechercher un groupe disponible": "Search available groups",
+  "Aucun groupe ne correspond à votre recherche.": "No groups match your search.",
   "Retirer {name} du groupe": "Remove {name} from group",
   "Groupes disponibles": "Available groups",
   "Seuls les noms sont visibles. L’admin doit accepter votre demande pour accéder au contenu.": "Only names are visible. An admin must accept your request before you can access the content.",

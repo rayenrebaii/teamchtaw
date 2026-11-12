@@ -28,6 +28,7 @@ it.each(["USER", "COLLABORATOR"] as const)("lets %s see names and send one reque
   let finish!: () => void;
   const send = vi.spyOn(groupsService, "requestJoin").mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ id: "request", status: "PENDING" }); }));
   render(<AvailableGroups />);
+  fireEvent.click(screen.getByRole("button", { name: "Groupes disponibles" }));
   const button = await screen.findByRole("button", { name: "Demander à rejoindre Groupe privé" });
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByText("Général")).toBeNull();
@@ -46,6 +47,7 @@ it("keeps the group available for retry if sending fails", async () => {
   vi.spyOn(groupsService, "directory").mockResolvedValue([{ id: "group", name: "G1", isGeneral: false, isMember: false, requestStatus: null }]);
   vi.spyOn(groupsService, "requestJoin").mockRejectedValue(Error("Connexion interrompue"));
   render(<AvailableGroups />);
+  fireEvent.click(screen.getByRole("button", { name: "Groupes disponibles" }));
   fireEvent.click(await screen.findByRole("button", { name: "Demander à rejoindre G1" }));
   expect(await screen.findByRole("alert")).toBeTruthy();
   await waitFor(() => expect(screen.getByRole("button", { name: "Demander à rejoindre G1" }).hasAttribute("disabled")).toBe(false));

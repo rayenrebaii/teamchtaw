@@ -265,7 +265,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                 new Date(m.createdAt).getTime() -
                   new Date(messages[index - 1].createdAt).getTime() <
                   300000;
-              const poll = store.polls.find((p) => p.id === m.pollId);
+              const poll = m.poll ?? store.polls.find((p) => p.id === m.pollId);
               return (
                 <div
                   key={m.id}

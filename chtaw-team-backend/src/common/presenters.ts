@@ -6,7 +6,6 @@ export const memberSelect = {
   bio: true,
   role: true,
 } satisfies Prisma.UserSelect;
-export const messageInclude = { author: { select: memberSelect } } satisfies Prisma.MessageInclude;
 export const userSelect = {
   id: true,
   email: true,
@@ -25,6 +24,11 @@ export const pollInclude = {
   options: { orderBy: { position: "asc" } },
   votes: { include: { options: true } },
 } satisfies Prisma.PollInclude;
+// A group conversation carries its public poll card independently of organizer management lists.
+export const messageInclude = {
+  author: { select: memberSelect },
+  poll: { include: pollInclude },
+} satisfies Prisma.MessageInclude;
 export function presentGroup(group: Prisma.GroupGetPayload<{ include: typeof groupInclude }>) {
   const { members, imageMediaId, ...rest } = group;
   return {
@@ -64,11 +68,13 @@ export function presentMessage(message: {
   mediaId: string | null;
   pollId: string | null;
   author?: Prisma.UserGetPayload<{ select: typeof memberSelect }>;
+  poll?: Prisma.PollGetPayload<{ include: typeof pollInclude }> | null;
 }) {
-  const { mediaId, pollId, ...rest } = message;
+  const { mediaId, pollId, poll, ...rest } = message;
   return {
     ...rest,
     pollId: pollId ?? undefined,
+    poll: poll && !poll.archivedAt ? presentPoll(poll) : undefined,
     photoUrl: mediaId ? `/api/v1/uploads/${mediaId}` : undefined,
   };
 }
