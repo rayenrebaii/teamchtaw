@@ -16,6 +16,7 @@ import {
 } from "./notifications.dto";
 import { defaultPreferences, permits, validPushEndpoint } from "./notifications.rules";
 import { PushTransport } from "./push.transport";
+import { notificationContent } from "./notifications.content";
 export function notificationWhere(actor: Actor): Prisma.NotificationWhereInput {
   return {
     userId: actor.id,
@@ -89,12 +90,14 @@ export class NotificationsService {
       const unreadCount = await tx.notification.count({
         where: { ...notificationWhere(actor), readAt: null },
       });
+      const visible = items.slice(0, query.limit);
+      const content = await this.describe(tx, visible.map((item) => ({ ...item, groupName: item.group.name })), query.language);
       return {
-        items: items
-          .slice(0, query.limit)
+        items: visible
           .map(({ sourceKey: _source, userId: _owner, expiresAt: _expires, group, ...item }) => ({
             ...item,
             groupName: group.name,
+            ...content.get(item.id),
           })),
         nextCursor: items.length > query.limit ? items[query.limit - 1]!.id : null,
         unreadCount,
@@ -126,13 +129,29 @@ export class NotificationsService {
   target(actor: Actor, id: string) {
     return this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor);
+      return this.resolveTarget(tx, actor, id);
+    });
+  }
+  async open(actor: Actor, id: string) {
+    return this.db.$transaction(async (tx) => {
+      await this.access.actor(tx, actor);
+      await tx.$queryRaw`SELECT id FROM "Notification" WHERE id=${id}::uuid FOR UPDATE`;
+      const target = await this.resolveTarget(tx, actor, id);
+      await tx.notification.delete({ where: { id } });
+      const unreadCount = await tx.notification.count({ where: { ...notificationWhere(actor), readAt: null } });
+      // Deletion is committed before every connected device refreshes its badge.
+      await tx.$queryRaw`SELECT pg_notify('chtaw_notifications', ${actor.id})::text AS notified`;
+      return { ...target, unreadCount };
+    });
+  }
+  private async resolveTarget(tx: Prisma.TransactionClient, actor: Actor, id: string) {
       const item = await tx.notification.findFirst({ where: { ...notificationWhere(actor), id } });
       if (!item) throw new NotFoundException("Notification introuvable.");
       if (item.type === "ABSENCE_ALERT") {
         const alert = await tx.organizerAbsenceAlert.findFirst({ where: { id: item.entityId,
           ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }) } });
         if (!alert) throw new NotFoundException("Signalement indisponible.");
-        return { href: actor.role === "ADMIN" ? "/admin/collaborator-reports" : "/collaborator/reports" };
+        return { href: `${actor.role === "ADMIN" ? "/admin/collaborator-reports" : "/collaborator/reports"}?alert=${alert.id}` };
       }
       if (item.type === "MESSAGE") {
         if (!(await tx.message.findFirst({ where: { id: item.entityId, groupId: item.groupId } })))
@@ -147,7 +166,27 @@ export class NotificationsService {
             ? `/app/groups/${item.groupId}?poll=${item.entityId}`
             : `/app/sessions/${item.entityId}`,
       };
-    });
+  }
+  async describe(tx: Prisma.TransactionClient, items: { id: string; type: string; entityId: string; groupId: string; groupName: string; optionId?: string | null; title: string; body: string }[], language = "fr") {
+    const messageIds = items.filter((item) => item.type === "MESSAGE").map((item) => item.entityId);
+    const pollIds = items.filter((item) => item.type === "POLL" || item.type.startsWith("SESSION_")).map((item) => item.entityId);
+    const alertIds = items.filter((item) => item.type === "ABSENCE_ALERT").map((item) => item.entityId);
+    const [messages, polls, alerts] = await Promise.all([
+      messageIds.length ? tx.message.findMany({ where: { id: { in: messageIds } }, include: { author: { select: { firstName: true, lastName: true } } } }) : [],
+      pollIds.length ? tx.poll.findMany({ where: { id: { in: pollIds }, archivedAt: null }, include: { author: { select: { firstName: true, lastName: true } }, options: { select: { id: true, label: true, startsAt: true } } } }) : [],
+      alertIds.length ? tx.organizerAbsenceAlert.findMany({ where: { id: { in: alertIds } }, include: { user: { select: { firstName: true, lastName: true } } } }) : [],
+    ]);
+    return new Map(items.map((item) => {
+      const message = messages.find((row) => row.id === item.entityId && row.groupId === item.groupId);
+      const poll = polls.find((row) => row.id === item.entityId && row.groupId === item.groupId);
+      const alert = alerts.find((row) => row.id === item.entityId);
+      const author = message?.author ?? poll?.author;
+      const option = poll?.options.find((row) => row.id === item.optionId);
+      return [item.id, notificationContent({ ...item, authorName: author ? `${author.firstName} ${author.lastName}` : undefined,
+        text: message?.text ?? poll?.question, photo: message?.kind === "photo", session: poll?.type === "SESSION",
+        startsAt: option?.startsAt, slot: option?.label, studentName: alert ? `${alert.user.firstName} ${alert.user.lastName}` : undefined, absenceCount: alert?.pollIds.length },
+      language, this.config.get<string>("NOTIFICATION_TIMEZONE", "Africa/Tunis"))];
+    }));
   }
   subscriptions(actor: Actor) {
     return this.db.$transaction(async (tx) => {

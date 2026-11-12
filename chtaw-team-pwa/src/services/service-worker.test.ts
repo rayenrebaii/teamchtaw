@@ -12,6 +12,7 @@ function worker() {
   const displayed: { title: string; options: Record<string, unknown> }[] = [];
   const opened: string[] = [];
   let closed = 0;
+  let windows: unknown[] = [];
   const db = {
     objectStoreNames: { contains: () => true },
     close: () => {},
@@ -31,7 +32,7 @@ function worker() {
   const context = {
     URL, Response,
     indexedDB: { open: () => { const request = { result: db, onsuccess: () => {} }; queueMicrotask(() => request.onsuccess()); return request; } },
-    self: { location: { origin: "https://app.test" }, addEventListener: (name: string, handler: (event: unknown) => void) => { handlers[name] = handler; }, skipWaiting: () => { skipped++; }, registration: { showNotification: async (title: string, options: Record<string, unknown>) => { displayed.push({ title, options }); }, getNotifications: async () => [{ close: () => { closed++; } }] }, clients: { claim: async () => {}, matchAll: async () => [], openWindow: async (path: string) => { opened.push(path); } } },
+    self: { location: { origin: "https://app.test" }, addEventListener: (name: string, handler: (event: unknown) => void) => { handlers[name] = handler; }, skipWaiting: () => { skipped++; }, registration: { showNotification: async (title: string, options: Record<string, unknown>) => { displayed.push({ title, options }); }, getNotifications: async () => [{ close: () => { closed++; } }] }, clients: { claim: async () => {}, matchAll: async () => windows, openWindow: async (path: string) => { opened.push(path); } } },
     caches: { open: async () => cache, match: async (key: string | Request) => stored.get(typeof key === "string" ? key : key.url), keys: async () => ["chtaw-static-v4", "other-app", "chtaw-public-v6", "chtaw-public-v7", "chtaw-public-v8"], delete: async (name: string) => { removed.push(name); } },
     fetch: async () => { if (!online) throw Error("offline"); return new Response("public", { headers: { "Cache-Control": header } }); },
   };
@@ -45,7 +46,7 @@ function worker() {
     return result;
   }
   const request = (path: string, mode = "navigate", method = "GET", headers = {}) => ({ url: "https://app.test" + path, mode, method, headers: new Headers(headers) });
-  return { stored, removed, run, request, displayed, opened, bind: (value: unknown) => { binding = value; }, closed: () => closed, skipped: () => skipped, offline: () => { online = false; }, noStore: () => { header = "no-store"; } };
+  return { stored, removed, run, request, displayed, opened, clients: (value: unknown[]) => { windows = value; }, bind: (value: unknown) => { binding = value; }, closed: () => closed, skipped: () => skipped, offline: () => { online = false; }, noStore: () => { header = "no-store"; } };
 }
 describe("Cache PWA et cycle de vie", () => {
   const id = "00000000-0000-4000-8000-000000000001";
@@ -68,7 +69,22 @@ describe("Cache PWA et cycle de vie", () => {
   it("opens a fixed internal route for a valid notification click", async () => {
     const sw = worker(); sw.bind({ binding: "device-a" });
     await sw.run("notificationclick", { notification: { close: () => {}, data: { binding: "device-a", notificationId: id, url: "https://evil.test" } } });
-    expect(sw.opened).toEqual(["/app/notifications?open=" + id]);
+    expect(sw.opened).toEqual(["https://app.test/app/notifications?open=" + id]);
+  });
+  it("shows the actual sender and preview in a system notification", async () => {
+    const sw = worker(); sw.bind({ binding: "device-a" });
+    await sw.run("push", { data: { json: () => ({ id, binding: "device-a", title: "Nadia · G1", body: "Bonjour la team !" }) } });
+    expect(sw.displayed[0]).toMatchObject({ title: "Nadia · G1", options: { body: "Bonjour la team !" } });
+  });
+  it("reuses and focuses an existing app window, or opens a fresh one if it was discarded", async () => {
+    const sw = worker(); sw.bind({ binding: "device-a" });
+    let target = "", focused = false;
+    sw.clients([{ url: "https://app.test/app", navigate: async (href: string) => { target = href; return { focus: async () => { focused = true; } }; } }]);
+    await sw.run("notificationclick", { notification: { close() {}, data: { binding: "device-a", notificationId: id } } });
+    expect(target).toBe("https://app.test/app/notifications?open=" + id); expect(focused).toBe(true); expect(sw.opened).toEqual([]);
+    sw.clients([{ url: "https://app.test/app", navigate: async () => { throw Error("discarded"); } }]);
+    await sw.run("notificationclick", { notification: { close() {}, data: { binding: "device-a", notificationId: id } } });
+    expect(sw.opened).toEqual(["https://app.test/app/notifications?open=" + id]);
   });
   it("ignores malformed pushes and clicks for another account", async () => {
     const sw = worker(); sw.bind({ binding: "device-b" });
@@ -96,7 +112,7 @@ describe("Cache PWA et cycle de vie", () => {
     const sw = worker(); expect(await sw.run("fetch", { request: sw.request(path, "cors") })).toBeUndefined();
   });
   it("nettoie les caches anciens sans toucher aux autres applications", async () => {
-    const sw = worker(); await sw.run("activate"); expect(sw.removed).toEqual(["chtaw-static-v4", "chtaw-public-v6", "chtaw-public-v7"]);
+    const sw = worker(); await sw.run("activate"); expect(sw.removed).toEqual(["chtaw-static-v4", "chtaw-public-v6", "chtaw-public-v7", "chtaw-public-v8"]);
     sw.stored.set("/app/profile", new Response("private"));
     await sw.run("message", { data: { type: "CLEAR_PRIVATE_CACHE" } });
     expect(sw.stored.has("/app/profile")).toBe(false);

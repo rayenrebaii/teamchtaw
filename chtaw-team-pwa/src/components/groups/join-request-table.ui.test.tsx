@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { AdminScreen } from "@/components/admin/admin-screen";
 import { GroupJoinRequests } from "./group-join-requests";
 import { useCommunity } from "@/stores/community";
@@ -30,7 +30,7 @@ it("opens requests from the groups header and does not render the inbox below th
   const { container } = render(<AdminScreen page="groups" />);
   expect(container.querySelector(".page-heading")?.textContent).toContain("Demandes d’adhésion");
   expect(screen.queryByRole("region", { name: "Demandes d’adhésion aux groupes" })).toBeNull();
-  expect(groupsService.joinRequests).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Demandes d’adhésion" }).textContent).toContain("12"));
   fireEvent.click(screen.getByRole("button", { name: "Demandes d’adhésion" }));
   expect(await screen.findByRole("dialog", { name: "Demandes d’adhésion aux groupes" })).toBeTruthy();
 });
@@ -64,6 +64,7 @@ it.each(["APPROVED", "REJECTED"] as const)("processes only selected requests acr
   expect(review).toHaveBeenCalledWith("request-0", status);
   expect(review).toHaveBeenCalledWith("request-11", status);
   await waitFor(() => expect(dialog.getByText("0 sélectionné(s)")).toBeTruthy());
+  expect(document.querySelector("button[aria-describedby] .count-badge")?.textContent).toContain("10");
 });
 
 it("retains failed requests and their selection while removing successful requests", async () => {
@@ -75,6 +76,7 @@ it("retains failed requests and their selection while removing successful reques
   expect(dialog.queryByRole("row", { name: "Person0 Team · G0" })).toBeNull();
   expect(dialog.getByRole("checkbox", { name: "Sélectionner la demande de Person1 Team pour G1" })).toHaveProperty("checked", true);
   expect(dialog.getByText("1 sélectionné(s)")).toBeTruthy();
+  expect(document.querySelector("button[aria-describedby] .count-badge")?.textContent).toContain("11");
 });
 
 it("selects only the visible page and clears selection on filter changes", async () => {
@@ -83,4 +85,35 @@ it("selects only the visible page and clears selection on filter changes", async
   expect(dialog.getByText("10 sélectionné(s)")).toBeTruthy();
   fireEvent.change(dialog.getByLabelText("Rôle"), { target: { value: "USER" } });
   expect(dialog.getByText("0 sélectionné(s)")).toBeTruthy();
+});
+
+it("refreshes the header count on focus, keeps the confirmed count on failure, and displays zero", async () => {
+  const list = vi.mocked(groupsService.joinRequests);
+  render(<GroupJoinRequests />);
+  const button = screen.getByRole("button", { name: "Demandes d’adhésion" });
+  const badge = () => button.querySelector(".count-badge")?.textContent;
+  await waitFor(() => expect(badge()).toContain("12"));
+  list.mockResolvedValueOnce(requests.slice(0, 3));
+  fireEvent(window, new Event("focus"));
+  await waitFor(() => expect(badge()).toContain("3"));
+  list.mockRejectedValueOnce(Error("Offline"));
+  fireEvent(window, new Event("focus"));
+  await act(async () => { await Promise.resolve(); });
+  expect(badge()).toContain("3");
+  list.mockResolvedValueOnce([]);
+  fireEvent(window, new Event("focus"));
+  await waitFor(() => expect(badge()).toContain("0"));
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("discards the previous admin's count response after switching accounts", async () => {
+  let finish!: (value: GroupJoinRequest[]) => void;
+  vi.mocked(groupsService.joinRequests).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; })).mockResolvedValue([]);
+  render(<GroupJoinRequests />);
+  const nextAdmin = { ...admin, id: "other-admin" };
+  act(() => useCommunity.setState({ session: { userId: nextAdmin.id, mode: "real" }, users: [nextAdmin] }));
+  const button = screen.getByRole("button", { name: "Demandes d’adhésion" });
+  await waitFor(() => expect(button.querySelector(".count-badge")?.textContent).toContain("0"));
+  await act(async () => finish(requests));
+  expect(button.querySelector(".count-badge")?.textContent).not.toContain("12");
 });

@@ -237,19 +237,18 @@ describe("Notification center and compact header", () => {
     );
     expect(container.querySelector(".workspace-topbar summary")?.textContent).toBe("nt");
   });
-  it("opens the server-authorized conversation and marks the notification read", async () => {
+  it("opens the server-authorized conversation and removes the notification", async () => {
     useNotifications.setState({ items: [row], unreadCount: 1 });
     const target = vi
-      .spyOn(notificationsService, "target")
-      .mockResolvedValue({ href: "/app/groups/g?message=message" });
-    const read = vi.spyOn(notificationsService, "read").mockResolvedValue({ unreadCount: 0 });
+      .spyOn(notificationsService, "open")
+      .mockResolvedValue({ href: "/app/groups/g?message=message", unreadCount: 0 });
     render(<NotificationsPage />);
     fireEvent.click(screen.getByRole("button", { name: /Nouveau message dans/ }));
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith("/app/groups/g?message=message"),
     );
     expect(target).toHaveBeenCalledWith(row.id);
-    expect(read).toHaveBeenCalledWith(row.id);
+    expect(useNotifications.getState().items).toEqual([]);
   });
   it("marks all read and refreshes the unread count", async () => {
     useNotifications.setState({ items: [row], unreadCount: 1 });
@@ -267,9 +266,8 @@ describe("Notification center and compact header", () => {
     rerender(<NotificationsPage />);
     expect(screen.queryByText(row.title)).toBeNull();
   });
-  it("resolves a push click through the authenticated target endpoint", async () => {
-    vi.spyOn(notificationsService, "target").mockResolvedValue({ href: "/app/sessions/session" });
-    vi.spyOn(notificationsService, "read").mockResolvedValue({ unreadCount: 0 });
+  it("resolves a push click through the authenticated opening endpoint", async () => {
+    vi.spyOn(notificationsService, "open").mockResolvedValue({ href: "/app/sessions/session", unreadCount: 0 });
     render(<NotificationsPage openId={row.id} />);
     await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/app/sessions/session"));
   });

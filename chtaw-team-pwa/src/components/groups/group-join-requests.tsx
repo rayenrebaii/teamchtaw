@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Inbox, Search } from "lucide-react";
 import { groupsService, type GroupJoinRequest } from "@/services/groups.service";
 import { useCommunity } from "@/stores/community";
@@ -14,14 +14,40 @@ export function GroupJoinRequests() {
   const { t } = useCopy();
   const [open, setOpen] = useState(false);
   const actor = useCommunity((state) => state.users.find((user) => user.id === state.session?.userId));
+  const [total, setTotal] = useState<{ owner: string; count: number }>();
+  const countId = useId();
+  const owner = actor?.role === "ADMIN" && actor.status === "APPROVED" ? actor.id : undefined;
+  const updateCount = useCallback((owner: string, count: number) => {
+    if (useCommunity.getState().session?.userId === owner) setTotal({ owner, count });
+  }, []);
+  useEffect(() => {
+    if (!owner || open) return;
+    let active = true, pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      try {
+        const requests = await groupsService.joinRequests();
+        if (active) updateCount(owner, requests.length);
+      } catch { /* Keep the last confirmed count; the dialog offers retry. */ }
+      finally { pending = false; }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 30000);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [owner, open, updateCount]);
   if (actor?.role !== "ADMIN") return null;
+  const count = total && total.owner === owner ? total.count : undefined;
   return <>
-    <Button variant="secondary" onClick={() => setOpen(true)}><Inbox size={17} aria-hidden="true" />{t("Demandes d’adhésion")}</Button>
-    {open && <Requests key={actor.id} owner={actor.id} close={() => setOpen(false)} />}
+    <Button variant="secondary" aria-label={t("Demandes d’adhésion")} aria-describedby={count === undefined ? undefined : countId} onClick={() => setOpen(true)}><Inbox size={17} aria-hidden="true" />{t("Demandes d’adhésion")}
+      {count !== undefined && <span id={countId} className="count-badge" aria-live="polite"><span aria-hidden="true">{count}</span><span className="sr-only">{t("{count} demande(s) en attente", { count })}</span></span>}
+    </Button>
+    {open && <Requests key={actor.id} owner={actor.id} onCount={updateCount} close={() => setOpen(false)} />}
   </>;
 }
 
-function Requests({ owner, close }: { owner: string; close: () => void }) {
+function Requests({ owner, close, onCount }: { owner: string; close: () => void; onCount: (owner: string, count: number) => void }) {
   const { t, locale, error: failure } = useCopy();
   const [requests, setRequests] = useState<GroupJoinRequest[]>();
   const [error, setError] = useState("");
@@ -41,11 +67,12 @@ function Requests({ owner, close }: { owner: string; close: () => void }) {
       const next = await groupsService.joinRequests();
       if (useCommunity.getState().session?.userId !== owner || version !== generation.current) return;
       setRequests(next); setError("");
+      onCount(owner, next.length);
     } catch (reason) {
       if (useCommunity.getState().session?.userId === owner && version === generation.current)
         setError(reason instanceof Error ? reason.message : "Opération impossible.");
     }
-  }, [owner]);
+  }, [owner, onCount]);
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => { if (active) return load(); });
@@ -71,6 +98,7 @@ function Requests({ owner, close }: { owner: string; close: () => void }) {
         () => useCommunity.getState().session?.userId === owner && useCommunity.getState().users.some((user) => user.id === owner && user.role === "ADMIN"));
       if (useCommunity.getState().session?.userId !== owner) return;
       setRequests((previous) => previous?.filter((item) => !outcome.succeeded.includes(item.id)));
+      onCount(owner, (requests ?? []).filter((item) => !outcome.succeeded.includes(item.id)).length);
       setSelectedIds((previous) => previous.filter((id) => !outcome.succeeded.includes(id)));
       setErrors(outcome.failed.map(({ item, error }) => ({ name: `${item.user.firstName} ${item.user.lastName} · ${item.group.name}`, error })));
       if (outcome.succeeded.length === 1 && targets.length === 1) setMessage(status === "APPROVED" ? t("Demande acceptée. Le membre peut accéder au groupe.") : t("Demande refusée."));

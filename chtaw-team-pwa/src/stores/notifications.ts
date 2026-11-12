@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { notificationsService, type AppNotification } from "@/services/notifications.service";
+import { usePreferences } from "./preferences";
 let epoch = 0;
 let requestVersion = 0;
 export const useNotifications = create<{
@@ -11,6 +12,7 @@ export const useNotifications = create<{
   loading: boolean;
   error: string | null;
   reset: (owner?: string | null) => void;
+  consumed: (id: string, unreadCount: number) => void;
   sync: (more?: boolean) => Promise<void>;
 }>((set, get) => ({
   owner: null,
@@ -23,6 +25,10 @@ export const useNotifications = create<{
     epoch++;
     set({ owner, items: [], unreadCount: 0, nextCursor: null, loading: false, error: null });
   },
+  consumed: (id, unreadCount) => {
+    requestVersion++;
+    set((state) => ({ items: state.items.filter((item) => item.id !== id), unreadCount, nextCursor: null, loading: false }));
+  },
   sync: async (more = false) => {
     const owner = get().owner,
       version = epoch,
@@ -32,6 +38,7 @@ export const useNotifications = create<{
     try {
       const page = await notificationsService.list(
         more ? (get().nextCursor ?? undefined) : undefined,
+        usePreferences.getState().language,
       );
       if (version !== epoch || request !== requestVersion || owner !== get().owner) return;
       set((state) => ({

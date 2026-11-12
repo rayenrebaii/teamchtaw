@@ -1,4 +1,6 @@
 export const groupsEnglish: Record<string, string> = {
+  "{count} demande(s) en attente": "{count} pending request(s)",
+  "Ouverture de la notification…": "Opening notification…",
   "Rechercher un groupe disponible": "Search available groups",
   "Aucun groupe ne correspond à votre recherche.": "No groups match your search.",
   "Retirer {name} du groupe": "Remove {name} from group",

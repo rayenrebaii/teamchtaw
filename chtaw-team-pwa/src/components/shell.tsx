@@ -15,6 +15,7 @@ import { destination } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 import { AppHeader, MobileNavigation, NavigationItems } from "@/components/app-navigation";
 import { useCopy } from "@/lib/i18n";
+import { notificationLoginPath } from "@/features/notification-navigation";
 export function Shell({ children, admin = false, organizer = false }: { children: React.ReactNode; admin?: boolean; organizer?: boolean }) {
   const store = useCommunity();
   const content = useRef<HTMLDivElement>(null);
@@ -25,9 +26,9 @@ export function Shell({ children, admin = false, organizer = false }: { children
   const path = usePathname();
   const valid = user?.status === "APPROVED" && (process.env.NEXT_PUBLIC_AUTH_PROVIDER !== "firebase" || user.emailVerified !== false) && (!admin || user.role === "ADMIN") && (!organizer || user.role === "COLLABORATOR" || user.role === "ADMIN");
   useEffect(() => {
-    if (!user) router.replace("/login");
+    if (!user) router.replace(path === "/app/notifications" ? notificationLoginPath(window.location.search) : "/login");
     else if (!valid) router.replace(destination(user));
-  }, [user, valid, router]);
+  }, [user, valid, router, path]);
   useEffect(() => {
     if (!user) return;
     const viewport = window.visualViewport;

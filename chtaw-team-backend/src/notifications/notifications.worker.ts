@@ -8,6 +8,7 @@ import { NotificationsService } from "./notifications.service";
 import { PushTransport } from "./push.transport";
 import { permits, reminderPlan } from "./notifications.rules";
 import { FirebaseIdentity } from "../auth/firebase.service";
+import { notificationContent } from "./notifications.content";
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -89,7 +90,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           await tx.$queryRaw`SELECT "messageId" FROM "NotificationEvent" WHERE "messageId"=${source.messageId}::uuid FOR UPDATE`;
           const event = await tx.notificationEvent.findUnique({
             where: { messageId: source.messageId },
-            include: { message: { include: { group: true } } },
+            include: { message: { include: { group: true, author: { select: { firstName: true, lastName: true } }, poll: { select: { question: true, type: true } } } } },
           });
           if (!event || event.processedAt) return;
           const type = event.message.kind === "poll" ? "POLL" : "MESSAGE";
@@ -108,14 +109,9 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
               userId,
               groupId: event.message.groupId,
               type,
-              title:
-                type === "POLL"
-                  ? "Nouveau sondage"
-                  : "Nouveau message dans " + event.message.group.name,
-              body:
-                type === "POLL"
-                  ? "Un nouveau sondage est disponible dans " + event.message.group.name + "."
-                  : "Un nouveau message a été publié.",
+              ...notificationContent({ type, groupName: event.message.group.name,
+                authorName: `${event.message.author.firstName} ${event.message.author.lastName}`,
+                text: event.message.poll?.question ?? event.message.text, session: event.message.poll?.type === "SESSION", photo: event.message.kind === "photo" }),
               entityId: type === "POLL" ? event.message.pollId! : event.message.id,
               sourceKey:
                 type === "POLL" ? "poll:" + event.message.pollId : "message:" + event.message.id,
@@ -303,7 +299,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
         if (!rows.length) return null;
         const delivery = await tx.pushDelivery.findUnique({
           where: { id: job.id },
-          include: { notification: true, subscription: { include: { session: { include: { user: { select: { firebaseUid: true, email: true } } } } } } },
+          include: { notification: { include: { group: { select: { name: true } } } }, subscription: { include: { session: { include: { user: { select: { firebaseUid: true, email: true } } } } } } },
         });
         if (!delivery) return null;
         const sub = delivery.subscription;
@@ -336,7 +332,8 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
             leaseUntil: new Date(now.getTime() + 180000),
           },
         });
-        return delivery;
+        const content = await this.service.describe(tx, [{ ...delivery.notification, groupName: delivery.notification.group.name }], sub.language);
+        return { ...delivery, content: content.get(delivery.notification.id)! };
       });
       if (!claim) continue;
       try {
@@ -345,11 +342,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           {
             id: claim.notificationId,
             binding: claim.subscription.binding,
-            title: "Team Chtaw",
-            body:
-              claim.subscription.language === "en"
-                ? "A new notification is available in your account."
-                : "Une nouvelle notification est disponible dans votre espace.",
+            ...claim.content,
           },
           Math.floor((claim.notification.expiresAt.getTime() - now.getTime()) / 1000),
         );

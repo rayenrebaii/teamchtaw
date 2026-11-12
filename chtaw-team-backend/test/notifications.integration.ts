@@ -86,7 +86,8 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     const rows = await db.notification.findMany({ where: { entityId: message.id } });
     expect(rows).toHaveLength(2); expect(rows.map((row) => row.userId).sort()).toEqual([student.id, another.id].sort());
     firstId = rows.find((row) => row.userId === student.id)!.id;
-    expect(rows[0]!.body).not.toContain("Private integration");
+    expect(rows[0]!.body).toContain("Private integration");
+    expect(rows[0]!.title).toContain("Notification Fixture");
     await worker.work(); expect(await db.notification.count({ where: { entityId: message.id } })).toBe(2);
   });
   it("authorizes history, cursor, unread counts and private no-store responses", async () => {
@@ -248,8 +249,8 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     await Promise.all([worker.deliverPush(), second.deliverPush()]);
     expect(send).toHaveBeenCalledTimes(1);
     const payload = send.mock.calls[0]![1];
-    expect(JSON.stringify(payload)).not.toContain("Private integration");
-    expect(JSON.stringify(payload)).not.toContain("Notifications private");
+    expect(JSON.stringify(payload)).toContain("Private integration");
+    expect(JSON.stringify(payload)).toContain("Notifications private");
     expect(payload).toMatchObject({ binding: subscription.body.binding });
     const item = await db.notification.findFirstOrThrow({ where: { entityId: message.id, userId: student.id } });
     expect(await db.pushDelivery.findFirst({ where: { notificationId: item.id } })).toMatchObject({ status: "SENT", attempts: 1 });
@@ -282,6 +283,52 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     expect((await get(student).expect(200)).body.items).toEqual([]);
     await get(student, "/" + item.id + "/target").expect(404);
     expect(await db.notification.count({ where: { id: item.id } })).toBe(1);
+    await db.groupMember.create({ data: { groupId, userId: student.id } });
+  });
+  it("opens and removes only the recipient's message notification without deleting the source or recreating it", async () => {
+    const message = await publish(); await worker.work();
+    const own = await db.notification.findFirstOrThrow({ where: { entityId: message.id, userId: student.id } });
+    const others = await db.notification.findFirstOrThrow({ where: { entityId: message.id, userId: another.id } });
+    await api().post(`/api/v1/notifications/${own.id}/open`).expect(401);
+    await api().post(`/api/v1/notifications/${own.id}/open`).auth(outsider.token, { type: "bearer" }).expect(404);
+    expect(await db.notification.count({ where: { id: own.id } })).toBe(1);
+    const result = await api().post(`/api/v1/notifications/${own.id}/open`).auth(student.token, { type: "bearer" }).expect(200);
+    expect(result.body.href).toBe(`/app/groups/${groupId}?message=${message.id}`);
+    expect(result.body.unreadCount).toBe((await get(student).expect(200)).body.unreadCount);
+    expect(await db.notification.count({ where: { id: own.id } })).toBe(0);
+    expect(await db.notification.count({ where: { id: others.id } })).toBe(1);
+    expect(await db.message.count({ where: { id: message.id } })).toBe(1);
+    expect(await db.pushDelivery.count({ where: { notificationId: own.id } })).toBe(0);
+    await worker.work();
+    expect(await db.notification.count({ where: { entityId: message.id, userId: student.id } })).toBe(0);
+  });
+  it("returns sender and source previews for old generic notifications in both languages", async () => {
+    const message = await publish(); await worker.work();
+    await db.notification.updateMany({ where: { entityId: message.id }, data: { title: "Nouveau message", body: "Un nouveau message a été publié." } });
+    for (const language of ["fr", "en"]) {
+      const result = await get(student, "?language=" + language).expect(200);
+      const item = result.body.items.find((row: { entityId: string }) => row.entityId === message.id);
+      expect(item).toMatchObject({ title: "Notification Fixture · Notifications private", body: "Private integration message" });
+    }
+    const poll = await db.poll.create({ data: { groupId, authorId: admin.id, question: "Choose Tuesday", type: "SESSION", singleChoice: false } });
+    await publish(admin, "poll", poll.id); await worker.work();
+    const result = await get(student, "?language=en").expect(200);
+    expect(result.body.items.find((row: { entityId: string }) => row.entityId === poll.id).body).toBe("Session poll : Choose Tuesday");
+    const notification = await db.notification.findFirstOrThrow({ where: { entityId: poll.id, userId: student.id } });
+    const opened = await api().post(`/api/v1/notifications/${notification.id}/open`).auth(student.token, { type: "bearer" }).expect(200);
+    expect(opened.body.href).toBe(`/app/groups/${groupId}?poll=${poll.id}`);
+    expect(await db.poll.count({ where: { id: poll.id } })).toBe(1);
+  });
+  it("keeps a notification when its source or membership is unavailable", async () => {
+    const id = randomUUID();
+    const notification = await db.notification.create({ data: { userId: student.id, groupId, type: "MESSAGE", title: "Missing source", body: "", entityId: id, sourceKey: id, expiresAt: new Date(Date.now() + 60000) } });
+    await api().post(`/api/v1/notifications/${notification.id}/open`).auth(student.token, { type: "bearer" }).expect(404);
+    expect(await db.notification.count({ where: { id: notification.id } })).toBe(1);
+    const message = await publish(); await worker.work();
+    const own = await db.notification.findFirstOrThrow({ where: { entityId: message.id, userId: student.id } });
+    await db.groupMember.delete({ where: { groupId_userId: { groupId, userId: student.id } } });
+    await api().post(`/api/v1/notifications/${own.id}/open`).auth(student.token, { type: "bearer" }).expect(404);
+    expect(await db.notification.count({ where: { id: own.id } })).toBe(1);
     await db.groupMember.create({ data: { groupId, userId: student.id } });
   });
   it("cleans this session's subscriptions on logout and retains preferences", async () => {

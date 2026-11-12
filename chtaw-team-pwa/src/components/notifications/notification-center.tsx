@@ -1,48 +1,33 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { useNotifications } from "@/stores/notifications";
-import { notificationsService, type AppNotification } from "@/services/notifications.service";
+import { notificationsService } from "@/services/notifications.service";
 import { useCopy } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { attempt } from "@/components/shared";
+import { openNotification } from "@/services/notification-open";
+import { validNotificationId } from "@/features/notification-navigation";
 function NotificationItems({ compact = false, close }: { compact?: boolean; close?: () => void }) {
   const store = useNotifications(),
     community = useCommunity(),
     router = useRouter();
-  const { t, locale, error, language } = useCopy();
+  const { t, locale, error } = useCopy();
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const current = store.owner === community.session?.userId;
   const allowed = new Set(community.groups.map((group) => group.id));
   const items = current
     ? store.items.filter((item) => allowed.has(item.groupId)).slice(0, compact ? 6 : undefined)
     : [];
-  const title = (item: AppNotification) =>
-    language === "fr"
-      ? item.title
-      : item.type === "MESSAGE"
-        ? t("Nouveau message dans {group}", { group: item.groupName })
-        : item.type === "POLL"
-          ? t("Nouveau sondage")
-          : item.type === "SESSION_24H"
-            ? t("Séance demain")
-            : t("Séance dans 1 heure");
-  const body = (item: AppNotification) =>
-    language === "fr"
-      ? item.body
-      : item.type === "MESSAGE"
-        ? t("Un nouveau message a été publié.")
-        : item.type === "POLL"
-          ? t("Un nouveau sondage est disponible dans {group}.", { group: item.groupName })
-          : t("Un rappel de séance est disponible pour {group}.", { group: item.groupName });
   return (
     <div className="notification-center">
       <div className="row wrap between">
-        <h2>{t("Notifications")}</h2>
+        {!compact && <h2>{t("Notifications")}</h2>}
         <Button
           size="sm"
           variant="secondary"
@@ -72,26 +57,30 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
             <span className="eyebrow">
               {item.type === "MESSAGE"
                 ? t("Messages")
+                : item.type === "ABSENCE_ALERT"
+                  ? t("Signalements")
                 : item.type === "POLL"
                   ? t("Sondages")
                   : t("Rappels de séances")}
             </span>
             <button
               className="notification-open"
+              disabled={busy}
               onClick={() => {
+                const owner = community.session?.userId;
+                if (!owner || pending.current) return;
+                pending.current = true; setBusy(true);
                 void attempt(async () => {
-                  const target = await notificationsService.target(item.id);
-                  if (!/^\/(app|admin|collaborator)\//.test(target.href) || target.href.startsWith("//"))
-                    throw Error("Contenu indisponible.");
-                  await notificationsService.read(item.id);
-                  await store.sync();
+                  const href = await openNotification(item.id, owner);
+                  if (useCommunity.getState().session?.userId !== owner) return;
                   close?.();
-                  router.push(target.href);
-                });
+                  router.push(href);
+                  void useNotifications.getState().sync();
+                }).finally(() => { pending.current = false; setBusy(false); });
               }}
             >
-              <strong>{title(item)}</strong>
-              <span>{body(item)}</span>
+              <strong>{item.title}</strong>
+              <span>{item.body}</span>
             </button>
             <div className="row wrap between">
               <time dateTime={item.createdAt}>
@@ -103,6 +92,7 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={busy}
                 onClick={() => {
                   void attempt(async () => {
                     await notificationsService.read(item.id);
@@ -164,23 +154,28 @@ export function NotificationBell() {
 export function NotificationsPage({ openId }: { openId?: string }) {
   const router = useRouter(),
     owner = useCommunity((state) => state.session?.userId);
+  const { t, error: failure } = useCopy();
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ key: string; error: string }>();
+  const key = `${owner}:${openId}:${retry}`;
+  const error = result?.key === key ? result.error : "";
   useEffect(() => {
-    if (!owner || !openId || !/^[a-f0-9-]{36}$/i.test(openId)) return;
+    if (!owner || !openId || !validNotificationId(openId)) return;
     let active = true;
-    void attempt(async () => {
-      const target = await notificationsService.target(openId);
+    void openNotification(openId, owner).then((href) => {
       if (!active || useCommunity.getState().session?.userId !== owner) return;
-      if (!/^\/(app|admin|collaborator)\//.test(target.href) || target.href.startsWith("//"))
-        throw Error("Contenu indisponible.");
-      await notificationsService.read(openId);
-      if (active && useCommunity.getState().session?.userId === owner) router.replace(target.href);
+      router.replace(href);
+      void useNotifications.getState().sync();
+    }).catch((reason: unknown) => {
+      if (active && useCommunity.getState().session?.userId === owner)
+        setResult({ key, error: reason instanceof Error ? reason.message : "Contenu indisponible." });
     });
-    return () => {
-      active = false;
-    };
-  }, [openId, owner, router]);
+    return () => { active = false; };
+  }, [openId, owner, router, key]);
   return (
     <div className="account-page">
+      {openId && validNotificationId(openId) && !error && <p role="status">{t("Ouverture de la notification…")}</p>}
+      {error && <div role="alert"><p>{failure(error)}</p><Button onClick={() => setRetry((value) => value + 1)}>{t("Réessayer")}</Button></div>}
       <NotificationItems />
     </div>
   );

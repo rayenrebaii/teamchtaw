@@ -175,13 +175,13 @@ interface AlertDetail {
       edits: { id: string; action: string; before: string; after: string; createdAt: string }[] }[];
     votes: { options: { attendance: string; optionId: string; edits: { id: string; before: string; after: string; createdAt: string }[] }[] }[] }[];
 }
-export function OrganizerReports() {
+export function OrganizerReports({ initialAlertId }: { initialAlertId?: string }) {
   const { t } = useCopy();
   const store = useCommunity();
   const actor = store.users.find((user) => user.id === store.session?.userId);
   const load = useCallback(() => attendanceService.alerts(), []);
   const remote = useRemote(load);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialAlertId ?? null);
   return <div className="admin-page form-stack"><h1>{t("Signalements par organisateur")}</h1><p>{t("Le seuil de trois absences est calculé séparément pour chaque organisateur. Les décisions sur les comptes étudiants appartiennent à l’administrateur.")}</p>
     <Button variant="secondary" onClick={remote.refresh}><RotateCcw size={16} aria-hidden="true" />{t("Actualiser")}</Button><LoadState {...remote} retry={remote.refresh} />
     {remote.data?.map((alert) => <article className="panel form-stack" key={alert.id}><h2>{alert.user?.firstName} {alert.user?.lastName}</h2>

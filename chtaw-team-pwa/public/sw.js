@@ -1,4 +1,4 @@
-const CACHE = "chtaw-public-v8";
+const CACHE = "chtaw-public-v9";
 const CORE = ["/branding/chtaw-logo.png", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png", "/images/team.svg"];
 const publicPath = (path) => CORE.includes(path) || path.startsWith("/_next/static/") || path.startsWith("/icons/");
 const cacheable = (response) => response.ok && !/(?:no-store|private)/i.test(response.headers.get("Cache-Control") || "");
@@ -69,8 +69,8 @@ self.addEventListener("push", (event) => {
     if (!payload || typeof payload.binding !== "string" || !/^[a-f0-9-]{36}$/i.test(payload.id || "")) return;
     const binding = await pushBinding().catch(() => null);
     if (!binding || binding.binding !== payload.binding) return;
-    await self.registration.showNotification("Team Chtaw", {
-      body: typeof payload.body === "string" ? payload.body.slice(0, 200) : "Une nouvelle notification est disponible.",
+    await self.registration.showNotification(typeof payload.title === "string" && payload.title.trim() ? payload.title.slice(0, 180) : "Team Chtaw", {
+      body: typeof payload.body === "string" ? payload.body.slice(0, 480) : "Une nouvelle notification est disponible.",
       icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: "chtaw-" + payload.id,
       data: { notificationId: payload.id, binding: payload.binding },
     });
@@ -85,10 +85,16 @@ self.addEventListener("notificationclick", (event) => {
     if (!binding || event.notification.data?.binding !== binding.binding) return;
     const id = event.notification.data?.notificationId;
     if (!/^[a-f0-9-]{36}$/i.test(id || "")) return;
-    const target = "/app/notifications?open=" + encodeURIComponent(id);
+    const target = new URL("/app/notifications?open=" + encodeURIComponent(id), self.location.origin).href;
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const client = windows.find((item) => new URL(item.url).origin === self.location.origin);
-    if (client) { await client.navigate(target); await client.focus(); }
-    else await self.clients.openWindow(target);
+    if (client) {
+      try {
+        const navigated = await client.navigate(target);
+        await (navigated || client).focus();
+        return;
+      } catch { /* A discarded tab may no longer be navigable. */ }
+    }
+    await self.clients.openWindow(target);
   })());
 });

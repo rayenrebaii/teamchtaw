@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useCommunity } from "@/stores/community";
 import { useNotifications } from "@/stores/notifications";
 import { clearDeviceBinding, deviceBinding } from "@/services/notifications.service";
+import { usePreferences } from "@/stores/preferences";
 export function NotificationsProvider() {
   const user = useCommunity((state) =>
     state.users.find((member) => member.id === state.session?.userId),
@@ -10,6 +11,7 @@ export function NotificationsProvider() {
   const blockedOwner = user && user.status !== "APPROVED" ? user.id : null;
   const owner = user?.status === "APPROVED" ? user.id : null;
   const groups = useCommunity((state) => state.groups);
+  const language = usePreferences((state) => state.language);
   const groupKey = groups
     .map((group) => group.id)
     .sort()
@@ -50,6 +52,6 @@ export function NotificationsProvider() {
       items: state.items.filter((item) => allowed.has(item.groupId)),
     }));
     if (owner) void useNotifications.getState().sync();
-  }, [groupKey, owner]);
+  }, [groupKey, owner, language]);
   return null;
 }

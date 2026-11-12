@@ -25,7 +25,7 @@ describe("Notification account isolation", () => {
     useNotifications.getState().reset("a"); await useNotifications.getState().sync(); await useNotifications.getState().sync(true);
     expect(useNotifications.getState().items).toHaveLength(2);
     expect(useNotifications.getState().items[0]!.readAt).toBeTruthy();
-    expect(notificationsService.list).toHaveBeenLastCalledWith("a");
+    expect(notificationsService.list).toHaveBeenLastCalledWith("a", "fr");
   });
   it("preserves the displayed history on a network error", async () => {
     vi.spyOn(notificationsService, "list").mockResolvedValueOnce(page("a")).mockRejectedValueOnce(Error("offline"));
@@ -33,5 +33,15 @@ describe("Notification account isolation", () => {
     expect(useNotifications.getState().items).toHaveLength(1);
     expect(useNotifications.getState()).toMatchObject({ error: "offline", loading: false });
     useNotifications.getState().reset(); expect(useNotifications.getState().items).toEqual([]);
+  });
+  it("does not restore a consumed notification from an older in-flight refresh", async () => {
+    let finish!: (value: ReturnType<typeof page>) => void;
+    vi.spyOn(notificationsService, "list").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    useNotifications.getState().reset("a");
+    useNotifications.setState({ items: [item("opened")], unreadCount: 1 });
+    const refreshing = useNotifications.getState().sync();
+    useNotifications.getState().consumed("opened", 0);
+    finish(page("opened")); await refreshing;
+    expect(useNotifications.getState()).toMatchObject({ items: [], unreadCount: 0, nextCursor: null, loading: false });
   });
 });

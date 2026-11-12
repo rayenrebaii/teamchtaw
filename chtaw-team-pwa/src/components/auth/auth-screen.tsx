@@ -10,7 +10,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { useCommunity } from "@/stores/community";
 import { Button } from "@/components/ui/button";
 import { attempt } from "@/components/shared";
-import { destination } from "@/lib/utils";
+import { notificationLoginDestination } from "@/features/notification-navigation";
 import { firebaseEnabled } from "@/services/firebase";
 import { PasswordInput } from "./password-input";
 const schema = z
@@ -39,7 +39,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
   const store = useCommunity();
   const currentUser = store.users.find((u) => u.id === store.session?.userId);
   useEffect(() => {
-    if (currentUser) router.replace(destination(currentUser));
+    if (currentUser) router.replace(notificationLoginDestination(currentUser, window.location.search));
   }, [currentUser, router]);
   const {
     register: field,
@@ -108,7 +108,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
                         password: v.password,
                       })
                     : await store.login(v.email, v.password, remember);
-                  router.push(destination(user));
+                  router.push(notificationLoginDestination(user, window.location.search));
                 } finally {
                   resetField("password");
                   resetField("confirm");

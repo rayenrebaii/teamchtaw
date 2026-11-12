@@ -18,9 +18,9 @@ export interface NotificationPreferences {
   sessionRemindersEnabled?: boolean;
 }
 export const notificationsService = {
-  list: (cursor?: string) =>
+  list: (cursor?: string, language = "fr") =>
     api.request<{ items: AppNotification[]; nextCursor: string | null; unreadCount: number }>(
-      "/notifications?limit=20" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
+      "/notifications?limit=20&language=" + encodeURIComponent(language) + (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
     ),
   read: (id: string) =>
     api.request<{ unreadCount: number }>(`/notifications/${encodeURIComponent(id)}/read`, {
@@ -30,6 +30,8 @@ export const notificationsService = {
     api.request<{ unreadCount: number }>("/notifications/read-all", { method: "PATCH" }),
   target: (id: string) =>
     api.request<{ href: string }>(`/notifications/${encodeURIComponent(id)}/target`),
+  open: (id: string) =>
+    api.request<{ href: string; unreadCount: number }>(`/notifications/${encodeURIComponent(id)}/open`, { method: "POST" }),
   preferences: () => api.request<NotificationPreferences>("/notifications/preferences"),
   updatePreferences: (values: Partial<NotificationPreferences>) =>
     api.request<NotificationPreferences>("/notifications/preferences", {

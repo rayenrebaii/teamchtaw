@@ -11,6 +11,8 @@ import {
 import { PageDto } from "../common/query.dto";
 export class NotificationQueryDto extends PageDto {
   @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsIn(["fr", "en"]) language?: "fr" | "en";
+  @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsIn(["true", "false"])
   unread?: string;
 }
