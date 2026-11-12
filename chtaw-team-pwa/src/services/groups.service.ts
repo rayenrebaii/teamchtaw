@@ -1,6 +1,26 @@
 import { api } from "./api-client";
 import type { Group, MemberSummary } from "@/types";
+export type GroupJoinStatus = "PENDING" | "APPROVED" | "REJECTED";
+export interface AvailableGroup {
+  id: string;
+  name: string;
+  isGeneral: boolean;
+  isMember: boolean;
+  requestStatus: GroupJoinStatus | null;
+}
+export interface GroupJoinRequest {
+  id: string;
+  status: GroupJoinStatus;
+  createdAt: string;
+  group: { id: string; name: string };
+  user: { id: string; firstName: string; lastName: string; email: string; role: "USER" | "COLLABORATOR" | "ADMIN" };
+}
 export const groupsService = {
+  directory: () => api.request<AvailableGroup[]>("/groups/directory"),
+  requestJoin: (id: string) => api.request<{ id: string; status: GroupJoinStatus }>(`/groups/${encodeURIComponent(id)}/join-requests`, { method: "POST" }),
+  joinRequests: () => api.request<GroupJoinRequest[]>("/groups/join-requests"),
+  reviewJoinRequest: (id: string, status: "APPROVED" | "REJECTED") =>
+    api.request(`/groups/join-requests/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }),
   list: () => api.request<Group[]>("/groups"),
   get: (id: string) =>
     api.request<Group & { members: MemberSummary[] }>(`/groups/${encodeURIComponent(id)}`),

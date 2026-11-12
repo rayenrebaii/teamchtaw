@@ -10,6 +10,7 @@ import {
   Send,
   ImagePlus,
   ChartNoAxesColumn,
+  CalendarPlus,
   Users,
   ArrowUpRight,
   MessageCircle,
@@ -23,11 +24,13 @@ import { Avatar, Empty, attempt } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { PollCard } from "@/components/polls/poll-card";
+import { SessionEditor } from "@/components/polls/session-editor";
 import { PublishDialog } from "./publish-dialogs";
 import { PrivateImage } from "@/components/private-image";
 import { GroupMembers } from "./group-members";
 import { AddGroupMembers } from "./add-group-members";
 import { GroupEditor } from "@/components/groups/group-editor";
+import { AvailableGroups } from "@/components/groups/available-groups";
 export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: string; focusMessage?: string; focusPoll?: string }) {
   const store = useCommunity();
   const { t, locale, error } = useCopy();
@@ -37,7 +40,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
   const user = store.users.find((u) => u.id === store.session?.userId);
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
-  const [publish, setPublish] = useState<"photo" | "poll" | null>(null);
+  const [publish, setPublish] = useState<"photo" | "poll" | "session" | null>(null);
   const [photo, setPhoto] = useState<string>();
   const [info, setInfo] = useState(false);
   const [sending, setSending] = useState(false);
@@ -143,6 +146,7 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
           {!groups.some((g) => g.name.toLowerCase().includes(search.toLowerCase())) && (
             <Empty title={t("Aucun groupe trouvé")}>{t("Essayez un autre nom.")}</Empty>
           )}
+          <AvailableGroups />
         </div>
         <div className="local-note">
           <span className="live-dot" />{" "}
@@ -345,6 +349,17 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                 </button>
               </>
             )}
+            {(user.role === "ADMIN" || user.role === "COLLABORATOR") && (
+              <button
+                type="button"
+                className="icon-button"
+                title={t("Créer un sondage de séance")}
+                aria-label={t("Créer un sondage de séance")}
+                onClick={() => setPublish("session")}
+              >
+                <CalendarPlus size={21} />
+              </button>
+            )}
             <textarea
               rows={1}
               aria-label={t("Votre message")}
@@ -369,8 +384,11 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
             </Button>
           </form>
           <div className="composer-note">{t("Un peu de respect, beaucoup d’esprit d’équipe. ✨")}</div>
-          {publish && (
+          {publish && publish !== "session" && user.role === "ADMIN" && (
             <PublishDialog kind={publish} groupId={group.id} onClose={() => setPublish(null)} />
+          )}
+          {publish === "session" && (user.role === "ADMIN" || user.role === "COLLABORATOR") && (
+            <SessionEditor key={group.id} groupId={group.id} votesOnly close={() => setPublish(null)} />
           )}
           <Modal open={info} onClose={() => setInfo(false)} title={group.name}>
             <p className="muted">{group.description}</p>

@@ -21,6 +21,7 @@ import { MembersPanel } from "./requests-panel";
 import { AttendanceDashboard, SessionPollsScreen } from "./attendance-panel";
 import styles from "./group-detail.module.css";
 import { GroupsDirectory } from "./groups-directory";
+import { GroupJoinRequests } from "@/components/groups/group-join-requests";
 export function AdminScreen({
   page = "dashboard",
   groupId,
@@ -138,7 +139,10 @@ export function AdminScreen({
       )}
       {(page === "approvals" || page === "users") && <MembersPanel />}
       {page === "groups" && !groupId && (
-        <GroupsDirectory onCreate={() => setEditing("new")} onEdit={setEditing} />
+        <>
+          <GroupsDirectory onCreate={() => setEditing("new")} onEdit={setEditing} />
+          <GroupJoinRequests />
+        </>
       )}
       {page === "groups" &&
         groupId &&
