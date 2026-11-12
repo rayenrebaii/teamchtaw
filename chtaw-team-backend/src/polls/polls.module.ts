@@ -38,7 +38,7 @@ export class PollsService {
     return this.db.$transaction(async (tx) => {
       const user = await this.access.actor(tx, actor);
       const items = await tx.poll.findMany({
-        where: { archivedAt: null, ...(user.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }), ...(user.role === "COLLABORATOR" ? { authorId: actor.id } : {}) },
+        where: { archivedAt: null, ...(user.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }), ...(user.role === "COLLABORATOR" ? { OR: [{ authorId: actor.id }, { type: "ORDINARY" }] } : {}) },
         include: pollInclude,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,

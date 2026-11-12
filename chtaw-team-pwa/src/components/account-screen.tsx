@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Clock3, Ban, ArrowRight, ShieldCheck } from "lucide-react";
@@ -13,7 +13,6 @@ import { Avatar, attempt } from "@/components/shared";
 import { InstallPWAButton } from "@/components/pwa/InstallPWAButton";
 import { BrandLogo } from "@/components/brand-logo";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
-import { AttendanceHistory } from "@/components/admin/attendance-panel";
 import { useCopy } from "@/lib/i18n";
 import { usePreferences, type ThemePreference, type Language } from "@/stores/preferences";
 const schema = z.object({
@@ -22,7 +21,6 @@ const schema = z.object({
   bio: z.string().trim().max(250, "250 caractères maximum."),
 });
 export function ProfileScreen() {
-  const [attendance, setAttendance] = useState(false);
   const store = useCommunity();
   const { t, locale, error } = useCopy();
   const user = store.users.find((member) => member.id === store.session?.userId);
@@ -119,16 +117,11 @@ export function ProfileScreen() {
           </Button>
         </form>
       </section>
-      {user.role === "USER" ? (
+      {user.role === "USER" && (
         <Button variant="secondary" asChild>
           <Link href="/app/attendance">{t("Mon historique de présence")}</Link>
         </Button>
-      ) : (
-        <Button variant="secondary" onClick={() => setAttendance(true)}>
-          Mon historique de présence
-        </Button>
       )}
-      {attendance && <AttendanceHistory onClose={() => setAttendance(false)} />}
     </div>
   );
 }

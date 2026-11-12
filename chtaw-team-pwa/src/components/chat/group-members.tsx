@@ -36,6 +36,7 @@ export function GroupMembers({ group }: { group: Group }) {
           const member =
             store.people.find((u) => u.id === id) ?? store.users.find((u) => u.id === id);
           const name = member ? `${member.firstName} ${member.lastName}` : t("Membre");
+          const canRemove = !group.isGeneral && actor?.role === "ADMIN" && (member?.role === "USER" || member?.role === "COLLABORATOR");
           return (
             <div className="conversation-member" key={id}>
               <div className="row">
@@ -43,27 +44,23 @@ export function GroupMembers({ group }: { group: Group }) {
                 <div className="conversation-member-name">
                   <strong>{name}</strong>
                   <p className="tiny muted">
-                    {member?.role === "ADMIN" ? t("Administrateur · Retrait protégé") : t("Membre")}
+                    {member?.role === "ADMIN" ? t("Administrateur · Retrait protégé") : member?.role === "COLLABORATOR" ? t("Collaborateur") : t("Membre")}
                   </p>
                 </div>
-                {!group.isGeneral &&
-                  actor?.role === "ADMIN" &&
-                  member?.role === "USER" &&
+                {canRemove &&
                   confirmId !== id && (
                     <Button
                       variant="destructive"
                       size="sm"
                       disabled={removing}
-                      aria-label={`Retirer ${name} du groupe`}
+                      aria-label={t("Retirer {name} du groupe", { name })}
                       onClick={() => setConfirmId(id)}
                     >
                       <UserMinus size={15} /> {copy("Retirer")}{" "}
                     </Button>
                   )}
               </div>
-              {!group.isGeneral &&
-                actor?.role === "ADMIN" &&
-                member?.role === "USER" &&
+              {canRemove &&
                 confirmId === id && (
                   <div className="member-removal-confirmation">
                     <p className="small">

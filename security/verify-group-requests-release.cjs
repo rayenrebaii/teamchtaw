@@ -13,6 +13,11 @@ async function main() {
     for (const role of ['ADMIN', 'USER', 'COLLABORATOR']) for (const width of [1440, 390]) {
       const actor = { id: '00000000-0000-4000-8000-000000000001', firstName: 'Preview', lastName: 'Fixture', email: 'preview@ui.invalid', role, status: 'APPROVED', emailVerified: true, joinedAt: '2026-01-01T00:00:00Z', bio: '' };
       const group = { id: groupId, name: 'General preview', description: '', isGeneral: true, color: '#a78bfa', memberIds: [actor.id], members: [actor] };
+      const collaborator = { ...actor, id: '00000000-0000-4000-8000-000000000002', firstName: 'Other', lastName: 'Collaborator', role: 'COLLABORATOR' };
+      const roleGroup = { ...group, id: '00000000-0000-4000-8000-000000000012', name: 'Role preview', isGeneral: false, memberIds: [actor.id, collaborator.id], members: [actor, collaborator] };
+      const sessionPoll = { id: '00000000-0000-4000-8000-000000000020', groupId: roleGroup.id, authorId: actor.id, question: 'Role session', type: 'SESSION', status: 'OPEN', singleChoice: true, votes: [], options: [{ id: 'session-option', label: 'Session option' }] };
+      const ordinaryPoll = { ...sessionPoll, id: '00000000-0000-4000-8000-000000000021', question: 'Role ordinary', type: 'ORDINARY', options: [{ id: 'ordinary-option', label: 'Ordinary option' }] };
+      const pollMessages = [sessionPoll, ordinaryPoll].map((poll, index) => ({ id: `00000000-0000-4000-8000-${String(index + 30).padStart(12, '0')}`, groupId: roleGroup.id, authorId: actor.id, author: actor, kind: 'poll', pollId: poll.id, text: '', createdAt: '2026-11-12T10:00:00Z' }));
       let joinCalls = 0, reviewCalls = 0, contentReads = 0;
       const errors = [];
       const context = await browser.newContext({ viewport: { width, height: 1000 }, serviceWorkers: 'block' });
@@ -31,8 +36,11 @@ async function main() {
         if (pathname.startsWith('/groups/' + privateId) && request.method() === 'GET') contentReads++;
         if (pathname === '/auth/refresh') data = { accessToken: 'ui-fixture-not-a-jwt', expiresIn: 900, userId: actor.id, sessionId: 'ui-fixture' };
         else if (pathname === '/auth/me') data = actor;
-        else if (pathname === '/groups') data = [group];
+        else if (pathname === '/groups') data = [group, roleGroup];
         else if (pathname === '/groups/' + groupId) data = group;
+        else if (pathname === '/groups/' + roleGroup.id) data = roleGroup;
+        else if (pathname === '/groups/' + roleGroup.id + '/messages') data = { items: pollMessages, nextCursor: null };
+        else if (pathname === '/polls') data = { items: [sessionPoll, ordinaryPoll], nextCursor: null };
         else if (pathname === '/groups/directory') data = [{ id: privateId, name: 'Private preview', isGeneral: false, isMember: false, requestStatus: joinCalls ? 'PENDING' : null }];
         else if (pathname === '/groups/' + privateId + '/join-requests' && request.method() === 'POST') { joinCalls++; data = { id: 'request', status: 'PENDING' }; }
         else if (pathname === '/groups/join-requests') data = reviewCalls ? [] : [{ id: 'request', status: 'PENDING', createdAt: '2026-11-12T10:00:00Z', group: { id: privateId, name: 'Private preview' }, user: { ...actor, role: 'COLLABORATOR' } }];
@@ -78,8 +86,29 @@ async function main() {
         await inbox.getByText('Demande acceptée. Le membre peut accéder au groupe.', { exact: true }).waitFor();
         if (reviewCalls !== 1) throw Error('Admin review not submitted exactly once');
       }
+      await page.goto(base + '/app/profile', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: 'Enregistrer mes modifications', exact: true }).waitFor();
+      if ((await page.getByRole('link', { name: 'Mon historique de présence', exact: true }).count()) !== (role === 'USER' ? 1 : 0)) throw Error('Wrong personal attendance role');
+      if (await page.getByRole('button', { name: 'Mon historique de présence', exact: true }).count()) throw Error('Organizer personal attendance button remains');
+      await page.goto(base + '/app/groups/' + roleGroup.id, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', { name: sessionPoll.question, exact: true }).waitFor();
+      const sessionCard = page.locator('.poll-card').filter({ has: page.getByRole('heading', { name: sessionPoll.question, exact: true }) });
+      if ((await sessionCard.getByRole('button', { name: 'Session option', exact: true }).isDisabled()) !== (role !== 'USER')) throw Error('Wrong session vote permission');
+      if ((await sessionCard.getByRole('button', { name: 'Confirmer le vote', exact: true }).count()) !== (role === 'USER' ? 1 : 0)) throw Error('Wrong session vote control');
+      const ordinaryCard = page.locator('.poll-card').filter({ has: page.getByRole('heading', { name: ordinaryPoll.question, exact: true }) });
+      await ordinaryCard.getByRole('button', { name: 'Ordinary option', exact: true }).click();
+      if (!(await ordinaryCard.getByRole('button', { name: 'Confirmer le vote', exact: true }).isEnabled())) throw Error('Ordinary voting unavailable');
+      await page.getByRole('button', { name: 'Voir les membres', exact: true }).click();
+      const membersDialog = page.getByRole('dialog', { name: roleGroup.name, exact: true });
+      const removal = membersDialog.getByRole('button', { name: 'Retirer Other Collaborator du groupe', exact: true });
+      if (role === 'ADMIN') {
+        await removal.click();
+        await membersDialog.getByText(/Son compte sera conservé/).waitFor();
+        await membersDialog.getByRole('button', { name: 'Annuler', exact: true }).click();
+      } else if (await removal.count()) throw Error('Group removal exposed to a non-admin');
+      await membersDialog.getByRole('button', { name: 'Fermer', exact: true }).click();
       if (errors.length || await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw Error('Browser error or horizontal overflow');
-      console.log(JSON.stringify({ role, width, sessionControl: role === 'USER' ? 'hidden' : 'verified', joinRequest: role === 'ADMIN' ? 'admin acceptance verified' : 'single request verified', pageErrors: 0, overflow: false, productionBusinessMutations: 0 }));
+      console.log(JSON.stringify({ role, width, personalAttendance: role === 'USER' ? 'available' : 'hidden', sessionVote: role === 'USER' ? 'available' : 'blocked', ordinaryVote: 'available', collaboratorRemoval: role === 'ADMIN' ? 'confirmation verified' : 'hidden', pageErrors: 0, overflow: false, productionBusinessMutations: 0 }));
       await context.close();
     }
   } finally { await browser.close(); }
