@@ -5,6 +5,14 @@
 .card p, .request p { margin: 0; }
 .requests { display: grid; gap: 16px; }
 .requests h2 { margin: 0; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.filters label { min-width: 0; }
+.table { width: 100%; }
+.wideModal:global(.modal-content) { width: min(1100px, calc(100vw - 24px)); }
+.table p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.table td, .table th { padding: 10px 8px; }
+.table td { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .filters { grid-template-columns: 1fr; } }
 .request { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
 .request > div:first-child { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 5px; }
 @media (max-width: 600px) { .request { align-items: flex-start; flex-direction: column; } }

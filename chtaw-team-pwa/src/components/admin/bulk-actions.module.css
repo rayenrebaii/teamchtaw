@@ -1,0 +1,10 @@
+.toolbar { display: grid; gap: 12px; padding: 16px; margin: 16px 0; border: 1px solid var(--line); background: var(--surface-alt); border-radius: 12px; }
+.toolbar p, .report p { margin: 0; }
+.report { padding: 12px 0; overflow-wrap: anywhere; }
+.targets { max-height: 240px; overflow-y: auto; padding-left: 22px; }
+.targets li { padding: 5px 0; }
+.targets span { display: block; overflow-wrap: anywhere; }
+.selection { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+.selectionCell { width: 42px; min-width: 42px !important; }
+.pageSelection { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.pageSelection input { flex-shrink: 0; }

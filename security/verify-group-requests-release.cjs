@@ -72,6 +72,7 @@ async function main() {
       }
       if (role === 'ADMIN') {
         await page.goto(base + '/admin/groups', { waitUntil: 'domcontentloaded' });
+        await page.getByRole('button', { name: 'Demandes d’adhésion', exact: true }).click();
         const inbox = page.getByRole('region', { name: 'Demandes d’adhésion aux groupes', exact: true });
         await inbox.getByRole('button', { name: 'Accepter', exact: true }).click();
         await inbox.getByText('Demande acceptée. Le membre peut accéder au groupe.', { exact: true }).waitFor();

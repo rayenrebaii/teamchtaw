@@ -56,10 +56,11 @@ it.each(["APPROVED", "REJECTED"] as const)("allows the admin to record %s and up
   vi.spyOn(groupsService, "joinRequests").mockResolvedValue([pending]);
   const review = vi.spyOn(groupsService, "reviewJoinRequest").mockResolvedValue({});
   render(<GroupJoinRequests />);
-  const row = within(await screen.findByRole("article", { name: "Nadia Team · Groupe privé" }));
+  fireEvent.click(screen.getByRole("button"));
+  const row = within(await screen.findByRole("row", { name: "Nadia Team · Groupe privé" }));
   fireEvent.click(row.getByRole("button", { name: status === "APPROVED" ? "Accepter" : "Refuser" }));
   await waitFor(() => expect(review).toHaveBeenCalledWith("request", status));
-  await waitFor(() => expect(screen.queryByRole("article")).toBeNull());
+  await waitFor(() => expect(screen.queryByRole("row", { name: /Nadia Team/ })).toBeNull());
   expect(useCommunity.getState().sync).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("status").textContent).toContain(status === "APPROVED" ? "Demande acceptée" : "Demande refusée");
 });
@@ -69,9 +70,10 @@ it("preserves a failed request review and allows retry", async () => {
   vi.spyOn(groupsService, "joinRequests").mockResolvedValue([pending]);
   vi.spyOn(groupsService, "reviewJoinRequest").mockRejectedValue(Error("Connexion interrompue"));
   render(<GroupJoinRequests />);
+  fireEvent.click(screen.getByRole("button"));
   fireEvent.click(await screen.findByRole("button", { name: "Accepter" }));
   expect(await screen.findByRole("alert")).toBeTruthy();
-  expect(screen.getByRole("article")).toBeTruthy();
+  expect(screen.getByRole("row", { name: /Nadia Team/ })).toBeTruthy();
   expect(useCommunity.getState().sync).not.toHaveBeenCalled();
 });
 

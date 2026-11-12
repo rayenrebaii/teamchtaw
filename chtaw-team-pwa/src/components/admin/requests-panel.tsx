@@ -16,6 +16,8 @@ import type { User } from "@/types";
 import { usersService, type AdmissionDecision } from "@/services/users.service";
 import { useRemote, LoadState } from "./attendance-panel";
 import styles from "./members-panel.module.css";
+import { MemberBulkActions } from "./member-bulk-actions";
+import bulkStyles from "./bulk-actions.module.css";
 
 function MemberStatus({ user }: { user: User }) {
   const { text: copy } = useCopy();
@@ -190,6 +192,8 @@ export function MembersPanel({
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [banTarget, setBanTarget] = useState<User | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const isAdmin = store.users.some((user) => user.id === store.session?.userId && user.role === "ADMIN");
   const tabsRef = useRef<HTMLDivElement>(null);
   const [moreTabs, setMoreTabs] = useState(false);
@@ -208,6 +212,8 @@ export function MembersPanel({
     };
   }, [store.users.length]);
   const update = (patch: Partial<RequestFilters>) => {
+    if (bulkBusy) return;
+    setSelectedIds([]);
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
   };
@@ -228,6 +234,11 @@ export function MembersPanel({
   const periodChanged = period.start !== filters.start || period.end !== filters.end;
   const pages = Math.max(1, Math.ceil(results.length / 10));
   const currentPage = Math.min(page, pages);
+  const pageMembers = results.slice((currentPage - 1) * 10, currentPage * 10);
+  const selectable = (user: User) => user.role !== "ADMIN" && (user.status === "APPROVED" || (user.role === "USER" && user.status === "PENDING"));
+  const pageIds = pageMembers.filter(selectable).map((user) => user.id);
+  const selected = store.users.filter((user) => selectedIds.includes(user.id) && selectable(user));
+  const pageSelected = pageIds.filter((id) => selectedIds.includes(id)).length;
   const detail = store.users.find((u) => u.id === detailId);
   const assignment = store.users.find((u) => u.id === assignmentId);
   const groupsFor = (id: string) =>
@@ -467,11 +478,21 @@ export function MembersPanel({
                   total: store.users.length,
                 })}
           </p>
+          {isAdmin && <>
+            <label className={bulkStyles.pageSelection}><input className={bulkStyles.selection} type="checkbox"
+              aria-label={copy("Sélectionner les membres de cette page")} checked={pageIds.length > 0 && pageSelected === pageIds.length}
+              aria-checked={pageSelected > 0 && pageSelected < pageIds.length ? "mixed" : pageIds.length > 0 && pageSelected === pageIds.length}
+              ref={(input) => { if (input) input.indeterminate = pageSelected > 0 && pageSelected < pageIds.length; }}
+              disabled={bulkBusy || !!busy || !pageIds.length} onChange={(event) => setSelectedIds((previous) => event.target.checked ? [...new Set([...previous, ...pageIds])] : previous.filter((id) => !pageIds.includes(id)))} />{copy("Sélectionner les membres de cette page")}</label>
+            <MemberBulkActions selected={selected} clear={() => setSelectedIds([])} onBusy={setBulkBusy}
+              onDone={(ids) => setSelectedIds((previous) => previous.filter((id) => !ids.includes(id)))} />
+          </>}
           <div
-            className={`table-wrap request-table ${styles.table}`}
+            className={`table-wrap request-table ${styles.table} ${isAdmin ? styles.selectionTable : ""}`}
             role="region"
             aria-label={copy("Liste des membres")}
             tabIndex={0}
+            inert={bulkBusy}
           >
             <table>
               <caption className="sr-only">
@@ -479,6 +500,7 @@ export function MembersPanel({
               </caption>
               <thead>
                 <tr>
+                  {isAdmin && <th scope="col" className={bulkStyles.selectionCell}><span className="sr-only">{copy("Sélection")}</span></th>}
                   <th scope="col"> {copy("Membre")} </th>
                   <th scope="col"> {copy("Inscription")} </th>
                   <th scope="col"> {copy("Statut")} </th>
@@ -489,7 +511,7 @@ export function MembersPanel({
               <tbody>
                 {store.loading && !store.users.length && (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={isAdmin ? 6 : 5}>
                       <div className="request-loading" role="status">
                         <span className="skeleton" />
                         {copy("Chargement des membres…")}{" "}
@@ -497,8 +519,11 @@ export function MembersPanel({
                     </td>
                   </tr>
                 )}
-                {results.slice((currentPage - 1) * 10, currentPage * 10).map((u) => (
+                {pageMembers.map((u) => (
                   <tr key={u.id} className={styles.memberRow}>
+                    {isAdmin && <td data-label={copy("Sélection")} className={`${bulkStyles.selectionCell} ${styles.memberSelection}`}><input className={bulkStyles.selection} type="checkbox"
+                      aria-label={copy("Sélectionner {name}", { name: `${u.firstName} ${u.lastName}` })} disabled={bulkBusy || !!busy || !selectable(u)}
+                      checked={selected.some((user) => user.id === u.id)} onChange={(event) => setSelectedIds((previous) => event.target.checked ? [...previous, u.id] : previous.filter((id) => id !== u.id))} /></td>}
                     <td data-label={copy("Membre")} className={styles.identity}>
                       <div className={styles.member}>
                         <Avatar user={u} />
@@ -615,7 +640,7 @@ export function MembersPanel({
             >
               <Button
                 variant="secondary"
-                disabled={currentPage === 1 || store.loading}
+                disabled={currentPage === 1 || store.loading || bulkBusy}
                 onClick={() => setPage(currentPage - 1)}
               >
                 {copy("Précédent")}{" "}
@@ -625,7 +650,7 @@ export function MembersPanel({
               </span>
               <Button
                 variant="secondary"
-                disabled={currentPage === pages || store.loading}
+                disabled={currentPage === pages || store.loading || bulkBusy}
                 onClick={() => setPage(currentPage + 1)}
               >
                 {copy("Suivant")}{" "}

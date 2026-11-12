@@ -7,11 +7,13 @@ export function Modal({
   onClose,
   title,
   children,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const { t } = useCopy();
   return (
@@ -23,7 +25,7 @@ export function Modal({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal-content" aria-describedby={undefined}>
+        <Dialog.Content className={`modal-content${className ? ` ${className}` : ""}`} aria-describedby={undefined}>
           <div className="row between">
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close className="icon-button" aria-label={t("Fermer")}>

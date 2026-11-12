@@ -37,6 +37,12 @@
 .table th:nth-child(3) { width: 12%; }
 .table th:nth-child(4) { width: 14%; }
 .table th:last-child { width: 42%; }
+.table.selectionTable th:first-child { width: 4%; }
+.table.selectionTable th:nth-child(2) { width: 21%; }
+.table.selectionTable th:nth-child(3) { width: 10%; }
+.table.selectionTable th:nth-child(4) { width: 12%; }
+.table.selectionTable th:nth-child(5) { width: 13%; }
+.table.selectionTable th:last-child { width: 40%; }
 
 .table .memberRow:hover {
   background: color-mix(in srgb, var(--surface-alt) 55%, var(--surface));
@@ -163,6 +169,9 @@
     font-size: 11px;
     margin-bottom: 4px;
   }
+  .table.selectionTable .memberRow { grid-template-areas: "selection selection" "identity status" "date groups" "actions actions"; }
+  .table .memberSelection { grid-area: selection; display: flex; align-items: center; gap: 10px; width: auto; }
+  .table .memberSelection::before { margin: 0; }
   .table .identity { grid-area: identity; }
   .table .status { grid-area: status; align-self: start; }
   .table .date { grid-area: date; }
@@ -176,6 +185,11 @@
 }
 
 @container (max-width: 340px) {
+  .table.selectionTable .memberRow { grid-template-areas: "selection selection" "identity identity" "status status" "date groups" "actions actions"; }
+  .table.selectionTable .identity { grid-row: 2; }
+  .table.selectionTable .status { grid-row: 3; }
+  .table.selectionTable .date, .table.selectionTable .groups { grid-row: 4; }
+  .table.selectionTable .actionsCell { grid-row: 5; }
   .table .memberRow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 12px; }
   .table .identity { grid-column: 1 / -1; padding-inline-end: 0; }
   .table .status { grid-column: 1 / -1; grid-row: 2; }

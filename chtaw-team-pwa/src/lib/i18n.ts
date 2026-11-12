@@ -2,11 +2,13 @@
 import { adminEnglish } from "./admin-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
 import { groupsEnglish } from "./groups-copy";
+import { bulkEnglish } from "./bulk-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
   ...adminEnglish,
   ...collaboratorEnglish,
   ...groupsEnglish,
+  ...bulkEnglish,
   "Actions du message": "Message actions",
   "Chaque heure de fin fournie doit correspondre à un créneau et être postérieure à son début.": "Each provided end time must match a slot and be after its start.",
   "Les créneaux d’une même séance ne doivent pas se chevaucher.": "Slots within the same session must not overlap.",

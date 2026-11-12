@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/dialog";
 import type { Group } from "@/types";
 import memberStyles from "./members-panel.module.css";
 import styles from "./groups-directory.module.css";
+import { GroupJoinRequests } from "@/components/groups/group-join-requests";
 
 const tabs = [
   { value: "ALL", label: "Tous les groupes" },
@@ -62,7 +63,7 @@ export function GroupsDirectory({ onCreate, onEdit }: { onCreate: () => void; on
   return <div className={styles.directory}>
     <header className={`page-heading requests-heading ${styles.heading}`}>
       <div><span className="eyebrow">{t("ADMINISTRATION · GROUPES")}</span><h1 id={`${id}-heading`}>{t("Gestion des groupes")}</h1><p className="muted">{t("Gérez les groupes, leurs membres et leurs conversations.")}</p></div>
-      <Button onClick={onCreate}><Plus size={17} aria-hidden="true" />{t("Créer un groupe")}</Button>
+      <div className="row wrap"><GroupJoinRequests /><Button onClick={onCreate}><Plus size={17} aria-hidden="true" />{t("Créer un groupe")}</Button></div>
     </header>
     <div className="stats-grid members-stats" aria-label={t("Statistiques des groupes")}>
       {[{ label: "Total des groupes", value: counts.ALL }, { label: "Groupes privés", value: counts.PRIVATE }, { label: "Groupes système", value: counts.GENERAL }, { label: "Personnes affectées", value: people }].map((stat) => <div className="stat-card" key={stat.label}><span>{t(stat.label)}</span><strong>{store.loading && !groups.length ? "…" : loadError && !groups.length ? "—" : stat.value}</strong></div>)}
