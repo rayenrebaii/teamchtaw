@@ -12,7 +12,7 @@ import { finalAttendance } from "./attendance.rules";
 import { SaveAttendanceDto, UpdateSessionDto } from "./polls.dto";
 import { personalAttendance } from "./personal-attendance";
 import { AttendanceQueryDto, PersonalAttendanceQueryDto } from "./attendance.dto";
-import { validatePoll } from "./polls.validation";
+import { validatePoll, validateSessionOverlap } from "./polls.validation";
 import { DomainEvents } from "../common/events";
 import { MandatoryAttendanceService } from "./mandatory-attendance.service";
 import { mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
@@ -120,7 +120,8 @@ export class AttendanceService {
       where: { id },
       select: { mandatoryAttendance: true },
     });
-    validatePoll({ ...dto, mandatoryAttendance: policy?.mandatoryAttendance ?? false }, true);
+    dto.mandatoryAttendance = policy?.mandatoryAttendance ?? false;
+    validatePoll(dto, true);
     const updated = await this.db.$transaction(
       async (tx) => {
         const poll = await this.lockedPoll(tx, actor, id);
@@ -133,9 +134,7 @@ export class AttendanceService {
           poll.options.some(
             (o) =>
               dto.options[o.position] !== o.label ||
-              new Date(dto.startsAt![o.position] ?? 0).getTime() !== o.startsAt?.getTime() ||
-              (dto.slotEndsAt !== undefined &&
-                new Date(dto.slotEndsAt![o.position] ?? 0).getTime() !== o.endsAt?.getTime()),
+              new Date(dto.startsAt![o.position] ?? 0).getTime() !== o.startsAt?.getTime(),
           );
         if (structureChanged || (dto.status === "CANCELLED" && poll.status !== "CANCELLED"))
           assertSessionCancellationAllowed(poll.options);
@@ -143,14 +142,14 @@ export class AttendanceService {
           throw new ConflictException(
             "Les horaires sont verrouillés dès le premier vote. Annulez la séance pour la remplacer.",
           );
-        if (
-          poll.attendanceLockedAt &&
-          (structureChanged || dto.endsAt !== poll.endsAt?.toISOString() || dto.status === "OPEN")
-        )
+        if (poll.status === "CLOSED" && dto.status === "OPEN")
+          throw new ConflictException("Une séance clôturée ne peut pas être réouverte.");
+        if (poll.attendanceLockedAt && structureChanged)
           throw new ConflictException(
             "Les votes et horaires sont verrouillés après le premier pointage. Clôture ou annulation uniquement.",
           );
         if (structureChanged) {
+          validateSessionOverlap(dto.startsAt!);
           await assertNoSessionOverlap(tx, poll.groupId, dto, id);
           await tx.pollOption.deleteMany({ where: { pollId: id } });
           await tx.pollOption.createMany({
@@ -158,10 +157,17 @@ export class AttendanceService {
               pollId: id,
               label,
               position,
+              capacity: dto.capacities![position],
               startsAt: new Date(dto.startsAt![position]!),
               endsAt: dto.slotEndsAt?.[position] ? new Date(dto.slotEndsAt[position]!) : null,
             })),
           });
+        }
+        if (!structureChanged) for (const option of poll.options) {
+          const capacity = dto.capacities![option.position]!;
+          const count = await tx.pollVoteOption.count({ where: { optionId: option.id, pollId: id } });
+          if (capacity < count) throw new ConflictException("La capacité ne peut pas être inférieure au nombre d’inscrits.");
+          await tx.pollOption.update({ where: { id: option.id }, data: { capacity } });
         }
         // Take student locks before cancelling, then recompute within the same transaction.
         const participants = await tx.sessionParticipant.findMany({
@@ -178,7 +184,8 @@ export class AttendanceService {
           data: {
             question: dto.question,
             description: dto.description ?? "",
-            endsAt: new Date(dto.endsAt!),
+            endsAt: null,
+            singleChoice: true,
             status: dto.status ?? poll.status,
           },
           include: pollInclude,

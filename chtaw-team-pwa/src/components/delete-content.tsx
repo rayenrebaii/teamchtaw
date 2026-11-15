@@ -106,7 +106,7 @@ export function DeleteContent({ poll, message, menuOpen, onMenuOpenChange }: {
     }}>
       {deletingPoll && poll && <p><strong>{poll.question}</strong></p>}
       <p>{t(deletingPoll && poll?.type === "SESSION"
-        ? "Suppression possible jusqu’à deux heures avant le premier créneau, ou après la fin de tous les créneaux et la validation de toutes les présences. Les présences, absences et leur historique seront conservés."
+        ? "Tous les créneaux, votes, présences, absences et historiques de cette séance seront définitivement supprimés. Les compteurs et alertes seront recalculés."
         : deletingPoll ? "Le sondage et ses votes seront définitivement supprimés." : "Ce message sera définitivement supprimé pour tous les membres du groupe.")}</p>
       <div className="row wrap">
         <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>{t("Annuler")}</Button>

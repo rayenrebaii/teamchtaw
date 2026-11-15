@@ -26,7 +26,7 @@ it.each([
   ["COLLABORATOR", "general"], ["COLLABORATOR", "private"],
 ] as const)("publishes a session from %s's %s conversation into that group", async (role, groupId) => {
   useCommunity.setState({ users: [{ ...actor, role }] });
-  const saved: Poll = { id: "session", groupId, authorId: actor.id, question: "Séance du groupe", type: "SESSION", singleChoice: false, options: [], votes: [] };
+  const saved: Poll = { id: "session", groupId, authorId: actor.id, question: "Séance du groupe", type: "SESSION", singleChoice: true, options: [], votes: [] };
   const create = vi.spyOn(attendanceService, "create").mockResolvedValue(saved);
   render(<ChatScreen groupId={groupId} />);
   expect(!!screen.queryByRole("button", { name: "Créer un sondage" })).toBe(role === "ADMIN");
@@ -35,11 +35,10 @@ it.each([
   expect(dialog.getByLabelText("Groupe")).toHaveProperty("value", groupId);
   expect(dialog.getByLabelText("Groupe").hasAttribute("disabled")).toBe(true);
   fireEvent.change(dialog.getByLabelText("Titre"), { target: { value: saved.question } });
-  fireEvent.change(dialog.getByLabelText("Date limite de vote"), { target: { value: "2099-01-01T10:00" } });
   fireEvent.change(dialog.getByLabelText("Date et heure"), { target: { value: "2099-01-02T10:00" } });
-  fireEvent.change(dialog.getByLabelText("Fin du créneau"), { target: { value: "2099-01-02T11:00" } });
+  fireEvent.change(dialog.getByLabelText("Nombre maximal de participants"), { target: { value: "10" } });
   fireEvent.click(dialog.getByRole("button", { name: "Publier le sondage de séance" }));
-  await waitFor(() => expect(create).toHaveBeenCalledWith(groupId, expect.objectContaining({ type: "SESSION", question: saved.question, singleChoice: false, mandatoryAttendance: true, options: ["Horaire 1"] })));
+  await waitFor(() => expect(create).toHaveBeenCalledWith(groupId, expect.objectContaining({ type: "SESSION", question: saved.question, singleChoice: true, mandatoryAttendance: true, capacities: [10], startsAt: ["2099-01-02T09:00:00.000Z"], options: ["Horaire 1"] })));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(useCommunity.getState().polls).toContainEqual(saved);
   expect(useCommunity.getState().sync).toHaveBeenCalled();

@@ -32,12 +32,14 @@ export interface GroupMember {
   joinedAt: string;
 }
 export interface PollOption {
+  capacity?: number | null;
   id: string;
   label: string;
   startsAt?: string | null;
   endsAt?: string | null;
 }
 export interface PollVote {
+  attendanceLocked?: boolean;
   userId: string;
   optionIds: string[];
 }
@@ -51,6 +53,7 @@ export interface Poll {
   description?: string;
   attendanceLockedAt?: string | null;
   mandatoryAttendance?: boolean;
+  participationLockedUserIds?: string[];
   createdAt?: string;
   options: PollOption[];
   votes: PollVote[];

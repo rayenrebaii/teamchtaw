@@ -36,12 +36,13 @@ export const defaultActivityFilters: ActivityFilters = {
   groupId: "",
   status: "ALL",
 };
-// A deadline or the first attendance save closes participation even if status is still OPEN.
+// Session slots close independently at their start; ordinary poll deadlines remain unchanged.
 export function activityStatus(poll: Poll, now = Date.now()): ActivityStatus {
   if (poll.status === "CANCELLED") return "CANCELLED";
   return poll.status === "CLOSED" ||
-    poll.attendanceLockedAt ||
-    (poll.endsAt && Date.parse(poll.endsAt) <= now)
+    (poll.type === "SESSION"
+      ? poll.options.length > 0 && poll.options.every((o) => !o.startsAt || Date.parse(o.startsAt) <= now)
+      : poll.attendanceLockedAt || (poll.endsAt && Date.parse(poll.endsAt) <= now))
     ? "CLOSED"
     : "OPEN";
 }
@@ -56,21 +57,25 @@ export function filterActivities(polls: Poll[], filters: ActivityFilters, now = 
   );
 }
 export function localDateTime(value: string) {
-  const d = new Date(value);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const parts = new Intl.DateTimeFormat("sv-SE", { timeZone: "Africa/Tunis", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(value));
+  return parts.replace(" ", "T");
 }
+export function tunisDateTime(value: string) {
+  // Africa/Tunis uses UTC+01:00 (no daylight saving).
+  return new Date(`${value}:00+01:00`).toISOString();
+}
+
 export function sessionInput(poll: Poll, status = poll.status ?? "OPEN") {
   return {
     type: "SESSION" as const,
     question: poll.question,
     description: poll.description ?? "",
-    singleChoice: false as const,
+    singleChoice: true,
+    capacities: poll.options.map((o) => o.capacity!),
     status,
-    endsAt: poll.endsAt!,
     options: poll.options.map((o) => o.label),
     startsAt: poll.options.map((o) => o.startsAt!),
     mandatoryAttendance: poll.mandatoryAttendance ?? false,
-    ...(poll.mandatoryAttendance ? { slotEndsAt: poll.options.map((o) => o.endsAt!) } : {}),
   };
 }
 export const attendanceLabels: Record<string, string> = {

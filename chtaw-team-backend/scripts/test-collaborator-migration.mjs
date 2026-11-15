@@ -10,9 +10,10 @@ const name = process.env.ISOLATED_TEST_DATABASE;
 const db = new pg.Client({ connectionString: source.href }); await db.connect();
 try {
   const migrations = (await readdir("prisma/migrations")).filter((name) => /^\d/.test(name)).sort();
-  const latest = migrations.pop();
-  assert.equal(latest, "202611100001_collaborator_organizers");
-  for (const migration of migrations) await db.query(await readFile(`prisma/migrations/${migration}/migration.sql`, "utf8"));
+  const latest = "202611100001_collaborator_organizers";
+  const organizerIndex = migrations.indexOf(latest);
+  assert.ok(organizerIndex >= 0);
+  for (const migration of migrations.slice(0, organizerIndex)) await db.query(await readFile(`prisma/migrations/${migration}/migration.sql`, "utf8"));
   const [adminA, adminB, student, group] = Array.from({ length: 4 }, randomUUID);
   for (const [id, role] of [[adminA, "ADMIN"], [adminB, "ADMIN"], [student, "USER"]]) await db.query(
     'INSERT INTO "User" (id,email,"passwordHash","firstName","lastName",role,status,"updatedAt") VALUES ($1,$2,$3,$4,$5,$6,\'APPROVED\',now())',
@@ -32,7 +33,7 @@ try {
   const snapshots = async () => {
     const result = {};
     for (const table of tables) {
-      const rows = await db.query(`SELECT to_jsonb(t) - 'activatedAt' - 'disabledAt' AS row FROM "${table}" t ORDER BY (to_jsonb(t) - 'activatedAt' - 'disabledAt')::text`);
+      const rows = await db.query(`SELECT to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity' AS row FROM "${table}" t ORDER BY (to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity')::text`);
       result[table] = rows.rows;
     }
     return result;
@@ -47,5 +48,20 @@ try {
   assert.equal(states.find((row) => row.organizerId === adminB)?.total, 2);
   const alerts = (await db.query('SELECT "organizerId","pollIds" FROM "OrganizerAbsenceAlert"')).rows;
   assert.equal(alerts.length, 1); assert.equal(alerts[0].organizerId, adminA); assert.equal(alerts[0].pollIds.length, 3);
+  const capacityMigration = "20261116120000_session_capacity";
+  for (const migration of migrations.slice(organizerIndex + 1).filter((value) => value !== capacityMigration))
+    await db.query(await readFile(`prisma/migrations/${migration}/migration.sql`, "utf8"));
+  // A real pre-migration multiple ballot and its attendance must survive byte-for-byte.
+  const historical = (await db.query('SELECT id,"pollId" FROM "PollVote" LIMIT 1')).rows[0];
+  const extra = randomUUID();
+  await db.query('INSERT INTO "PollOption" (id,"pollId",label,position) VALUES ($1,$2,\'Second historical slot\',1)', [extra, historical.pollId]);
+  await db.query('INSERT INTO "PollVoteOption" ("voteId","optionId","pollId",attendance) VALUES ($1,$2,$3,\'PRESENT\')', [historical.id, extra, historical.pollId]);
+  const beforeCapacity = await snapshots();
+  await db.query(await readFile(`prisma/migrations/${capacityMigration}/migration.sql`, "utf8"));
+  assert.deepEqual(await snapshots(), beforeCapacity);
+  assert.equal((await db.query('SELECT count(*)::int AS total FROM "PollOption" WHERE capacity IS NOT NULL')).rows[0].total, 0);
+  assert.equal((await db.query('SELECT count(*)::int AS total FROM "PollVoteOption" WHERE "voteId"=$1', [historical.id])).rows[0].total, 2);
+  await assert.rejects(db.query('UPDATE "PollOption" SET capacity=0 WHERE id=$1', [extra]), { code: "23514" });
+  console.log("Session capacity migration: historical ballots, attendance and counters preserved; positive capacity constraint verified.");
   console.log(JSON.stringify({ database: name, preservedTables: tables.length, assertions: 7, result: "passed", adminA: 3, adminB: 2, alerts: 1 }));
 } finally { await db.end(); }

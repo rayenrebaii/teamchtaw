@@ -247,7 +247,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
       }),
     ).rejects.toMatchObject({ status: 403 });
   });
-  it("inscrit plusieurs horaires, modifie le vote et relit les présences réelles après restauration", async () => {
+  it("inscrit un seul horaire, modifie le vote et relit les présences réelles après restauration", async () => {
     const group = await admin.request<Group>("/groups", {
       method: "POST",
       body: JSON.stringify({ name: "Séances " + crypto.randomUUID() }),
@@ -262,7 +262,8 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
         type: "SESSION",
         mandatoryAttendance: false,
         status: "OPEN",
-        singleChoice: false,
+        singleChoice: true,
+        capacities: [10, 10, 10],
         endsAt: "2099-01-01T10:00:00.000Z",
         options: ["Lundi", "Mardi", "Mercredi"],
         startsAt: [
@@ -273,13 +274,13 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
       }),
     });
     await state().sync();
-    await state().vote(session.id, [session.options[0]!.id, session.options[1]!.id]);
-    await state().vote(session.id, [session.options[0]!.id, session.options[2]!.id], true);
+    await state().vote(session.id, [session.options[0]!.id]);
+    await state().vote(session.id, [session.options[2]!.id], true);
     expect(
       state()
         .polls.find((p) => p.id === session.id)
         ?.votes[0]?.optionIds.sort(),
-    ).toEqual([session.options[0]!.id, session.options[2]!.id].sort());
+    ).toEqual([session.options[2]!.id].sort());
     await expect(attendanceService.roster(session.id)).rejects.toMatchObject({ status: 403 });
     const roster = await admin.request<Roster>(`/polls/${session.id}/attendance`);
     expect(roster.slots[1]!.students).toHaveLength(0);
@@ -288,8 +289,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
       method: "PUT",
       body: JSON.stringify({
         entries: [
-          { userId: member.id, optionId: session.options[0]!.id, status: "PRESENT", version: 0 },
-          { userId: member.id, optionId: session.options[2]!.id, status: "ABSENT", version: 0 },
+          { userId: member.id, optionId: session.options[2]!.id, status: "PRESENT", version: 0 },
         ],
       }),
     });
@@ -392,7 +392,8 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
       type: "SESSION" as const,
       status: "OPEN" as const,
       mandatoryAttendance: true,
-      singleChoice: false as const,
+      singleChoice: true as const,
+      capacities: [10, 10],
       endsAt: "2099-01-01T10:00:00.000Z",
       options: ["Matin", "Après-midi"],
       startsAt: ["2099-01-02T09:00:00.000Z", "2099-01-02T14:00:00.000Z"],

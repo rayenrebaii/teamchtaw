@@ -76,6 +76,7 @@ export class PollsService {
             create: dto.options.map((label, position) => ({
               label,
               position,
+              capacity: dto.type === "SESSION" ? dto.capacities![position] : null,
               startsAt: dto.type === "SESSION" ? new Date(dto.startsAt![position]!) : null,
               endsAt:
                 dto.type === "SESSION" && dto.slotEndsAt?.[position]
@@ -129,23 +130,59 @@ export class PollsService {
         throw new BadRequestException("Les inscriptions aux séances sont réservées aux étudiants.");
       if (
         current.status !== "OPEN" ||
-        current.attendanceLockedAt ||
-        (current.endsAt && current.endsAt <= new Date())
+        (current.type !== "SESSION" && current.attendanceLockedAt) ||
+        (current.type !== "SESSION" && current.endsAt && current.endsAt <= new Date())
       )
         throw new ConflictException("Ce sondage est clôturé.");
       const existing = await tx.pollVote.findUnique({
         where: { pollId_userId: { pollId: id, userId: actor.id } },
+        include: { options: true },
       });
       if (replace && current.type !== "SESSION")
         throw new ConflictException("Les votes ordinaires sont définitifs.");
       if (existing && !replace) throw new ConflictException("Vous avez déjà participé.");
       if (
-        !dto.optionIds.length ||
+        (!dto.optionIds.length && !(replace && current.type === "SESSION")) ||
         new Set(dto.optionIds).size !== dto.optionIds.length ||
-        (current.singleChoice && dto.optionIds.length !== 1) ||
+        ((current.singleChoice || current.type === "SESSION") && dto.optionIds.length > 1) ||
         dto.optionIds.some((optionId) => !current.options.some((o) => o.id === optionId))
       )
         throw new BadRequestException("Sélection invalide.");
+      if (current.type === "SESSION") {
+        const oldOptions = existing?.options ?? [];
+        if (oldOptions.length > 1)
+          throw new ConflictException("Votes historiques multiples : décision de l’organisateur nécessaire. Aucun vote supprimé.");
+        const marked = oldOptions.some((o) => o.version > 0 || o.attendance !== "NON_VERIFIE") ||
+          await tx.sessionMark.count({ where: { pollId: id, userId: actor.id, OR: [{ version: { gt: 0 } }, { attendance: { not: "NON_VERIFIE" } }] } });
+        const participant = await tx.sessionParticipant.findUnique({ where: { pollId_userId: { pollId: id, userId: actor.id } } });
+        if (marked || participant?.absenceConfirmedAt)
+          throw new ConflictException("Votre pointage a commencé : modification du vote refusée.");
+        const closed = (optionId: string) => {
+          const option = current.options.find((o) => o.id === optionId);
+          return !option?.startsAt || option.startsAt <= new Date();
+        };
+        const assertOpen = () => {
+          if (oldOptions.some((o) => closed(o.optionId)) || dto.optionIds.some(closed))
+            throw new ConflictException("Ce créneau a commencé : les votes, changements et retraits sont fermés.");
+        };
+        assertOpen();
+        const target = current.options.find((o) => o.id === dto.optionIds[0]);
+        if (target && !oldOptions.some((o) => o.optionId === target.id)) {
+          if (target.capacity === null)
+            throw new ConflictException("Capacité historique à définir par l’organisateur avant toute inscription.");
+          const count = await tx.pollVoteOption.count({ where: { pollId: id, optionId: target.id } });
+          if (count >= target.capacity)
+            throw new ConflictException("Ce créneau est complet. Votre choix initial est conservé.");
+        }
+        // Recheck after database reads; a request waiting for a place cannot bypass start time.
+        assertOpen();
+        if (!dto.optionIds.length) {
+          if (existing) await tx.pollVote.delete({ where: { id: existing.id } });
+          return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id }, include: pollInclude }));
+        }
+        if (existing && oldOptions.length === 1 && oldOptions[0]!.optionId === target?.id)
+          return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id }, include: pollInclude }));
+      }
       const vote =
         existing ?? (await tx.pollVote.create({ data: { pollId: id, userId: actor.id } }));
       if (existing) await tx.pollVoteOption.deleteMany({ where: { voteId: existing.id } });

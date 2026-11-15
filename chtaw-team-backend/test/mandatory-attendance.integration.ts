@@ -22,15 +22,16 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     type: "SESSION",
     mandatoryAttendance: true,
     question: `Séance ${randomUUID()}`,
-    singleChoice: false,
+    singleChoice: true,
+    capacities: Array(count).fill(10),
     status: "OPEN",
     endsAt: new Date(Date.now() + 1800000).toISOString(),
     options: Array.from({ length: count }, (_, i) => `Créneau ${i + 1}`),
     startsAt: Array.from({ length: count }, (_, i) =>
-      new Date(Date.now() + (i + 1) * 3600000).toISOString(),
+      new Date(Date.now() + (i + 1) * 2 * 3600000).toISOString(),
     ),
     slotEndsAt: Array.from({ length: count }, (_, i) =>
-      new Date(Date.now() + (i + 1) * 3600000 + 1800000).toISOString(),
+      new Date(Date.now() + (i + 1) * 2 * 3600000 + 1800000).toISOString(),
     ),
   });
   let fixtureSchedule = 0;
@@ -160,9 +161,9 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
       { mandatoryAttendance: "true" },
       { slotEndsAt: "2099-01-01T12:00:00Z" },
       { slotEndsAt: ["not-a-date", ...valid.slotEndsAt.slice(1)] },
-      { slotEndsAt: valid.slotEndsAt.slice(1) },
-      { slotEndsAt: [...valid.startsAt] },
-      { startsAt: [valid.endsAt, ...valid.startsAt.slice(1)] },
+      { capacities: [0, 10, 10] },
+      { capacities: [10] },
+      { startsAt: ["invalid", ...valid.startsAt.slice(1)] },
     ])
       await api()
         .post(`/api/v1/groups/${groupId}/polls`)
@@ -181,7 +182,7 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     });
     expect(persisted.options).toHaveLength(3);
     expect(persisted.options.map((option) => option.endsAt!.toISOString())).toEqual(
-      valid.slotEndsAt,
+      valid.startsAt.map((value) => new Date(Date.parse(value) + 5400000).toISOString()),
     );
     expect(persisted.options.map((option) => option.startsAt!.toISOString())).toEqual(
       valid.startsAt,
@@ -300,12 +301,12 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     ).toBe(1);
     expect((await mark(poll.id, studentId, "PRESENT", 0)).status).toBe(200);
   });
-  it("pointe un étudiant sans vote, préserve les votes multiples et recalcule après correction", async () => {
+  it("pointe un étudiant sans vote, préserve le vote unique et recalcule après correction", async () => {
     const poll = await create();
     await api()
       .post(`/api/v1/polls/${poll.id}/votes`)
       .set(auth(student))
-      .send({ optionIds: poll.options.map((o: { id: string }) => o.id) })
+      .send({ optionIds: [poll.options[0].id] })
       .expect(201);
     expect((await mark(poll.id, nonVoterId, "PRESENT", 1)).status).toBe(200);
     expect((await mark(poll.id, studentId, "PRESENT", 0)).status).toBe(200);
@@ -314,7 +315,7 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
       list.slots[2].students.find((s: { user: { id: string } }) => s.user.id === studentId).final,
     ).toBe("PRESENT");
     expect(await db.pollVote.count({ where: { pollId: poll.id, userId: nonVoterId } })).toBe(0);
-    expect(await db.pollVoteOption.count({ where: { pollId: poll.id } })).toBe(3);
+    expect(await db.pollVoteOption.count({ where: { pollId: poll.id } })).toBe(1);
     expect((await mark(poll.id, studentId, "NON_VERIFIE", 0)).status).toBe(200);
     list = await roster(poll.id);
     expect(
@@ -475,56 +476,39 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     expect((await db.poll.findUniqueOrThrow({ where: { id: poll.id } })).attendanceLockedAt).toBeNull();
     await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [entries[0]] }).expect(200);
   });
-  it("retires a future slot then archives completed attendance without changing absence totals", async () => {
+  it("removes votes for one slot and erases completed attendance with recalculated totals", async () => {
     const poll = await create(2);
-    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: poll.options.map((option: { id: string }) => option.id) }).expect(201);
-    await db.pollVote.create({ data: { userId: nonVoterId, pollId: poll.id, options: { create: { optionId: poll.options[0].id } } } });
+    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[0].id] }).expect(201);
     await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth(student)).expect(403);
     await api().delete(`/api/v1/polls/${poll.id}/options/${randomUUID()}`).set(auth()).expect(404);
     const remaining = await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth()).expect(200);
     expect(remaining.body.options.map((option: { id: string }) => option.id)).toEqual([poll.options[1].id]);
-    expect(remaining.body.votes[0].optionIds).toEqual([poll.options[1].id]);
-    expect(remaining.body.votes.some((vote: { userId: string }) => vote.userId === nonVoterId)).toBe(false);
-    expect((await db.pollOption.findUniqueOrThrow({ where: { id: poll.options[1].id } })).position).toBe(0);
-    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[1].id}`).set(auth()).expect(409);
+    expect(remaining.body.votes).toHaveLength(0);
+    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[1].id] }).expect(201);
     await finish(poll.id);
     const before = (await db.absenceState.findUnique({ where: { userId: studentId } }))?.total ?? 0;
     expect((await mark(poll.id, studentId, "ABSENT")).status).toBe(200);
     expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before + 1);
-    await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(409);
-    expect((await mark(poll.id, nonVoterId, "PRESENT")).status).toBe(200);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth(student)).expect(403);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
-    expect((await db.poll.findUniqueOrThrow({ where: { id: poll.id } })).archivedAt).not.toBeNull();
-    expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(2);
-    expect(await db.sessionMark.count({ where: { pollId: poll.id } })).toBe(2);
-    expect(await db.message.count({ where: { pollId: poll.id } })).toBe(0);
-    expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before + 1);
-    await api().get(`/api/v1/polls/${poll.id}`).set(auth()).expect(404);
+    expect(await db.poll.findUnique({ where: { id: poll.id } })).toBeNull();
+    expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(0);
+    expect(await db.sessionMark.count({ where: { pollId: poll.id } })).toBe(0);
+    expect(await db.sessionAttendanceEdit.count({ where: { pollId: poll.id } })).toBe(0);
+    expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before);
     const history = (await api().get(`/api/v1/users/${studentId}/attendance`).set(auth()).expect(200)).body;
-    expect(history.sessions.find((session: { id: string }) => session.id === poll.id)).toMatchObject({ final: "ABSENT", archivedAt: expect.any(String) });
-    const mine = (await api().get("/api/v1/attendance/me").set(auth(student)).expect(200)).body;
-    expect(mine.sessions.find((session: { id: string }) => session.id === poll.id).final).toBe("ABSENT");
-    const active = (await api().get("/api/v1/polls?limit=100").set(auth()).expect(200)).body;
-    expect(active.items.some((session: { id: string }) => session.id === poll.id)).toBe(false);
-    await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [{
-      userId: studentId, optionId: poll.options[1].id, status: "PRESENT", version: 0, participantVersion: 0,
-    }] }).expect(404);
+    expect(history.sessions.find((session: { id: string }) => session.id === poll.id)).toBeUndefined();
   });
-  it("preserves started slots and waits until both slots end before archiving", async () => {
+  it("removes started slots and reconciles a presence erased by removal", async () => {
     const poll = await create(2);
     await finish(poll.id);
-    const before = (await db.absenceState.findUnique({ where: { userId: studentId } }))?.total ?? 0;
     expect((await mark(poll.id, studentId, "PRESENT", 0)).status).toBe(200);
     expect((await mark(poll.id, studentId, "ABSENT", 1)).status).toBe(200);
-    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth()).expect(409);
-    expect(await db.sessionMark.count({ where: { optionId: poll.options[0].id } })).toBe(1);
-    expect((await mark(poll.id, nonVoterId, "PRESENT", 0)).status).toBe(200);
-    await db.pollOption.update({ where: { id: poll.options[1].id }, data: { endsAt: new Date(Date.now() + 3600000) } });
-    await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(409);
-    await db.pollOption.update({ where: { id: poll.options[1].id }, data: { endsAt: new Date(Date.now() - 1000) } });
+    const before = (await db.absenceState.findUnique({ where: { userId: studentId } }))?.total ?? 0;
+    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth()).expect(200);
+    expect(await db.sessionMark.count({ where: { optionId: poll.options[0].id } })).toBe(0);
+    expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before + 1);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
-    expect(await db.sessionMark.count({ where: { pollId: poll.id } })).toBe(3);
     expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before);
   });
   it("blocks concurrent duplicates in one group but permits identical schedules in distinct groups", async () => {
@@ -545,7 +529,7 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     const overlap = { ...scheduled, startsAt: scheduled.startsAt.map((date) => new Date(Date.parse(date) + 60000).toISOString()) };
     await publish(groups[0]!, overlap).expect(409);
     // Adjacent slots with matching endpoints do not overlap.
-    const adjacent = { ...scheduled, startsAt: scheduled.slotEndsAt, slotEndsAt: scheduled.slotEndsAt.map((date) => new Date(Date.parse(date) + 60000).toISOString()) };
+    const adjacent = { ...scheduled, startsAt: scheduled.startsAt.map((date) => new Date(Date.parse(date) + 86400000).toISOString()) };
     const next = (await publish(groups[0]!, adjacent).expect(201)).body;
     const edit = { ...adjacent, question: next.question, startsAt: scheduled.startsAt, slotEndsAt: scheduled.slotEndsAt };
     await api().patch(`/api/v1/polls/${next.id}`).set(auth()).send(edit).expect(409);

@@ -23,10 +23,10 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
   const api = () => request(app.getHttpServer());
   const auth = (token = admin) => ({ Authorization: `Bearer ${token}` });
   const emailA = `collab-a-${suffix}@test.invalid`, emailB = `collab-b-${suffix}@test.invalid`;
-  const input = () => ({ type: "SESSION", mandatoryAttendance: true, question: `Séance ${randomUUID()}`, singleChoice: false,
+  const input = () => ({ type: "SESSION", mandatoryAttendance: true, question: `Séance ${randomUUID()}`, singleChoice: true, capacities: [10, 10],
     status: "OPEN", endsAt: new Date(Date.now() + 600000).toISOString(), options: ["Matin", "Soir"],
-    startsAt: [1, 2].map((offset) => new Date(Date.now() + offset * 3600000).toISOString()),
-    slotEndsAt: [1, 2].map((offset) => new Date(Date.now() + offset * 3600000 + 1800000).toISOString()) });
+    startsAt: [1, 2].map((offset) => new Date(Date.now() + offset * 2 * 3600000).toISOString()),
+    slotEndsAt: [1, 2].map((offset) => new Date(Date.now() + offset * 2 * 3600000 + 1800000).toISOString()) });
   const login = async (email: string, pass = password) => (await api().post("/api/v1/auth/login").send({ email, password: pass }).expect(200)).body.accessToken as string;
   const redeem = (token: string, pass = password) => api().post("/api/v1/auth/account-links/redeem").send({ token, password: pass });
   let fixtureSchedule = 0;
@@ -119,9 +119,9 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
       expect(sessions.every((poll: { id: string }) => poll.id !== other)).toBe(true);
     }
   });
-  it("laisse les étudiants du groupe consulter les séances et voter plusieurs créneaux", async () => {
+  it("laisse les étudiants du groupe consulter les séances et voter un seul créneau", async () => {
     await api().get(`/api/v1/polls/${aPoll.id}`).set(auth(student)).expect(200);
-    await api().post(`/api/v1/polls/${aPoll.id}/votes`).set(auth(student)).send({ optionIds: aPoll.options.map((option) => option.id) }).expect(201);
+    await api().post(`/api/v1/polls/${aPoll.id}/votes`).set(auth(student)).send({ optionIds: [aPoll.options[0]!.id] }).expect(201);
     await api().put(`/api/v1/polls/${aPoll.id}/votes`).set(auth(student)).send({ optionIds: [aPoll.options[0]!.id] }).expect(200);
   });
   it("interdit modification, annulation, pointage et suppression de la séance d’autrui", async () => {
@@ -146,8 +146,8 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
   it("allows admins to delete anyone's polls and collaborators only their own", async () => {
     for (const [creator, remover] of [[admin, admin], [collaboratorA, admin], [collaboratorA, collaboratorA]]) {
       const scheduled = input();
-      scheduled.startsAt = [3, 4].map((hours) => new Date(Date.now() + hours * 3600000).toISOString());
-      scheduled.slotEndsAt = [3, 4].map((hours) => new Date(Date.now() + (hours + 0.5) * 3600000).toISOString());
+      scheduled.startsAt = [3, 5].map((hours) => new Date(Date.now() + hours * 3600000).toISOString());
+      scheduled.slotEndsAt = [3, 5].map((hours) => new Date(Date.now() + (hours + 0.5) * 3600000).toISOString());
       const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth(creator!)).send(scheduled).expect(201)).body as typeof aPoll;
       await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[0]!.id] }).expect(201);
       await api().delete(`/api/v1/polls/${poll.id}`).set(auth(student)).expect(403);

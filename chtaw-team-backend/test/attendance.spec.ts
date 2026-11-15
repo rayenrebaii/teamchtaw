@@ -123,21 +123,20 @@ describe("Validation des sondages", () => {
     mandatoryAttendance: false,
     question: "Maths",
     options: ["Lundi"],
+    capacities: [10],
     singleChoice: false,
     endsAt: "2099-01-01T10:00:00Z",
     startsAt: ["2099-01-02T10:00:00Z"],
   };
-  it("exige les fins réelles des nouvelles séances obligatoires", () => {
-    expect(() => validatePoll({ ...input, mandatoryAttendance: true })).toThrow();
-    expect(() =>
-      validatePoll({ ...input, mandatoryAttendance: true, slotEndsAt: [input.startsAt![0]!] }),
-    ).toThrow();
-    expect(() =>
-      validatePoll({ ...input, mandatoryAttendance: true, slotEndsAt: ["2099-01-02T12:00:00Z"] }),
-    ).not.toThrow();
+  it("calcule une fin de 90 minutes sans date limite", () => {
+    const dto = { ...input, mandatoryAttendance: true };
+    validatePoll(dto);
+    expect(dto.singleChoice).toBe(true);
+    expect(dto.endsAt).toBeUndefined();
+    expect(dto.slotEndsAt).toEqual(["2099-01-02T11:30:00.000Z"]);
   });
   it("autorise une séance avec un horaire et préserve le minimum des sondages ordinaires", () => {
-    expect(() => validatePoll(input)).not.toThrow();
+    expect(() => validatePoll({ ...input })).not.toThrow();
     expect(() => validatePoll({ ...input, type: "ORDINARY", startsAt: undefined })).toThrow();
   });
   it("refuse les horaires incomplets, dupliqués ou antérieurs à la clôture", () => {
@@ -149,7 +148,7 @@ describe("Validation des sondages", () => {
         startsAt: [input.startsAt![0]!, input.startsAt![0]!],
       }),
     ).toThrow();
-    expect(() => validatePoll({ ...input, startsAt: [input.endsAt!] })).toThrow();
-    expect(() => validatePoll({ ...input, singleChoice: true })).toThrow();
+    expect(() => validatePoll({ ...input, startsAt: ["2020-01-01T10:00:00Z"] })).toThrow();
+    expect(() => validatePoll({ ...input, capacities: [0] })).toThrow();
   });
 });

@@ -30,7 +30,7 @@ describe("Organizer and client participation boundaries", () => {
     }
     groupId = (await db.group.create({ data: { name: `Roles ${suffix}`, members: { create: Object.values(ids).map((userId) => ({ userId })) } } })).id;
     session = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth("ADMIN")).send({ question: "Session fixture", type: "SESSION", mandatoryAttendance: true,
-      singleChoice: false, status: "OPEN", endsAt: new Date(Date.now() + 3600000).toISOString(), options: ["Matin"],
+      singleChoice: true, capacities: [10], status: "OPEN", endsAt: new Date(Date.now() + 3600000).toISOString(), options: ["Matin"],
       startsAt: [new Date(Date.now() + 7200000).toISOString()], slotEndsAt: [new Date(Date.now() + 10800000).toISOString()] }).expect(201)).body;
     ordinary = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth("ADMIN")).send({ question: "Ordinary fixture", type: "ORDINARY", singleChoice: true, options: ["Oui", "Non"] }).expect(201)).body;
   });

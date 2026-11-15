@@ -2456,6 +2456,14 @@ form label small {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.session-poll .poll-label {
+  flex-wrap: wrap;
+  text-align: start;
+}
+.session-poll .poll-label > b {
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
 .session-poll .poll-label > span > svg {
   flex-shrink: 0;
 }

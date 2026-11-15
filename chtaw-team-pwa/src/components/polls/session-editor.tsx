@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useCopy } from "@/lib/i18n";
 import { useCommunity } from "@/stores/community";
 import { attendanceService, type SessionInput } from "@/services/attendance.service";
-import { localDateTime } from "@/features/session-polls";
+import { localDateTime, tunisDateTime } from "@/features/session-polls";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { attempt } from "@/components/shared";
@@ -20,9 +20,8 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
   const [groupId, setGroupId] = useState(poll?.groupId ?? fixedGroupId ?? "");
   const [question, setQuestion] = useState(poll?.question ?? "");
   const [description, setDescription] = useState(poll?.description ?? "");
-  const [deadline, setDeadline] = useState(poll?.endsAt ? localDateTime(poll.endsAt) : "");
   const [status, setStatus] = useState<SessionInput["status"]>(
-    poll?.attendanceLockedAt && poll.status === "OPEN" ? "CLOSED" : (poll?.status ?? "OPEN"),
+    poll?.status ?? "OPEN",
   );
   const [slots, setSlots] = useState(
     () =>
@@ -30,8 +29,8 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
         key: o.id,
         label: o.label,
         startsAt: o.startsAt ? localDateTime(o.startsAt) : "",
-        endsAt: o.endsAt ? localDateTime(o.endsAt) : "",
-      })) ?? [{ key: crypto.randomUUID(), label: "Horaire 1", startsAt: "", endsAt: "" }],
+        capacity: o.capacity?.toString() ?? "",
+      })) ?? [{ key: crypto.randomUUID(), label: "Horaire 1", startsAt: "", capacity: "" }],
   );
   const [busy, setBusy] = useState(false);
   const locked = !!poll?.votes.length || !!poll?.attendanceLockedAt;
@@ -57,20 +56,13 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
                 description,
                 type: "SESSION",
                 mandatoryAttendance: mandatory,
-                ...(mandatory
-                  ? {
-                      slotEndsAt: locked
-                        ? poll!.options.map((o) => o.endsAt!)
-                        : slots.map((s) => new Date(s.endsAt).toISOString()),
-                    }
-                  : {}),
-                singleChoice: false,
+                singleChoice: true,
                 status,
-                endsAt: poll?.attendanceLockedAt ? poll.endsAt! : new Date(deadline).toISOString(),
-                options: slots.map((s) => s.label),
+                capacities: slots.map((s) => Number(s.capacity)),
+                options: locked ? poll!.options.map((o) => o.label) : slots.map((_, index) => `Horaire ${index + 1}`),
                 startsAt: locked
                   ? poll!.options.map((o) => o.startsAt!)
-                  : slots.map((s) => new Date(s.startsAt).toISOString()),
+                  : slots.map((s) => tunisDateTime(s.startsAt)),
               };
               const saved = poll
                 ? await attendanceService.update(poll.id, input)
@@ -121,22 +113,12 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
           </select>
         </label>
         <label>
-          {copy("Date limite de vote")}{" "}
-          <input
-            required
-            type="datetime-local"
-            value={deadline}
-            disabled={!!poll?.attendanceLockedAt}
-            onChange={(e) => setDeadline(e.target.value)}
-          />
-        </label>
-        <label>
           {copy("Statut")}{" "}
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as SessionInput["status"])}
           >
-            {!poll?.attendanceLockedAt && (
+            {poll?.status !== "CLOSED" && (
               <option value="OPEN"> {copy("Ouvert aux votes")} </option>
             )}
             <option value="CLOSED"> {copy("Clôturé")} </option>
@@ -145,7 +127,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
         </label>
         <p className="muted">
           {copy(
-            "De 1 à 100 horaires, tous postérieurs à la clôture. Choix multiples autorisés. Les horaires sont verrouillés dès le premier vote.",
+            "De 1 à 100 créneaux en heure de Tunis. Durée automatique : 1 h 30. Un seul choix par étudiant. Les horaires sont verrouillés dès le premier vote.",
           )}{" "}
         </p>
         {mandatory && !votesOnly && (
@@ -156,29 +138,17 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
           </p>
         )}
         {slots.map((slot, index) => (
-          <fieldset className="attendance-history-card" key={slot.key} disabled={busy || locked}>
+          <fieldset className="attendance-history-card" key={slot.key} disabled={busy}>
             <legend>
               {" "}
               {copy("Horaire")} {index + 1}
             </legend>
             <label>
-              {copy("Libellé")}{" "}
-              <input
-                required
-                maxLength={200}
-                value={slot.label}
-                onChange={(e) =>
-                  setSlots((rows) =>
-                    rows.map((s) => (s.key === slot.key ? { ...s, label: e.target.value } : s)),
-                  )
-                }
-              />
-            </label>
-            <label>
               {copy("Date et heure")}{" "}
               <input
                 required
                 type="datetime-local"
+                disabled={locked}
                 value={slot.startsAt}
                 onChange={(e) =>
                   setSlots((rows) =>
@@ -187,26 +157,16 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
                 }
               />
             </label>
-            {mandatory && (
-              <label>
-                {copy("Fin du créneau")}{" "}
-                <input
-                  required
-                  type="datetime-local"
-                  value={slot.endsAt}
-                  min={slot.startsAt || undefined}
-                  onChange={(e) =>
-                    setSlots((rows) =>
-                      rows.map((s) => (s.key === slot.key ? { ...s, endsAt: e.target.value } : s)),
-                    )
-                  }
-                />
-              </label>
-            )}
+            <label>
+              {copy("Nombre maximal de participants")}
+              <input required type="number" min={1} max={2147483647} step={1} value={slot.capacity}
+                onChange={(e) => setSlots((rows) => rows.map((s) => s.key === slot.key ? { ...s, capacity: e.target.value } : s))} />
+            </label>
+            <p className="small muted">{copy("Durée : 1 h 30 · Africa/Tunis")}</p>
             <Button
               type="button"
               variant="secondary"
-              disabled={slots.length <= 1}
+              disabled={locked || slots.length <= 1}
               onClick={() => setSlots((rows) => rows.filter((s) => s.key !== slot.key))}
             >
               {copy("Supprimer cet horaire")}{" "}
@@ -224,7 +184,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
                 key: crypto.randomUUID(),
                 label: `Horaire ${rows.length + 1}`,
                 startsAt: "",
-                endsAt: "",
+                capacity: "",
               },
             ])
           }

@@ -65,14 +65,14 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
                 {slot.startsAt && (
                   <p>
                     <time dateTime={slot.startsAt}>
-                      {new Date(slot.startsAt).toLocaleString(locale)}
+                      {new Date(slot.startsAt).toLocaleString(locale, { timeZone: "Africa/Tunis" })}
                     </time>
                     {slot.endsAt && (
                       <>
                         {" "}
                         —{" "}
                         <time dateTime={slot.endsAt}>
-                          {new Date(slot.endsAt).toLocaleString(locale)}
+                          {new Date(slot.endsAt).toLocaleString(locale, { timeZone: "Africa/Tunis" })}
                         </time>
                       </>
                     )}

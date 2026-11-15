@@ -5,6 +5,20 @@ import { groupsEnglish } from "./groups-copy";
 import { bulkEnglish } from "./bulk-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "Nombre maximal de participants": "Maximum participants",
+  "Durée : 1 h 30 · Africa/Tunis": "Duration: 1 h 30 · Africa/Tunis",
+  "De 1 à 100 créneaux en heure de Tunis. Durée automatique : 1 h 30. Un seul choix par étudiant. Les horaires sont verrouillés dès le premier vote.": "1 to 100 slots in Tunis time. Automatic duration: 1 h 30. One choice per student. Schedules are locked after the first vote.",
+  "Complet": "Full",
+  "Capacité à définir": "Capacity required",
+  "Retirer mon vote": "Withdraw my vote",
+  "Votes historiques multiples : contactez l’organisateur pour régulariser votre choix.": "Historical multiple choices: contact the organizer to review your reservation.",
+  "Tous les créneaux, votes, présences, absences et historiques de cette séance seront définitivement supprimés. Les compteurs et alertes seront recalculés.": "All slots, votes, attendance, absences and history for this session will be permanently deleted. Totals and alerts will be recalculated.",
+  "Les votes, présences, absences et historiques de ce créneau seront définitivement supprimés. Les autres créneaux seront conservés et les compteurs recalculés.": "Votes, attendance, absences and history for this slot will be permanently deleted. Other slots will be kept and totals recalculated.",
+  "Ce créneau est complet. Votre choix initial est conservé.": "This slot is full. Your original choice has been kept.",
+  "Ce créneau a commencé : les votes, changements et retraits sont fermés.": "This slot has started: voting, changes and withdrawals are closed.",
+  "Votre pointage a commencé : modification du vote refusée.": "Your attendance has been recorded: your vote can no longer be changed.",
+  "Capacité historique à définir par l’organisateur avant toute inscription.": "The organizer must set this historical slot's capacity before registration.",
+  "La capacité ne peut pas être inférieure au nombre d’inscrits.": "Capacity cannot be less than the number of registered students.",
   ...adminEnglish,
   ...collaboratorEnglish,
   ...groupsEnglish,

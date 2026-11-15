@@ -5,6 +5,7 @@ import {
   defaultActivityFilters,
   filterActivities,
   localDateTime,
+  tunisDateTime,
   sessionInput,
   attendanceLabels,
 } from "./session-polls";
@@ -74,13 +75,13 @@ describe("Formulaire de séance et affichage des présences", () => {
       expect(input.options).toHaveLength(count);
       expect(input.startsAt).toHaveLength(count);
       expect(input.status).toBe("CANCELLED");
-      expect(input.singleChoice).toBe(false);
+      expect(input.singleChoice).toBe(true);
       expect(input.startsAt[0]).toBe(poll.options[0]!.startsAt);
     }
   });
   it("affiche les horaires en heure locale sans changer leur date lors de l’édition", () => {
     const instant = new Date(2099, 5, 12, 15, 30);
-    expect(new Date(localDateTime(instant.toISOString())).getTime()).toBe(instant.getTime());
+    expect(Date.parse(tunisDateTime(localDateTime(instant.toISOString())))).toBe(instant.getTime());
     expect(attendanceLabels.NON_INSCRIT).toBe("Non inscrit");
     expect(attendanceLabels.NON_VERIFIE).toBe("Non vérifié");
   });
@@ -102,13 +103,13 @@ describe("Liste des activités et statut de participation", () => {
   });
   it("respecte l’annulation, la clôture manuelle, la date limite et le verrouillage des présences", () => {
     expect(activityStatus(poll("open", { endsAt: "2026-11-05T12:00:00Z" }), now)).toBe("OPEN");
-    expect(activityStatus(poll("deadline", { endsAt: "2026-11-04T12:00:00Z" }), now)).toBe(
+    expect(activityStatus(poll("deadline", { options: [{ id: "a", label: "A", startsAt: "2026-11-04T12:00:00Z" }] }), now)).toBe(
       "CLOSED",
     );
     expect(activityStatus(poll("closed", { status: "CLOSED" }), now)).toBe("CLOSED");
     expect(
       activityStatus(poll("pointed", { attendanceLockedAt: "2026-11-04T10:00:00Z" }), now),
-    ).toBe("CLOSED");
+    ).toBe("OPEN");
     expect(
       activityStatus(
         poll("cancelled", {
@@ -128,7 +129,7 @@ describe("Liste des activités et statut de participation", () => {
       poll("session"),
       poll("ordinary", { type: "ORDINARY", question: "Choix du matériel" }),
       poll("other", { groupId: "group-b" }),
-      poll("expired", { endsAt: "2026-11-04T11:00:00Z" }),
+      poll("expired", { options: [{ id: "a", label: "A", startsAt: "2026-11-04T11:00:00Z" }] }),
     ];
     expect(
       filterActivities(

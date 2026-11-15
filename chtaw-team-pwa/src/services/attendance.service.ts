@@ -8,8 +8,9 @@ export interface SessionInput {
   description: string;
   type: "SESSION";
   status: "OPEN" | "CLOSED" | "CANCELLED";
-  singleChoice: false;
-  endsAt: string;
+  singleChoice: boolean;
+  endsAt?: string;
+  capacities?: number[];
   options: string[];
   startsAt: string[];
   mandatoryAttendance?: boolean;

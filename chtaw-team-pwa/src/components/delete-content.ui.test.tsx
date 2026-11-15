@@ -106,5 +106,5 @@ it("puts both poll and message deletion in the poll bubble menu for admins", () 
   expect(document.activeElement).toBe(pollAction);
   fireEvent.click(pollAction);
   expect(screen.getByRole("dialog", { name: "Supprimer le sondage" })).toBeTruthy();
-  expect(screen.getByText(/deux heures avant le premier créneau/)).toBeTruthy();
+  expect(screen.getByText(/seront définitivement supprimés/)).toBeTruthy();
 });

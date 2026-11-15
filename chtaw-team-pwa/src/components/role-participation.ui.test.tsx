@@ -12,7 +12,7 @@ const actor: User = { id: "actor", firstName: "Coach", lastName: "Team", email: 
 const collaborator: User = { ...actor, id: "collaborator", firstName: "Collab", role: "COLLABORATOR" };
 const client: User = { ...actor, id: "client", firstName: "Client", role: "USER" };
 const group = { id: "group", name: "G1", isGeneral: false, description: "", color: "#be9af5", memberIds: [actor.id, collaborator.id, client.id] };
-const poll: Poll = { id: "poll", groupId: group.id, authorId: "organizer", question: "Votre choix ?", type: "SESSION", status: "OPEN", singleChoice: true, votes: [], options: [{ id: "one", label: "Option 1" }, { id: "two", label: "Option 2" }] };
+const poll: Poll = { id: "poll", groupId: group.id, authorId: "organizer", question: "Votre choix ?", type: "SESSION", status: "OPEN", singleChoice: true, votes: [], options: [{ id: "one", label: "Option 1", capacity: 10, startsAt: "2099-01-01T19:00:00Z" }, { id: "two", label: "Option 2", capacity: 10, startsAt: "2099-01-02T19:00:00Z" }] };
 const original = { vote: useCommunity.getState().vote, membership: useCommunity.getState().membership };
 beforeEach(() => {
   usePreferences.setState({ language: "fr" });

@@ -24,7 +24,8 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     status: "OPEN",
     question: `Séance ${randomUUID()}`,
     description: "Séance de test",
-    singleChoice: false,
+    singleChoice: true,
+    capacities: Array(count).fill(10),
     endsAt: "2099-01-01T10:00:00.000Z",
     options: Array.from({ length: count }, (_, i) => `Horaire ${i + 1}`),
     startsAt: Array.from({ length: count }, (_, i) =>
@@ -41,7 +42,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
   }
   async function vote(
     poll: { id: string; options: { id: string }[] },
-    ids = poll.options.map((o) => o.id),
+    ids = [poll.options[0]!.id],
   ) {
     await api()
       .post(`/api/v1/polls/${poll.id}/votes`)
@@ -126,10 +127,8 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
       await vote(poll);
       const list = await roster(poll.id);
       expect(list.slots).toHaveLength(count);
-      for (const slot of list.slots) {
-        expect(slot.students).toHaveLength(1);
-        expect(slot.students[0].attendance).toBe("NON_VERIFIE");
-      }
+      expect(list.slots[0].students).toHaveLength(1);
+      expect(list.slots.slice(1).every((slot: { students: unknown[] }) => slot.students.length === 0)).toBe(true);
     },
   );
   it("interdit aussi le pointage anticipé pour les anciennes séances sur inscription", async () => {
@@ -145,7 +144,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     await api()
       .put(`/api/v1/polls/${poll.id}/votes`)
       .set(auth(studentToken))
-      .send({ optionIds: [poll.options[1].id, poll.options[2].id] })
+      .send({ optionIds: [poll.options[1].id] })
       .expect(200);
     let list = await roster(poll.id);
     expect(list.slots[0].students).toHaveLength(0);
@@ -159,7 +158,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
       .send({ entries: [entry] })
       .expect(200);
     list = await roster(poll.id);
-    expect(list.slots[1].students[0].final).toBe("EN_ATTENTE");
+    expect(list.slots[1].students[0].final).toBe("ABSENT");
     await api()
       .put(`/api/v1/polls/${poll.id}/votes`)
       .set(auth(studentToken))
@@ -239,6 +238,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
         ...input(1),
         question: poll.question,
         endsAt: poll.endsAt,
+        capacities: poll.options.map(() => 10),
         options: poll.options.map((o: { label: string }) => o.label),
         startsAt: poll.options.map((o: { startsAt: string }) => o.startsAt),
         status: "CANCELLED",
@@ -327,7 +327,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     expect(changed.body.options).toHaveLength(10);
     await db.poll.update({
       where: { id: poll.id },
-      data: { endsAt: new Date(Date.now() - 60000) },
+      data: { status: "CLOSED" },
     });
     await api()
       .post(`/api/v1/polls/${poll.id}/votes`)

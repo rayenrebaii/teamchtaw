@@ -5,7 +5,6 @@ import { AccessService, Actor } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { pollInclude, presentPoll } from "../common/presenters";
 import { allSessionSlotsAbsent, reconcileAbsences } from "./attendance.reconcile";
-import { assertSessionCancellationAllowed } from "./session-deletion.rules";
 import { MandatoryAttendanceService } from "./mandatory-attendance.service";
 
 @Injectable()
@@ -14,7 +13,9 @@ export class SessionManagementService {
   private async lock(tx: Prisma.TransactionClient, actor: Actor, id: string) {
     const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
     if (!located) throw new NotFoundException("Séance introuvable.");
-    await this.access.session(tx, actor, id);
+    const user = await this.access.organizer(tx, actor);
+    if (user.role === "ADMIN") await this.access.group(tx, actor, located.groupId);
+    else await this.access.session(tx, actor, id);
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({ where: { id }, include: { options: { orderBy: { position: "asc" } }, votes: true, participants: true, group: true } });
     if (poll.type !== "SESSION") throw new BadRequestException("Ce sondage n’est pas une séance.");
@@ -25,10 +26,10 @@ export class SessionManagementService {
   async removeSlot(actor: Actor, id: string, optionId: string) {
     const updated = await this.db.$transaction(async (tx) => {
       const { poll, ids } = await this.lock(tx, actor, id);
-      assertSessionCancellationAllowed(poll.options);
       const option = poll.options.find((candidate) => candidate.id === optionId);
       if (!option) throw new NotFoundException("Créneau introuvable.");
       if (poll.options.length <= 1) throw new ConflictException("Pour retirer le dernier créneau, supprimez la séance.");
+      await tx.sessionAttendanceEdit.deleteMany({ where: { pollId: id, optionId } });
       await tx.attendanceEdit.deleteMany({ where: { optionId } });
       await tx.pollVoteOption.deleteMany({ where: { pollId: id, optionId } });
       await tx.pollVote.deleteMany({ where: { pollId: id, options: { none: {} } } });

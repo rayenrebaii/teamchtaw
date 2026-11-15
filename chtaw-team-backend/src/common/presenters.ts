@@ -23,6 +23,7 @@ export const groupInclude = { members: { select: { userId: true } } } satisfies 
 export const pollInclude = {
   options: { orderBy: { position: "asc" } },
   votes: { include: { options: true } },
+  participants: { select: { userId: true, absenceConfirmedAt: true, marks: { select: { version: true, attendance: true } } } },
 } satisfies Prisma.PollInclude;
 // A group conversation carries its public poll card independently of organizer management lists.
 export const messageInclude = {
@@ -46,14 +47,16 @@ export function presentPoll(poll: Prisma.PollGetPayload<{ include: typeof pollIn
     description: poll.description,
     type: poll.type,
     mandatoryAttendance: poll.mandatoryAttendance,
+    participationLockedUserIds: (poll.participants ?? []).filter((p) => p.absenceConfirmedAt || p.marks.some((m) => m.version > 0 || m.attendance !== "NON_VERIFIE")).map((p) => p.userId),
     status: poll.status,
     attendanceLockedAt: poll.attendanceLockedAt,
     createdAt: poll.createdAt,
     singleChoice: poll.singleChoice,
     endsAt: poll.endsAt ?? undefined,
-    options: poll.options.map((o) => ({ id: o.id, label: o.label, startsAt: o.startsAt, endsAt: o.endsAt })),
+    options: poll.options.map((o) => ({ id: o.id, label: o.label, startsAt: o.startsAt, endsAt: o.endsAt, capacity: o.capacity })),
     votes: poll.votes.map((v) => ({
       userId: v.userId,
+      attendanceLocked: v.options.some((o) => o.version > 0 || o.attendance !== "NON_VERIFIE"),
       optionIds: v.options.map((o) => o.optionId),
     })),
   };

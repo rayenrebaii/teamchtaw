@@ -66,18 +66,21 @@ export class CreatePollDto {
     type: [String],
     format: "date-time",
     description:
-      "Fins des créneaux ISO 8601, alignées sur options et startsAt. Obligatoires pour une séance obligatoire.",
+      "Compatibilité des anciens clients : les fins sont recalculées à début + 90 minutes pour les nouvelles séances.",
   })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(100)
   @IsDateString({ strict: true }, { each: true })
   slotEndsAt?: string[];
+  @ApiPropertyOptional({ type: [Number] })
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @IsInt({ each: true }) @Min(1, { each: true })
+  capacities?: number[];
 }
 export class VoteDto {
   @ApiProperty({ type: [String] })
   @IsArray()
-  @ArrayMinSize(1)
+  @ArrayMinSize(0)
   @ArrayMaxSize(100)
   @ArrayUnique()
   @IsUUID("all", { each: true })

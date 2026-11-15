@@ -18,7 +18,7 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
   const [failed, setFailed] = useState(false);
   const option = poll.options.find((slot) => slot.id === target);
   const actor = store.users.find((user) => user.id === store.session?.userId);
-  if ((actor?.role !== "ADMIN" && actor?.role !== "COLLABORATOR") || poll.authorId !== actor?.id || poll.type !== "SESSION") return null;
+  if ((actor?.role !== "ADMIN" && actor?.role !== "COLLABORATOR") || (actor?.role !== "ADMIN" && poll.authorId !== actor?.id) || poll.type !== "SESSION") return null;
   return <Modal open title={copy("Gérer la séance")} onClose={() => { if (!busy) close(); }}>
     <div className={`form-stack ${styles.management}`}>
       <h3>{poll.question}</h3>
@@ -31,7 +31,7 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
       {target && <section className={styles.confirmation} aria-label={copy("Confirmation de suppression")}>
         <h4>{target === "session" ? copy("Supprimer définitivement cette séance ?") : copy("Retirer ce créneau ?")}</h4>
         {option && <p><strong>{option.label}</strong></p>}
-        <p className="small">{copy(target === "session" ? "Suppression possible jusqu’à deux heures avant le premier créneau, ou après la fin de tous les créneaux et la validation de toutes les présences. Les présences, absences et leur historique seront conservés." : "Le retrait d’un créneau est autorisé uniquement jusqu’à deux heures avant le premier créneau. Les autres créneaux seront conservés.")}</p>
+        <p className="small">{copy(target === "session" ? "Tous les créneaux, votes, présences, absences et historiques de cette séance seront définitivement supprimés. Les compteurs et alertes seront recalculés." : "Les votes, présences, absences et historiques de ce créneau seront définitivement supprimés. Les autres créneaux seront conservés et les compteurs recalculés.")}</p>
         <div className="row wrap"><Button variant="secondary" disabled={busy} onClick={() => setTarget(null)}>{copy("Annuler")}</Button>
           <Button variant="destructive" disabled={busy} onClick={async () => {
             if (busy) return;

@@ -38,7 +38,7 @@ export function PollVoteResults({ poll }: { poll: Poll }) {
       {choices.map((choice) => (
         <section key={choice.id} className={styles.section} aria-label={choice.label}>
           <h4><span>{choice.label}</span><span className="badge">{choice.voterIds.length}</span></h4>
-          {choice.startsAt && <p className="small muted"><time dateTime={choice.startsAt}>{new Date(choice.startsAt).toLocaleString(locale)}</time>{choice.endsAt && <> → <time dateTime={choice.endsAt}>{new Date(choice.endsAt).toLocaleString(locale)}</time></>}</p>}
+          {choice.startsAt && <p className="small muted"><time dateTime={choice.startsAt}>{new Date(choice.startsAt).toLocaleString(locale, { timeZone: "Africa/Tunis" })}</time>{choice.endsAt && <> → <time dateTime={choice.endsAt}>{new Date(choice.endsAt).toLocaleString(locale, { timeZone: "Africa/Tunis" })}</time></>}</p>}
           {choice.voterIds.length ? <ul className={styles.list} aria-label={copy("Votants pour {choice}", { choice: choice.label })}>{choice.voterIds.map(person)}</ul>
             : <p className="small muted">{copy("Aucun vote pour ce choix.")}</p>}
         </section>

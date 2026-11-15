@@ -5,7 +5,7 @@ import { CreatePollDto } from "../src/polls/polls.dto";
 
 describe("Final audit regressions", () => {
   const input: CreatePollDto = { type: "SESSION", mandatoryAttendance: true, question: "Audit session",
-    singleChoice: false, options: ["First", "Second"], endsAt: "2099-01-01T06:00:00Z",
+    singleChoice: true, options: ["First", "Second"], capacities: [10, 15], endsAt: "2099-01-01T06:00:00Z",
     startsAt: ["2099-01-02T08:00:00Z", "2099-01-02T10:00:00Z"],
     slotEndsAt: ["2099-01-02T10:00:00Z", "2099-01-02T12:00:00Z"] };
 
@@ -32,16 +32,18 @@ describe("Final audit regressions", () => {
     await expect(access.session(tx as never, { id: "admin" } as Actor, "poll")).rejects.toThrow("introuvable");
   });
   it("rejects overlapping slots inside a single session, retaining adjacent slots", () => {
-    expect(() => validatePoll(input)).not.toThrow();
+    expect(() => validatePoll({ ...input })).not.toThrow();
     expect(() => validatePoll({ ...input, startsAt: [input.startsAt![0]!, "2099-01-02T09:00:00Z"] })).toThrow();
   });
-  it.each([
-    ["2099-01-02T07:00:00Z", "2099-01-02T12:00:00Z"],
-    ["2099-01-02T10:00:00Z"],
-  ])("validates provided end times even in the legacy attendance mode", (...slotEndsAt) => {
-    expect(() => validatePoll({ ...input, mandatoryAttendance: false, slotEndsAt })).toThrow();
+  it.each([[], [0, 10], [1.5, 10], [10]])("rejects invalid slot capacities %j", (...capacities) => {
+    expect(() => validatePoll({ ...input, capacities })).toThrow();
   });
   it("preserves historical sessions whose end times were never recorded", () => {
     expect(() => validatePoll({ ...input, mandatoryAttendance: false, slotEndsAt: undefined }, true)).not.toThrow();
+  });
+  it("allows metadata edits on historical schedules without applying a new duration to old slots", () => {
+    const legacy = { ...input, startsAt: ["2099-01-02T08:00:00Z", "2099-01-02T09:00:00Z"] };
+    expect(() => validatePoll({ ...legacy }, true)).not.toThrow();
+    expect(() => validatePoll({ ...legacy })).toThrow("chevaucher");
   });
 });
