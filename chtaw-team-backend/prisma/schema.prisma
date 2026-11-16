@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+// Case-insensitive uniqueness and trimmed names are enforced by the SQL migration.
+model Establishment {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(120)
+}
+
 model StoredMedia {
   key       String   @id @db.VarChar(41)
   content   Bytes

@@ -7,6 +7,7 @@ import {
   Users,
   UserRoundCog,
   Layers,
+  School,
   ChartNoAxesColumn,
   CalendarDays,
 } from "lucide-react";
@@ -60,11 +61,12 @@ export function Shell({ children, admin = false, organizer = false }: { children
       : user.role === "ADMIN" ? [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/admin/users", label: t("Membres"), Icon: Users },
-          { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
           { href: "/admin/calendar", label: t("Calendrier"), Icon: CalendarDays },
           { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
+          { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
           { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
           { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
+          { href: "/admin/establishments", label: t("Établissements"), Icon: School },
         ] : [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },

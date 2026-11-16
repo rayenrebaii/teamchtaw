@@ -12,6 +12,7 @@ import { UsersModule } from "./users/users.module";
 import { CollaboratorsModule } from "./users/collaborators.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
 import { GroupsModule } from "./groups/groups.module";
+import { EstablishmentsModule } from "./establishments/establishments.module";
 import { MessagesModule } from "./messages/messages.module";
 import { PollsModule } from "./polls/polls.module";
 import { AttendanceModule } from "./polls/attendance.controller";
@@ -45,6 +46,7 @@ class HealthController {
     CollaboratorsModule,
     ApprovalsModule,
     GroupsModule,
+    EstablishmentsModule,
     MessagesModule,
     StorageModule,
     UploadsModule,
