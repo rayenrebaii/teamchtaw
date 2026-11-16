@@ -13,6 +13,8 @@ import { attempt } from "@/components/shared";
 import { notificationLoginDestination } from "@/features/notification-navigation";
 import { firebaseEnabled } from "@/services/firebase";
 import { PasswordInput } from "./password-input";
+import { AuthBackground } from "./auth-background";
+import backgroundStyles from "./auth-background.module.css";
 const schema = z
   .object({
     firstName: z.string().trim().min(2, "Au moins 2 caractères.").max(60),
@@ -51,7 +53,8 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
     defaultValues: { firstName: "", lastName: "", confirm: "", email: "", password: "" },
   });
   return (
-    <div className="auth-layout">
+    <div className={`auth-layout ${backgroundStyles.page}`}>
+      <AuthBackground />
       <aside className="auth-story">
         <Link href="/login" className="brand" aria-label="Team Chtaw - Accueil">
           <BrandLogo />

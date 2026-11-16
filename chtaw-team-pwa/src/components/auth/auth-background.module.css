@@ -1,0 +1,112 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  background: #16062f;
+}
+
+/* Keep the existing grid, form widths, margins and all foreground content. */
+.page > :global(.auth-story),
+.page > :global(.auth-main) {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.page > :global(.auth-story) { background: transparent; }
+.page > :global(.auth-main) {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+:global([data-theme="dark"]) .page > :global(.auth-main) {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+
+.background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+  background: radial-gradient(ellipse at 48% 36%, #432263 0%, #23103e 45%, #16062f 80%);
+}
+.background * { pointer-events: none; }
+.halo {
+  position: absolute;
+  width: min(100vw, 1000px);
+  height: min(100vh, 900px);
+  left: 20%;
+  top: 5%;
+  background: radial-gradient(ellipse, #a578df50 0%, #7540bd20 42%, transparent 70%);
+  animation: breathe 13s ease-in-out infinite alternate;
+}
+.gymnast {
+  position: absolute;
+  width: min(82vw, 1100px);
+  left: 20%;
+  top: 20%;
+  opacity: .62;
+  animation: float 11s ease-in-out infinite alternate;
+}
+.gymnast img { display: block; width: 100%; height: auto; }
+.ringPlane {
+  position: absolute;
+  width: min(73vw, 1000px);
+  aspect-ratio: 1;
+  left: 15%;
+  top: calc(50% - min(36.5vw, 500px));
+  transform: rotate(-28deg) scaleY(.48);
+}
+.ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #d8baff70;
+  border-top-color: #ead7ffbd;
+  border-right-color: #bb8eea30;
+  border-radius: 50%;
+  box-shadow: inset 0 0 13px #be91ff0a, 0 0 15px #be91ff12;
+  animation: orbit 58s linear infinite;
+}
+.second {
+  left: 28%;
+  transform: rotate(38deg) scaleY(.68);
+  width: min(54vw, 780px);
+}
+.second .ring { animation-duration: 79s; animation-direction: reverse; }
+.third {
+  left: 4%;
+  top: 12%;
+  width: min(56vw, 800px);
+  transform: rotate(-62deg) scaleY(.42);
+}
+.third .ring { animation-duration: 97s; }
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ead7ff;
+  box-shadow: 0 0 9px 2px #d3abff60;
+  opacity: .45;
+  animation: drift ease-in-out infinite alternate;
+}
+.veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, #16062f66, #16062f2e 48%, #16062f52);
+}
+@keyframes float { to { transform: translate3d(0, -16px, 0); } }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes drift { to { transform: translate3d(12px, -18px, 0); opacity: .2; } }
+@keyframes breathe { from { opacity: .55; } to { opacity: .85; } }
+
+@media (max-width: 800px) {
+  .gymnast { width: 135vw; left: -25%; top: 12%; opacity: .62; }
+  .halo { width: 140vw; height: 85vh; left: -20%; }
+  .ringPlane { width: 140vw; left: -25%; top: 12%; }
+  .second { width: 115vw; left: 10%; top: 26%; }
+  .third { width: 125vw; left: -45%; top: 7%; }
+  .particle[data-mobile-hidden] { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .background *, .background *::before, .background *::after { animation: none; }
+}
