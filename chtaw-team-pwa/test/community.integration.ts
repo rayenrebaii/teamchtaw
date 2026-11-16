@@ -112,6 +112,8 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
       email,
       password,
       firstName: "Membre",
+      proposedEstablishmentName: "Lycée Intégration",
+      phone: "+21620123456",
       lastName: "Intégration",
     });
     expect(member.status).toBe("PENDING");

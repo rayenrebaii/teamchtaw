@@ -3404,3 +3404,9 @@ progress {
   .request-status-tabs { max-width: 100%; }
   .admin-workspace .workspace-content > .admin-page { min-height: 0; }
 }
+.phone-input { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.phone-input > span { padding-inline: 14px; color: var(--muted); font-size: 14px; border-inline-end: 1px solid var(--line); }
+.phone-input > input { min-width: 0; flex: 1; border: 0; background: transparent; border-radius: 0; }
+.student-school { display: grid; gap: 5px; margin-block: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.student-school > p { margin: 0; }
+.student-school > button { justify-self: start; white-space: normal; }

@@ -9,6 +9,7 @@ import { Empty } from "@/components/shared";
 import { LoadState, useRemote } from "./attendance-panel";
 import styles from "./establishments.module.css";
 import memberStyles from "./members-panel.module.css";
+import { SchoolSuggestions } from "./school-suggestions";
 
 export function EstablishmentsScreen() {
   const { t, error: failure } = useCopy();
@@ -73,6 +74,7 @@ export function EstablishmentsScreen() {
         </tr>)}</tbody>
       </table></div>}
     </section>
+    <SchoolSuggestions onReviewed={remote.refresh} />
     <Modal open={!!editor} onClose={() => { if (!busy) setEditor(null); }} title={t(editor?.item ? "Modifier l’établissement" : "Ajouter un établissement")}>
       <form className="form-stack" onSubmit={event => { event.preventDefault(); void save(); }}>
         <label htmlFor="establishment-name">{t("Nom du lycée")}</label>

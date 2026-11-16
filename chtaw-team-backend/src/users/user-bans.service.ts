@@ -77,6 +77,7 @@ export class UserBansService {
       await tx.$executeRaw`UPDATE "NotificationEvent" SET "recipientIds" = array_remove("recipientIds", ${userId}::uuid)
         WHERE ${userId}::uuid = ANY("recipientIds")`;
       // Cascades also remove every group membership, session and personal notification.
+      if (user.profilePhotoId) await tx.profilePhotoCleanup.upsert({ where: { storageKey: `${user.profilePhotoId}.webp` }, create: { storageKey: `${user.profilePhotoId}.webp` }, update: {} });
       await tx.user.delete({ where: { id: userId } });
       await reconcileAbsences(tx, affectedStudents.map((student) => student.id), "Séances supprimées");
       const groups = await tx.group.findMany({

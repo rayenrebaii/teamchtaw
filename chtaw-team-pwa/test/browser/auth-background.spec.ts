@@ -10,6 +10,7 @@ test.beforeEach(async ({ page }) => {
     headers: { "Access-Control-Allow-Origin": "http://127.0.0.1:3001", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Session-Transport", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" },
     json: { message: "Vérification locale : authentification indisponible." },
   }));
+  await page.route("**/api/v1/establishments", route => route.fulfill({ json: [{ id: "ad17810e-dc39-4de4-a369-192bf19d9773", name: "Lycée de test" }] }));
 });
 
 for (const route of ["login", "register"]) for (const width of [390, 1440]) for (const theme of ["light", "dark"]) {
@@ -21,6 +22,10 @@ for (const route of ["login", "register"]) for (const width of [390, 1440]) for 
     await page.goto(`/${route}`);
     const form = page.locator(".auth-form");
     await expect(form).toBeVisible();
+    if (route === "register") {
+      await page.getByLabel("Établissement / Lycée", { exact: true }).selectOption("ad17810e-dc39-4de4-a369-192bf19d9773");
+      await page.getByLabel("Téléphone", { exact: true }).fill("20123456");
+    }
     const scene = page.locator("[data-auth-background]");
     await expect(scene).toHaveAttribute("aria-hidden", "true");
     await expect(scene).toHaveCSS("pointer-events", "none");

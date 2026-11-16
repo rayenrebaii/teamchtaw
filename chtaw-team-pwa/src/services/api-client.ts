@@ -125,8 +125,8 @@ export class ApiClient {
   async login<T extends TokenResponse>(email: string, password: string, remember = true) {
     return this.authenticate<T>("/auth/login", { email, password }, remember);
   }
-  async firebaseLogin<T extends TokenResponse>(idToken: string, profile?: { firstName: string; lastName: string }, remember = true) {
-    return this.authenticate<T>("/auth/firebase", { idToken, ...(profile ? { firstName: profile.firstName, lastName: profile.lastName } : {}) }, remember);
+  async firebaseLogin<T extends TokenResponse>(idToken: string, profile?: { firstName: string; lastName: string; phone?: string; establishmentId?: string; proposedEstablishmentName?: string }, remember = true) {
+    return this.authenticate<T>("/auth/firebase", { idToken, ...(profile ? { firstName: profile.firstName, lastName: profile.lastName, ...(profile.phone ? { phone: profile.phone } : {}), ...(profile.establishmentId ? { establishmentId: profile.establishmentId } : {}), ...(profile.proposedEstablishmentName !== undefined ? { proposedEstablishmentName: profile.proposedEstablishmentName } : {}) } : {}) }, remember);
   }
   private async authenticate<T extends TokenResponse>(path: string, body: object, remember: boolean) {
     this.clear();
@@ -159,7 +159,10 @@ export class ApiClient {
       await this.refresh();
       response = await send();
     }
-    if (epoch !== this.generation) throw new ApiError(409, "La session a changé.");
+    // Public read-only lists are independent of session restoration on startup.
+    // Keep stale-response protection for authenticated reads and all writes.
+    if ((authenticated || (init.method ?? "GET").toUpperCase() !== "GET") && epoch !== this.generation)
+      throw new ApiError(409, "La session a changé.");
     return this.checked<T>(response);
   }
   async revokeBrowserSession() {
@@ -174,7 +177,8 @@ export class ApiClient {
     this.clear();
     await this.revokeBrowserSession();
   }
-  async blob(path: string) {
+  async blob(path: string, failureMessage = "Image inaccessible.") {
+    const epoch = this.generation;
     const headers = new Headers({ Authorization: `Bearer ${await this.accessToken()}` });
     let response = await this.raw(path, { headers });
     if (response.status === 401) {
@@ -182,7 +186,8 @@ export class ApiClient {
       headers.set("Authorization", `Bearer ${await this.accessToken()}`);
       response = await this.raw(path, { headers });
     }
-    if (!response.ok) throw new ApiError(response.status, "Image inaccessible.");
+    if (epoch !== this.generation) throw new ApiError(409, "La session a changé.");
+    if (!response.ok) throw new ApiError(response.status, failureMessage);
     return response.blob();
   }
 }

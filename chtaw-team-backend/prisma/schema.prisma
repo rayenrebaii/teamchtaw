@@ -10,6 +10,32 @@ datasource db {
 model Establishment {
   id   String @id @default(uuid()) @db.Uuid
   name String @db.VarChar(120)
+  students User[]
+  suggestions EstablishmentSuggestion[]
+}
+
+enum EstablishmentSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model EstablishmentSuggestion {
+  id String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(120)
+  normalizedName String @db.VarChar(120)
+  status EstablishmentSuggestionStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  establishmentId String? @db.Uuid
+  establishment Establishment? @relation(fields: [establishmentId], references: [id], onDelete: SetNull)
+  students User[]
+  @@index([status, createdAt])
+}
+
+model ProfilePhotoCleanup {
+  storageKey String @id @db.VarChar(41)
+  createdAt DateTime @default(now())
 }
 
 model StoredMedia {
@@ -63,6 +89,12 @@ model User {
   firstName              String                  @db.VarChar(60)
   lastName               String                  @db.VarChar(60)
   bio                    String                  @default("") @db.VarChar(250)
+  phone                  String?                 @db.VarChar(12)
+  profilePhotoId         String?                 @unique @db.Uuid
+  establishmentId        String?                 @db.Uuid
+  establishment          Establishment?          @relation(fields: [establishmentId], references: [id], onDelete: Restrict)
+  establishmentSuggestionId String?              @db.Uuid
+  establishmentSuggestion EstablishmentSuggestion? @relation(fields: [establishmentSuggestionId], references: [id], onDelete: SetNull)
   role                   Role                    @default(USER)
   status                 AccountStatus           @default(PENDING)
   joinedAt               DateTime                @default(now())
@@ -94,6 +126,8 @@ model User {
   studentOrganizerAlerts OrganizerAbsenceAlert[] @relation("AlertStudent")
 
   @@index([status, joinedAt, id])
+  @@index([establishmentId])
+  @@index([establishmentSuggestionId])
 }
 
 model RefreshSession {

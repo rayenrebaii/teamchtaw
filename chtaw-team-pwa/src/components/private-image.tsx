@@ -6,21 +6,23 @@ import { useCommunity } from "@/stores/community";
 export function PrivateImage({
   src,
   alt,
+  fallback,
+  onError,
   ...props
-}: Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & { src?: string }) {
+}: Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & { src?: string; fallback?: React.ReactNode }) {
   const { t } = useCopy();
   const owner = useCommunity((s) => s.session?.userId);
   const [image, setImage] = useState<{ source: string; owner?: string; url: string }>();
   const [failed, setFailed] = useState<string>();
   useEffect(() => {
-    if (!src || !owner || !src.startsWith("/api/v1/uploads/")) return;
+    if (!src || !owner || !(src.startsWith("/api/v1/uploads/") || src.startsWith("/api/v1/profile-photos/"))) return;
     let alive = true;
     let url: string | undefined;
     void api
       .blob(src.slice("/api/v1".length))
       .then((blob) => {
         url = URL.createObjectURL(blob);
-        if (alive) setImage({ source: src, owner, url });
+        if (alive) { setImage({ source: src, owner, url }); setFailed(undefined); }
         else URL.revokeObjectURL(url);
       })
       .catch(() => {
@@ -32,9 +34,12 @@ export function PrivateImage({
     };
   }, [src, owner]);
   if (!src) return null;
-  if (src.startsWith("blob:")) return <img src={src} alt={alt} {...props} />;
+  if (failed === src && fallback !== undefined) return <>{fallback}</>;
+  const failedImage: React.ReactEventHandler<HTMLImageElement> = event => { setFailed(src); onError?.(event); };
+  if (src.startsWith("blob:")) return <img src={src} alt={alt} {...props} onError={failedImage} />;
   if (image?.source === src && image.owner === owner)
-    return <img src={image.url} alt={alt} {...props} />;
+    return <img src={image.url} alt={alt} {...props} onError={failedImage} />;
+  if (fallback !== undefined) return <>{fallback}</>;
   return (
     <span
       className="image-loading"

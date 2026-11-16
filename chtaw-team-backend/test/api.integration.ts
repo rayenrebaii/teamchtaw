@@ -231,7 +231,7 @@ describe("API réelle PostgreSQL et Socket.IO", () => {
   it("inscrit un compte en attente sans renvoyer son hash", async () => {
     const res = await api()
       .post("/api/v1/auth/register")
-      .send({ email: " MEMBER@integration.test ", password, firstName: "Member", lastName: "Test" })
+      .send({ email: " MEMBER@integration.test ", password, firstName: "Member", lastName: "Test", proposedEstablishmentName: "Integration school", phone: "+21620123456" })
       .expect(201);
     expect(res.body.status).toBe("PENDING");
     expect(res.body.passwordHash).toBeUndefined();
@@ -295,6 +295,8 @@ describe("API réelle PostgreSQL et Socket.IO", () => {
         email: "concurrent@integration.test",
         password,
         firstName: "Concurrent",
+        proposedEstablishmentName: "Integration school",
+        phone: "+21620123456",
         lastName: "Test",
       })
       .expect(201);
@@ -364,6 +366,8 @@ describe("API réelle PostgreSQL et Socket.IO", () => {
         email: "assignment-pending@integration.test",
         password,
         firstName: "Waiting",
+        proposedEstablishmentName: "Integration school",
+        phone: "+21620123456",
         lastName: "Assignment",
       })
       .expect(201);
@@ -649,7 +653,7 @@ describe("API réelle PostgreSQL et Socket.IO", () => {
   it("refuse une inscription et garde la messagerie inaccessible", async () => {
     const user = await api()
       .post("/api/v1/auth/register")
-      .send({ email: "pending@integration.test", password, firstName: "Pending", lastName: "Test" })
+      .send({ email: "pending@integration.test", password, firstName: "Pending", lastName: "Test", proposedEstablishmentName: "Integration school", phone: "+21620123456" })
       .expect(201);
     pending = (
       await api()

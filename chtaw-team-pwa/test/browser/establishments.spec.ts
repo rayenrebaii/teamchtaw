@@ -98,7 +98,7 @@ test("loading, load failure and retry", async ({ page }) => {
     return route.fulfill({ json: [] });
   });
   await page.goto("/admin/establishments");
-  await expect(page.getByText("Loading…", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "School list" }).getByText("Loading…", { exact: true })).toBeVisible();
   release();
   await expect(page.getByRole("region", { name: "School list" }).getByRole("alert")).toContainText("Operation failed.");
   failed = false;

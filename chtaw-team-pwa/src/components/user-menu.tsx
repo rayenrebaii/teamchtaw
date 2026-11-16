@@ -21,7 +21,7 @@ export function UserMenu({ user }: { user: User }) {
   return <details className="user-menu" ref={menu}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close(); }}
     onKeyDown={(event) => { if (event.key === "Escape") { close(); menu.current?.querySelector("summary")?.focus(); } }}>
-    <summary aria-label={t("Menu utilisateur de {name}", { name: user.firstName })}><Avatar user={{ firstName: user.firstName.trim().toLocaleLowerCase(), lastName: user.lastName.trim().toLocaleLowerCase() }} /></summary>
+    <summary aria-label={t("Menu utilisateur de {name}", { name: user.firstName })}><Avatar user={{ ...user, firstName: user.firstName.trim().toLocaleLowerCase(), lastName: user.lastName.trim().toLocaleLowerCase() }} /></summary>
     <nav aria-label={t("Mon profil")}>
       <Link href="/app/profile" onClick={close}><UserRound size={17} />{t("Mon profil")}</Link>
       <Link href="/app/settings" onClick={close}><Settings size={17} />{t("Paramètres")}</Link>

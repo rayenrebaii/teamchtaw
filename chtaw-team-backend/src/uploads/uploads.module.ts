@@ -31,14 +31,14 @@ import { MediaStorage, Storage } from "./storage.module";
 export class PhotoDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) caption?: string;
 }
-export async function sanitizeImage(bytes: Buffer, max: number) {
+export async function sanitizeImage(bytes: Buffer, max: number, maxDimension = 2400) {
   if (!bytes.length || bytes.length > max) throw new BadRequestException("Image trop volumineuse.");
   try {
     const metadata = await sharp(bytes, { limitInputPixels: 25000000, animated: false }).metadata();
     if (!["jpeg", "png", "webp", "gif"].includes(metadata.format ?? "")) throw Error();
     const result = await sharp(bytes, { limitInputPixels: 25000000, animated: false })
       .rotate()
-      .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+      .resize({ width: maxDimension, height: maxDimension, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 85 })
       .toBuffer({ resolveWithObject: true });
     return { buffer: result.data, width: result.info.width, height: result.info.height };

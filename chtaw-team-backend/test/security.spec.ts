@@ -50,6 +50,7 @@ describe("DTO stricts", () => {
     expect(await errors(UpdateGroupDto, { name: null, description: null })).not.toHaveLength(0);
   });
   const registration = {
+    phone: "+21620123456",
     email: " MEMBER@example.com ",
     password: "a-long-fake-password",
     firstName: " Amin ",

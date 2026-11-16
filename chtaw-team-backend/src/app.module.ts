@@ -13,6 +13,7 @@ import { CollaboratorsModule } from "./users/collaborators.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
 import { GroupsModule } from "./groups/groups.module";
 import { EstablishmentsModule } from "./establishments/establishments.module";
+import { ProfilePhotosModule } from "./users/profile-photos.module";
 import { MessagesModule } from "./messages/messages.module";
 import { PollsModule } from "./polls/polls.module";
 import { AttendanceModule } from "./polls/attendance.controller";
@@ -47,6 +48,7 @@ class HealthController {
     ApprovalsModule,
     GroupsModule,
     EstablishmentsModule,
+    ProfilePhotosModule,
     MessagesModule,
     StorageModule,
     UploadsModule,

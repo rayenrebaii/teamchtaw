@@ -8,6 +8,7 @@ import type {
   Poll,
   MemberSummary,
   DashboardStats,
+  RegistrationInput,
 } from "@/types";
 import { api, ApiError } from "@/services/api-client";
 import { markSignedOut } from "@/services/session-control";
@@ -21,6 +22,9 @@ import { usersService } from "@/services/users.service";
 import { messagesService } from "@/services/messages.service";
 import { pollsService } from "@/services/polls.service";
 import { uploadsService } from "@/services/uploads.service";
+import { profilePhotosService } from "@/services/profile-photos.service";
+import { toast } from "sonner";
+import { translateNotice } from "@/lib/i18n";
 export function mergeById<T extends { id: string }>(old: T[], fresh: T[]): T[] {
   const map = new Map(old.map((item) => [item.id, item]));
   for (const item of fresh) map.set(item.id, item);
@@ -55,7 +59,7 @@ interface Store {
   restore: () => Promise<void>;
   login: (email: string, password: string, remember?: boolean) => Promise<User>;
   register: (
-    input: Pick<User, "email" | "firstName" | "lastName"> & { password: string },
+    input: RegistrationInput, photo?: File,
   ) => Promise<User>;
   logout: () => Promise<void>;
   clear: () => void;
@@ -80,6 +84,7 @@ interface Store {
   publishPoll: (poll: Poll) => Promise<void>;
   vote: (id: string, options: string[], replace?: boolean) => Promise<void>;
   profile: (values: Pick<User, "firstName" | "lastName" | "bio">) => Promise<void>;
+  receiveUser: (user: User) => void;
   receiveMessage: (message: Message) => void;
   removeMessage: (id: string) => void;
   receivePoll: (poll: Poll) => void;
@@ -164,9 +169,14 @@ export const useCommunity = create<Store>((set, get) => ({
     await get().sync();
     return result.user;
   },
-  register: async (input) => {
+  register: async (input, photo) => {
     await authService.register(input);
-    return get().login(input.email, input.password);
+    let user = await get().login(input.email, input.password);
+    if (photo) {
+      try { user = await profilePhotosService.save(photo); get().receiveUser(user); }
+      catch { toast.warning(translateNotice("Compte créé. La photo n’a pas pu être enregistrée. Ajoutez-la depuis votre profil.")); }
+    }
+    return user;
   },
   logout: async () => {
     markSignedOut();
@@ -416,6 +426,7 @@ export const useCommunity = create<Store>((set, get) => ({
       throw e;
     }
   },
+  receiveUser: (user) => set(s => ({ users: mergeById(s.users, [user]), people: mergeById(s.people, [user]) })),
   profile: async (input) => {
     const user = await usersService.profile(input);
     set((s) => ({ users: mergeById(s.users, [user]), people: mergeById(s.people, [user]) }));

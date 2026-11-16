@@ -19,7 +19,7 @@ export function Avatar({
   group,
   size = "",
 }: {
-  user?: Pick<User, "firstName" | "lastName">;
+  user?: Pick<User, "firstName" | "lastName"> & Partial<Pick<User, "id" | "profilePhotoId">>;
   group?: Group;
   size?: string;
 }) {
@@ -28,7 +28,9 @@ export function Avatar({
       className={`avatar ${size}`}
       style={group ? { background: group.color, color: "#42235c" } : undefined}
     >
-      {group?.image ? (
+      {!group && user?.id && user.profilePhotoId ? (
+        <PrivateImage src={`/api/v1/profile-photos/${encodeURIComponent(user.id)}/${encodeURIComponent(user.profilePhotoId)}`} alt="" fallback={`${user.firstName[0] ?? "?"}${user.lastName[0] ?? ""}`} />
+      ) : group?.image ? (
         <PrivateImage src={group.image} alt="" />
       ) : group ? (
         group.isGeneral ? (

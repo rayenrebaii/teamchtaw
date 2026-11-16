@@ -39,7 +39,7 @@ export class GroupsService {
       const group = await tx.group.findUniqueOrThrow({ where: { id }, include: groupInclude });
       const members = await tx.user.findMany({
         where: { memberships: { some: { groupId: id } } },
-        select: { id: true, firstName: true, lastName: true, bio: true, role: true },
+        select: { id: true, firstName: true, lastName: true, bio: true, role: true, profilePhotoId: true },
       });
       return { ...presentGroup(group), members };
     });

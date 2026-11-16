@@ -3,8 +3,10 @@ import { adminEnglish } from "./admin-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
 import { groupsEnglish } from "./groups-copy";
 import { bulkEnglish } from "./bulk-copy";
+import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  ...studentProfileEnglish,
   "Établissements": "Schools",
   "ESPACE ADMIN · ÉTABLISSEMENTS": "ADMIN AREA · SCHOOLS",
   "Total des établissements": "Total schools",

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 export const memberSelect = {
   id: true,
+  profilePhotoId: true,
   firstName: true,
   lastName: true,
   bio: true,
@@ -8,6 +9,10 @@ export const memberSelect = {
 } satisfies Prisma.UserSelect;
 export const userSelect = {
   id: true,
+  profilePhotoId: true,
+  establishmentId: true,
+  establishment: { select: { id: true, name: true } },
+  establishmentSuggestion: { select: { id: true, name: true, status: true } },
   email: true,
   firstName: true,
   lastName: true,
@@ -19,6 +24,8 @@ export const userSelect = {
   disabledAt: true,
   activatedAt: true,
 } satisfies Prisma.UserSelect;
+// Telephone is returned only in own-account and administrator responses.
+export const accountSelect = { ...userSelect, phone: true } satisfies Prisma.UserSelect;
 export const groupInclude = { members: { select: { userId: true } } } satisfies Prisma.GroupInclude;
 export const pollInclude = {
   options: { orderBy: { position: "asc" } },

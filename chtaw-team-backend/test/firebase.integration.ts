@@ -49,7 +49,7 @@ describe("Firebase bridge with isolated PostgreSQL, HTTP and Socket.IO", () => {
   const api = () => request(app.getHttpServer());
   const headers = () => ({ Authorization: `Bearer ${accessToken}` });
   it("registers a pending identity without exposing any password or Firebase UID", async () => {
-    const result = await api().post("/api/v1/auth/firebase").send({ idToken, firstName: "Firebase", lastName: "Test" }).expect(200);
+    const result = await api().post("/api/v1/auth/firebase").send({ idToken, firstName: "Firebase", lastName: "Test", proposedEstablishmentName: "Firebase school", phone: "+21620123456" }).expect(200);
     ({ accessToken, refreshToken } = result.body); userId = result.body.user.id;
     expect(result.body.user).toMatchObject({ status: "PENDING", role: "USER", emailVerified: false });
     expect(result.body.user).not.toHaveProperty("passwordHash"); expect(result.body.user).not.toHaveProperty("firebaseUid");

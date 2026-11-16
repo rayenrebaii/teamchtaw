@@ -11,6 +11,7 @@ export async function fixture(page: Page, role: "USER" | "ADMIN" | "COLLABORATOR
     if (path === "/auth/refresh") body = { accessToken: "client-render-fixture", expiresIn: 900, userId: user.id, sessionId: "fixture-session" };
     else if (path === "/auth/me" || path === "/users/me") body = user;
     else if (path === "/groups") body = groups;
+    else if (path === "/establishments" || path === "/admin/establishment-suggestions") body = [];
     else if (path === "/users") body = { items: [user], nextCursor: null };
     else if (path === "/organizer/participants") body = [];
     else if (path === "/polls") body = { items: [], nextCursor: null };

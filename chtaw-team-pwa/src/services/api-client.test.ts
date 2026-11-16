@@ -9,6 +9,31 @@ const pair = {
   sessionId: "session",
 };
 describe("Session HTTP réelle", () => {
+  it("does not deliver a private download after the session changes", async () => {
+    let resolve!: (response: Response) => void;
+    const client = new ApiClient("http://api.test/api/v1", vi.fn<typeof fetch>().mockImplementation(() => new Promise(res => { resolve = res; })));
+    client.setSession(pair);
+    const pending = client.blob("/admin/students/export");
+    await Promise.resolve();
+    client.clear();
+    resolve(new Response("private file"));
+    await expect(pending).rejects.toMatchObject({ status: 409 });
+  });
+  it("reports export failures without exposing a server response body", async () => {
+    const client = new ApiClient("http://api.test/api/v1", vi.fn<typeof fetch>().mockResolvedValue(new Response("unavailable", { status: 503 })));
+    client.setSession(pair);
+    await expect(client.blob("/admin/students/export", "Export impossible.")).rejects.toMatchObject({ status: 503, message: "Export impossible." });
+  });
+  it("keeps the public school list available when startup clears an expired session", async () => {
+    let resolve!: (response: Response) => void;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(() => new Promise(res => { resolve = res; }));
+    const client = new ApiClient("http://api.test/api/v1", fetcher);
+    const pending = client.request("/establishments", {}, false);
+    client.clear();
+    resolve(json([{ id: "school", name: "Lycée" }]));
+    await expect(pending).resolves.toEqual([{ id: "school", name: "Lycée" }]);
+    expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).has("Authorization")).toBe(false);
+  });
   it.each([200, 404, 503])("rejects HTML as an unavailable API instead of accepting it: %s", async (status) => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response("<!DOCTYPE html><h1>Not found</h1>", { status, headers: { "Content-Type": "text/html" } }));
     await expect(new ApiClient("https://api.test/api/v1", fetcher).login("test@example.test", "test-password"))

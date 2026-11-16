@@ -1,6 +1,6 @@
 import { isSignedOut } from "./session-control";
 import { api, ApiError, type TokenResponse } from "./api-client";
-import type { User } from "@/types";
+import type { User, RegistrationInput } from "@/types";
 import { firebaseAuth, firebaseEnabled, emailActionSettings } from "./firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, signOut } from "firebase/auth";
 export const authService = {
@@ -14,7 +14,7 @@ export const authService = {
       throw new ApiError(401, "Connexion impossible. Vérifiez vos identifiants ou utilisez Mot de passe oublié.");
     }
   },
-  async register(input: Pick<User, "email" | "firstName" | "lastName"> & { password: string }) {
+  async register(input: RegistrationInput) {
     if (!firebaseEnabled) return api.request<User>("/auth/register", { method: "POST", body: JSON.stringify(input) }, false);
     let credential;
     try { credential = await createUserWithEmailAndPassword(firebaseAuth(), input.email.trim().toLowerCase(), input.password); }

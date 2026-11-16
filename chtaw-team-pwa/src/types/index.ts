@@ -12,7 +12,14 @@ export interface User {
   activatedAt?: string | null;
   joinedAt: string;
   bio: string;
+  phone?: string | null;
+  profilePhotoId?: string | null;
+  establishmentId?: string | null;
+  establishment?: { id: string; name: string } | null;
+  establishmentSuggestion?: { id: string; name: string; status: "PENDING" | "APPROVED" | "REJECTED" } | null;
 }
+export interface SchoolChoice { establishmentId?: string; proposedEstablishmentName?: string }
+export type RegistrationInput = Pick<User, "email" | "firstName" | "lastName"> & { password: string; phone: string } & SchoolChoice;
 export interface AuthSession {
   userId: string;
   mode: "demo" | "real";
@@ -89,7 +96,7 @@ export interface DemoData {
   messages: Message[];
   polls: Poll[];
 }
-export type MemberSummary = Pick<User, "id" | "firstName" | "lastName" | "bio" | "role">;
+export type MemberSummary = Pick<User, "id" | "firstName" | "lastName" | "bio" | "role" | "profilePhotoId">;
 export interface DashboardStats {
   totalUsers: number;
   pendingUsers: number;

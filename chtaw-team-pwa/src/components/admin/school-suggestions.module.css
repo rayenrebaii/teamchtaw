@@ -1,0 +1,7 @@
+.panel { margin-top: 24px; display: grid; gap: 18px; min-width: 0; }
+.panel > label { display: grid; gap: 8px; max-width: 300px; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list > li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 20px 0; border-top: 1px solid var(--line); }
+.list > li > div { min-width: 0; }
+.list h3, .list li { overflow-wrap: anywhere; }
+.list ul { padding-left: 18px; margin-top: 8px; }

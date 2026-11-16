@@ -52,12 +52,12 @@ describe("Firebase account linking", () => {
   beforeAll(() => {
     auth = new AuthService({ user: { findUnique, create, update }, refreshSession: { create: sessionCreate },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({
-        $queryRaw: jest.fn(), refreshSession: { create: sessionCreate }, user: { findUnique: async () =>
+        $queryRaw: jest.fn(), refreshSession: { create: sessionCreate }, user: { create, findUnique: async () =>
           await (update.mock.results.at(-1)?.value ?? create.mock.results.at(-1)?.value ?? findUnique.mock.results.at(-1)?.value) },
       }),
     } as unknown as PrismaService,
       { signAsync: jest.fn().mockResolvedValue("fictional-refresh-token") } as unknown as JwtService,
-      new ConfigService({ ACCESS_TTL_SECONDS: 900, REFRESH_TTL_SECONDS: 3600, JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64) }), new DomainEvents(), firebase as unknown as FirebaseIdentity);
+      new ConfigService({ ACCESS_TTL_SECONDS: 900, REFRESH_TTL_SECONDS: 3600, JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64) }), new DomainEvents(), firebase as unknown as FirebaseIdentity, { enrollment: jest.fn().mockResolvedValue({}) } as never);
   });
   beforeEach(() => {
     findUnique.mockReset(); create.mockReset(); update.mockReset(); sessionCreate.mockReset();
@@ -67,7 +67,7 @@ describe("Firebase account linking", () => {
   });
   it("never falls back to legacy password hashes after cutover", async () => {
     await expect(auth.login({ email: "new@example.test", password: "anything" })).rejects.toThrow("Firebase");
-    await expect(auth.register({ email: "new@example.test", password: "anything", firstName: "New", lastName: "User" })).rejects.toThrow("Firebase");
+    await expect(auth.register({ email: "new@example.test", password: "anything", firstName: "New", lastName: "User", phone: "+21620123456" })).rejects.toThrow("Firebase");
   });
   it("never links an existing business account based only on matching email", async () => {
     findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "existing-admin" });
@@ -87,7 +87,7 @@ describe("Firebase account linking", () => {
   it("creates an unverified pending USER and binds the trusted Firebase auth time", async () => {
     findUnique.mockResolvedValue(null);
     create.mockImplementation(async ({ data }) => ({ ...data, id: "new-id" }));
-    const result = await auth.firebaseLogin({ idToken: "token", firstName: "New", lastName: "User" });
+    const result = await auth.firebaseLogin({ idToken: "token", firstName: "New", lastName: "User", phone: "+21620123456" });
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: "USER", status: "PENDING", emailVerified: false, firebaseUid: "new-uid" }) }));
     expect(sessionCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ firebaseAuthTime: 200 }) }));
     expect(result.user).not.toHaveProperty("passwordHash");

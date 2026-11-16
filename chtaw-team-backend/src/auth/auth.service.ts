@@ -6,10 +6,11 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
 import { DomainEvents } from "../common/events";
-import { userSelect } from "../common/presenters";
+import { accountSelect as userSelect } from "../common/presenters";
 import { Actor } from "../common/access";
 import { FirebaseLoginDto, LoginDto, RegisterDto } from "./auth.dto";
 import { FirebaseIdentity } from "./firebase.service";
+import { StudentSchoolsService } from "../establishments/student-schools.service";
 export interface TokenClaims {
   sub: string;
   sid: string;
@@ -32,15 +33,19 @@ export class AuthService {
     private config: ConfigService,
     private events: DomainEvents,
     private firebase: FirebaseIdentity,
+    private schools: StudentSchoolsService,
   ) {
     this.dummyHash = argon2.hash(randomUUID(), passwordOptions);
   }
   async register(dto: RegisterDto) {
     if (this.firebase.enabled) throw new UnauthorizedException("Utilisez l’inscription Firebase.");
+    if (!dto.phone) throw new BadRequestException("Le téléphone est obligatoire à l’inscription.");
     const passwordHash = await argon2.hash(dto.password, passwordOptions);
-    return this.db.user.create({
+    return this.db.$transaction(async tx => tx.user.create({
       data: {
+        ...await this.schools.enrollment(tx, dto),
         email: dto.email,
+        phone: dto.phone,
         firstName: dto.firstName,
         lastName: dto.lastName,
         passwordHash,
@@ -48,7 +53,7 @@ export class AuthService {
         status: "PENDING",
       },
       select: userSelect,
-    });
+    }));
   }
   async login(dto: LoginDto) {
     if (this.firebase.enabled) return this.firebaseLogin({ idToken: await this.firebase.passwordLogin(dto.email, dto.password) });
@@ -72,12 +77,13 @@ export class AuthService {
       const existing = await this.db.user.findUnique({ where: { email }, select: { id: true } });
       if (existing) throw new UnauthorizedException("Connexion indisponible. Contactez l’administrateur.");
       if (!dto.firstName || !dto.lastName) throw new BadRequestException("Complétez votre inscription avec votre nom et prénom.");
-      user = await this.db.user.create({
-        data: { email, firstName: dto.firstName, lastName: dto.lastName,
+      if (!dto.phone) throw new BadRequestException("Le téléphone est obligatoire à l’inscription.");
+      user = await this.db.$transaction(async tx => tx.user.create({
+        data: { ...await this.schools.enrollment(tx, dto), email, phone: dto.phone, firstName: dto.firstName!, lastName: dto.lastName!,
           firebaseUid: token.uid, emailVerified: identity.emailVerified,
           passwordHash: await argon2.hash(randomUUID(), passwordOptions), role: "USER", status: "PENDING" },
         select: userSelect,
-      });
+      }));
     } else {
       if (user.email !== email) throw new UnauthorizedException("Adresse modifiée. Contactez l’administrateur.");
       user = await this.db.user.update({ where: { id: user.id }, data: { emailVerified: identity.emailVerified }, select: userSelect });

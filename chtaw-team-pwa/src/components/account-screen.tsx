@@ -15,6 +15,8 @@ import { BrandLogo } from "@/components/brand-logo";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { useCopy } from "@/lib/i18n";
 import { usePreferences, type ThemePreference, type Language } from "@/stores/preferences";
+import { ProfilePhotoEditor } from "./profile-photo";
+import { StudentSchool } from "./student-school";
 const schema = z.object({
   firstName: z.string().trim().min(2, "Au moins 2 caractères.").max(60, "60 caractères maximum."),
   lastName: z.string().trim().min(2, "Au moins 2 caractères.").max(60, "60 caractères maximum."),
@@ -63,8 +65,9 @@ export function ProfileScreen() {
           </div>
           <div>
             <dt>{t("Rôle")}</dt>
-            <dd>{user.role === "ADMIN" ? t("Administrateur") : user.role === "COLLABORATOR" ? "Collaborateur" : t("Étudiant")}</dd>
+            <dd>{user.role === "ADMIN" ? t("Administrateur") : user.role === "COLLABORATOR" ? t("Collaborateur") : t("Étudiant")}</dd>
           </div>
+          <div><dt>{t("Téléphone")}</dt><dd>{user.phone || t("Non renseigné")}</dd></div>
           <div>
             <dt>{t("Adhésion")}</dt>
             <dd>{user.status === "APPROVED" ? t("Membre approuvé") : t("En attente")}</dd>
@@ -83,6 +86,8 @@ export function ProfileScreen() {
             </dd>
           </div>
         </dl>
+        <StudentSchool user={user} />
+        <ProfilePhotoEditor user={user} />
         <form
           className="form-stack"
           onSubmit={handleSubmit((values) =>

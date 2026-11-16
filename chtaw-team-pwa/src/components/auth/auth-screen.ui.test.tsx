@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({ login: vi.fn(), push: vi.fn(), replace: vi.fn(
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, replace: mocks.replace }) }));
 vi.mock("@/services/firebase", () => ({ firebaseEnabled: true }));
 vi.mock("@/stores/community", () => ({ useCommunity: () => ({ users: [], session: null, login: mocks.login }) }));
-vi.mock("@/components/shared", () => ({ attempt: (action: () => Promise<unknown>) => action() }));
+vi.mock("@/components/shared", async importOriginal => ({ ...await importOriginal<typeof import("@/components/shared")>(), attempt: (action: () => Promise<unknown>) => action() }));
+vi.mock("@/services/student-schools.service", () => ({ studentSchoolsService: { official: vi.fn().mockResolvedValue([]) } }));
 afterEach(cleanup);
 beforeEach(() => {
   vi.clearAllMocks();

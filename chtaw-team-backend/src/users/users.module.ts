@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, ParseUUIDPipe, Patch, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, ParseUUIDPipe, Patch, Query, Res, StreamableFile } from "@nestjs/common";
+import type { Response } from "express";
+import { StudentsExportQuery, StudentsExportService } from "./students-export.service";
 import { UserBansService } from "./user-bans.service";
 import { ApiBearerAuth, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
@@ -7,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
 import { Admin, AllowUnapproved, CurrentUser } from "../auth/security";
 import { AccessService, Actor } from "../common/access";
-import { userSelect } from "../common/presenters";
+import { accountSelect as userSelect } from "../common/presenters";
 import { UsersQueryDto } from "../common/query.dto";
 export class ProfileDto {
   @ApiPropertyOptional()
@@ -114,14 +116,23 @@ export class UsersController {
 @Admin()
 @Controller("admin")
 export class AdminStatisticsController {
-  constructor(private users: UsersService) {}
+  constructor(private users: UsersService, private studentsExport: StudentsExportService) {}
+  @Get("students/export") async exportStudents(@CurrentUser() actor: Actor, @Query() query: StudentsExportQuery, @Res({ passthrough: true }) response: Response) {
+    const file = await this.studentsExport.export(actor, query.language);
+    response.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": 'attachment; filename="chtaw-team-students.xlsx"',
+      "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
+    });
+    return new StreamableFile(file);
+  }
   @Get("stats") statistics(@CurrentUser() actor: Actor) {
     return this.users.statistics(actor);
   }
 }
 @Module({
   controllers: [UsersController, AdminStatisticsController],
-  providers: [UsersService, UserBansService],
+  providers: [UsersService, UserBansService, StudentsExportService],
   exports: [UsersService],
 })
 export class UsersModule {}

@@ -18,6 +18,8 @@ import { useRemote, LoadState } from "./attendance-panel";
 import styles from "./members-panel.module.css";
 import { MemberBulkActions } from "./member-bulk-actions";
 import bulkStyles from "./bulk-actions.module.css";
+import { StudentSchool } from "@/components/student-school";
+import { StudentsExport } from "./students-export";
 
 function MemberStatus({ user }: { user: User }) {
   const { text: copy } = useCopy();
@@ -271,6 +273,7 @@ export function MembersPanel({
             {copy("Gérez les membres, les demandes d’adhésion et leurs groupes.")}{" "}
           </p>
         </div>
+        {isAdmin && <StudentsExport />}
       </header>
       <div className="stats-grid members-stats" aria-label={copy("Statistiques des comptes")}>
         {[
@@ -532,6 +535,7 @@ export function MembersPanel({
                             {u.firstName} {u.lastName}
                           </strong>
                           <span className="table-email" title={u.email}>{u.email}</span>
+                          <StudentSchool user={u} editable={isAdmin} />
                         </div>
                       </div>
                     </td>
@@ -678,6 +682,8 @@ export function MembersPanel({
         )}
         {detail && (
           <Modal open onClose={() => setDetailId(null)} title={copy("Détails du membre")}>
+            <Avatar user={detail} size="large-avatar" />
+            <StudentSchool user={detail} editable={isAdmin} />
             <dl className="form-stack">
               <div>
                 <dt> {copy("Nom complet")} </dt>
@@ -689,6 +695,7 @@ export function MembersPanel({
                 <dt> {copy("Email")} </dt>
                 <dd>{detail.email}</dd>
               </div>
+              <div><dt>{copy("Téléphone")}</dt><dd>{detail.phone || copy("Non renseigné")}</dd></div>
               <div>
                 <dt> {copy("Date de demande")} </dt>
                 <dd>
