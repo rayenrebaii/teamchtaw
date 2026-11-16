@@ -40,9 +40,17 @@ it.each([false, true])("passes the chosen remember setting to login: %s", async 
   await waitFor(() => expect((screen.getByLabelText("Mot de passe") as HTMLInputElement).value).toBe(""));
 });
 
-it("provides independent visibility controls at registration", () => {
+it("provides independent visibility controls on the account step", async () => {
   render(<AuthScreen register />);
   expect(screen.queryByRole("checkbox", { name: "Rester connecté" })).toBeNull();
+  fireEvent.change(screen.getByLabelText("Prénom"), { target: { value: "Nadia" } });
+  fireEvent.change(screen.getByLabelText("Nom", { exact: true }), { target: { value: "Test" } });
+  fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
+  await waitFor(() => expect((screen.getByLabelText("Lycée") as HTMLSelectElement).disabled).toBe(false));
+  fireEvent.change(screen.getByLabelText("Lycée"), { target: { value: "OTHER" } });
+  fireEvent.change(screen.getByLabelText("Nom de votre lycée"), { target: { value: "Lycée local" } });
+  fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
+  await screen.findByLabelText("Mot de passe");
   const buttons = screen.getAllByRole("button", { name: "Afficher le mot de passe" });
   fireEvent.click(buttons[1]);
   expect((screen.getByLabelText("Mot de passe") as HTMLInputElement).type).toBe("password");

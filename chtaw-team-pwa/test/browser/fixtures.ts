@@ -1,5 +1,8 @@
 import type { Page } from "@playwright/test";
 export async function fixture(page: Page, role: "USER" | "ADMIN" | "COLLABORATOR", theme: string, language = "fr") {
+  // API-render fixtures must not register a production worker or show a false
+  // offline-update error when Playwright blocks workers for interception.
+  await page.addInitScript(() => { delete Object.getPrototypeOf(navigator).serviceWorker; });
   const user = { id: "fixture-account", firstName: "Mohamed", lastName: "Rami", email: "fixture@example.invalid", role, status: "APPROVED", joinedAt: "2026-01-01T10:00:00Z", bio: "" };
   const groups = [{ id: "fixture-group", name: "Nom métier conservé", description: "", color: "#aabbcc", isGeneral: true, memberIds: [user.id] }];
   await page.addInitScript(({ theme, language }) => { if (!localStorage.getItem("chtaw-theme")) localStorage.setItem("chtaw-theme", theme); if (!localStorage.getItem("chtaw-language")) localStorage.setItem("chtaw-language", language); }, { theme, language });

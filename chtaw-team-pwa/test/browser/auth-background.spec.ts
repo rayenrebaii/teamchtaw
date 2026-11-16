@@ -23,8 +23,12 @@ for (const route of ["login", "register"]) for (const width of [390, 1440]) for 
     const form = page.locator(".auth-form");
     await expect(form).toBeVisible();
     if (route === "register") {
-      await page.getByLabel("Établissement / Lycée", { exact: true }).selectOption("ad17810e-dc39-4de4-a369-192bf19d9773");
-      await page.getByLabel("Téléphone", { exact: true }).fill("20123456");
+      await page.getByLabel("Prénom", { exact: true }).fill("Nadia");
+      await page.getByLabel("Nom", { exact: true }).fill("Preview");
+      await page.getByRole("button", { name: "Suivant", exact: true }).click();
+      await page.getByLabel("Lycée", { exact: true }).selectOption("ad17810e-dc39-4de4-a369-192bf19d9773");
+      await page.getByRole("button", { name: "Suivant", exact: true }).click();
+      await page.getByLabel("Numéro de téléphone", { exact: true }).fill("20123456");
     }
     const scene = page.locator("[data-auth-background]");
     await expect(scene).toHaveAttribute("aria-hidden", "true");
@@ -66,8 +70,6 @@ for (const route of ["login", "register"]) for (const width of [390, 1440]) for 
     await expect(page.locator("#auth-password")).toHaveValue("Preview-only-password-2026!");
     await page.getByRole("button", { name: "Masquer le mot de passe", exact: true }).first().click();
     if (route === "register") {
-      await page.getByLabel("Prénom", { exact: false }).fill("Nadia");
-      await page.locator('input[name="lastName"]').fill("Preview");
       await page.locator("#auth-confirm").fill("Preview-only-password-2026!");
       await page.getByRole("button", { name: "Afficher le mot de passe", exact: true }).nth(1).click();
       await expect(page.locator("#auth-confirm")).toHaveAttribute("type", "text");

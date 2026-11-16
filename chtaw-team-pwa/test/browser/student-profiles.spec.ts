@@ -87,21 +87,22 @@ for (const width of [390, 1440]) for (const theme of ["light", "dark"]) {
     await page.goto("/register");
     await page.getByLabel("Prénom", { exact: true }).fill("Nadia");
     await page.getByLabel("Nom", { exact: true }).fill("Test");
-    await page.getByLabel("Rechercher un établissement").fill("Pilote");
-    await expect(page.getByRole("option", { name: school.name })).toHaveCount(1);
-    const other = theme === "dark";
-    await page.getByLabel("Établissement / Lycée", { exact: true }).selectOption(other ? "OTHER" : school.id);
-    if (other) await page.getByLabel("Nom du lycée proposé", { exact: true }).fill("  Lycée Nouveau  ");
     const withPhoto = width === 390;
     if (withPhoto) {
-      await page.getByLabel("Photo de profil (facultative)", { exact: true }).setInputFiles(photo);
+      await page.getByLabel("Photo de profil facultative", { exact: true }).setInputFiles(photo);
       await expect(page.getByRole("img", { name: "Aperçu de la photo" })).toBeVisible();
-      await page.getByRole("button", { name: "Retirer l’image sélectionnée" }).click();
+      await page.getByRole("button", { name: "Retirer la photo sélectionnée" }).click();
       await expect(page.getByRole("img", { name: "Aperçu de la photo" })).toHaveCount(0);
-      await page.getByLabel("Photo de profil (facultative)", { exact: true }).setInputFiles(photo);
+      await page.getByLabel("Photo de profil facultative", { exact: true }).setInputFiles(photo);
     }
+    await page.getByRole("button", { name: "Suivant", exact: true }).click();
+    await expect(page.getByRole("option", { name: school.name })).toHaveCount(1);
+    const other = theme === "dark";
+    await page.getByLabel("Lycée", { exact: true }).selectOption(other ? "OTHER" : school.id);
+    if (other) await page.getByLabel("Nom de votre lycée", { exact: true }).fill("  Lycée Nouveau  ");
+    await page.getByRole("button", { name: "Suivant", exact: true }).click();
     await page.getByLabel("Adresse email", { exact: true }).fill(student.email);
-    await page.getByLabel("Téléphone", { exact: true }).fill("20123456");
+    await page.getByLabel("Numéro de téléphone", { exact: true }).fill("20123456");
     await page.locator("#auth-password").fill("Preview-registration-2026!");
     await page.locator("#auth-confirm").fill("Preview-registration-2026!");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

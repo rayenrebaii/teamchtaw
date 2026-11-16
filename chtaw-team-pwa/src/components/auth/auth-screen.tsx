@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, ShieldCheck } from "lucide-react";
@@ -14,216 +14,77 @@ import { notificationLoginDestination } from "@/features/notification-navigation
 import { firebaseEnabled } from "@/services/firebase";
 import { PasswordInput } from "./password-input";
 import { AuthBackground } from "./auth-background";
+import { RegistrationWizard } from "./registration-wizard";
 import backgroundStyles from "./auth-background.module.css";
-import { SchoolPicker } from "@/components/school-picker";
-import { PhotoSelection } from "@/components/profile-photo";
-import { useCopy } from "@/lib/i18n";
-const schema = z
-  .object({
-    firstName: z.string().trim().min(2, "Au moins 2 caractères.").max(60),
-    lastName: z.string().trim().min(2, "Au moins 2 caractères.").max(60),
-    email: z.email("Adresse email invalide."),
-    password: z.string().min(12, "Au moins 12 caractères.").max(128),
-    confirm: z.string(),
-  })
-  .refine((v) => v.password === v.confirm, {
-    path: ["confirm"],
-    message: "Les mots de passe ne correspondent pas.",
-  });
-type Values = z.infer<typeof schema>;
+import registrationStyles from "./registration-wizard.module.css";
+
 const loginSchema = z.object({
   email: z.email("Adresse email invalide."),
   password: z.string().min(12, "Au moins 12 caractères.").max(128),
-  firstName: z.string(),
-  lastName: z.string(),
-  confirm: z.string(),
+  firstName: z.string(), lastName: z.string(), confirm: z.string(),
 });
+type Values = z.infer<typeof loginSchema>;
+
 export function AuthScreen({ register = false }: { register?: boolean }) {
-  const { t } = useCopy();
-  const [school, setSchool] = useState("");
-  const [proposedSchool, setProposedSchool] = useState("");
-  const [schoolError, setSchoolError] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [phone, setPhone] = useState("");
-  const [phoneError, setPhoneError] = useState("");
   const [registrationBusy, setRegistrationBusy] = useState(false);
   const [remember, setRemember] = useState(false);
   const router = useRouter();
   const store = useCommunity();
-  const currentUser = store.users.find((u) => u.id === store.session?.userId);
+  const currentUser = store.users.find(u => u.id === store.session?.userId);
   useEffect(() => {
     if (currentUser && !registrationBusy) router.replace(notificationLoginDestination(currentUser, window.location.search));
   }, [currentUser, router, registrationBusy]);
-  const {
-    register: field,
-    handleSubmit,
-    resetField,
-    control,
-    formState: { errors, isSubmitting },
-  } = useForm<Values>({
-    resolver: zodResolver(register ? schema : loginSchema),
+  const { register: field, handleSubmit, resetField, formState: { errors, isSubmitting } } = useForm<Values>({
+    resolver: zodResolver(loginSchema),
     defaultValues: { firstName: "", lastName: "", confirm: "", email: "", password: "" },
   });
-  const [firstName, lastName] = useWatch({ control, name: ["firstName", "lastName"] });
   return (
     <div className="auth-layout">
       <aside className="auth-story">
-        <Link href="/login" className="brand" aria-label="Team Chtaw - Accueil">
-          <BrandLogo />
-        </Link>
+        <Link href="/login" className="brand" aria-label="Team Chtaw - Accueil"><BrandLogo /></Link>
         <div className="story-main">
-          <span className="eyebrow">
-            <span className="live-dot" /> UNE TEAM. UNE ÉNERGIE.
-          </span>
-          <h1>
-            Plus qu’une équipe.
-            <br />
-            Un <em>mouvement.</em>
-          </h1>
-          <p>
-            Les conversations qui motivent.
-            <br />
-            Les moments qui rassemblent.
-            <br />
-            Votre communauté, toujours avec vous.
-          </p>
+          <span className="eyebrow"><span className="live-dot" /> UNE TEAM. UNE ÉNERGIE.</span>
+          <h1>Plus qu’une équipe.<br />Un <em>mouvement.</em></h1>
+          <p>Les conversations qui motivent.<br />Les moments qui rassemblent.<br />Votre communauté, toujours avec vous.</p>
           <div className="story-art">
-            <div className="orbit orbit-one" />
-            <div className="orbit orbit-two" />
-            <span className="art-number">TC.</span>
-            <div className="floating-note">↗ Ensemble, on va plus loin.</div>
+            <div className="orbit orbit-one" /><div className="orbit orbit-two" />
+            <span className="art-number">TC.</span><div className="floating-note">↗ Ensemble, on va plus loin.</div>
           </div>
           <span className="small">Une communauté. Des liens pour de vrai.</span>
         </div>
         <span className="small muted">TEAM CHTAW © 2026 · L’ESPRIT D’ÉQUIPE, PARTOUT.</span>
       </aside>
-      <main className={`auth-main ${backgroundStyles.panel}`}>
+      <main className={"auth-main " + backgroundStyles.panel}>
         <AuthBackground />
-        <Link href="/login" className="mobile-auth-brand" aria-label="Team Chtaw - Accueil">
-          <BrandLogo />
-        </Link>
+        <Link href="/login" className="mobile-auth-brand" aria-label="Team Chtaw - Accueil"><BrandLogo /></Link>
         <span className="demo-label">ESPACE COMMUNAUTAIRE · CONNEXION SÉCURISÉE</span>
-        <div className="auth-form">
+        <div className={"auth-form" + (register ? " " + registrationStyles.registrationForm : "")}>
           <span className="eyebrow">BIENVENUE DANS LA TEAM</span>
           <h2>{register ? "L’aventure commence ici." : "Heureux de vous retrouver."}</h2>
-          <p className="muted">
-            {register
-              ? (firebaseEnabled ? "Créez votre compte, confirmez votre e-mail puis attendez la validation de l’administrateur." : "Créez votre compte. Notre administrateur validera votre inscription.")
-              : "Connectez-vous pour retrouver votre communauté."}
-          </p>
-          <form
-            className="form-stack"
-            onSubmit={handleSubmit((v) => {
-              if (register && !/^\d{8}$/.test(phone)) { setPhoneError("Saisissez un numéro tunisien de 8 chiffres (+216)."); return; }
-              if (register && (!school || (school === "OTHER" && !proposedSchool.trim()))) {
-                setSchoolError("Choisissez un établissement ou proposez le nom de votre lycée."); return;
-              }
-              setRegistrationBusy(register);
-              return attempt(async () => {
-                try {
-                  const user = register
-                    ? await store.register({
-                        firstName: v.firstName,
-                        lastName: v.lastName,
-                        email: v.email,
-                        password: v.password,
-                        phone: `+216${phone}`,
-                        ...(school === "OTHER" ? { proposedEstablishmentName: proposedSchool.trim() } : { establishmentId: school }),
-                      }, photo ?? undefined)
-                    : await store.login(v.email, v.password, remember);
-                  router.push(notificationLoginDestination(user, window.location.search));
-                } finally {
-                  resetField("password");
-                  resetField("confirm");
-                  setRegistrationBusy(false);
-                }
-              });
-            })}
-          >
-            {register && (
-              <div className="form-grid">
-                {(["firstName", "lastName"] as const).map((name) => (
-                  <label key={name}>
-                    {name === "firstName" ? "Prénom" : "Nom"}
-                    <input
-                      autoComplete={name === "firstName" ? "given-name" : "family-name"}
-                      {...field(name)}
-                    />
-                    <small className="error">{errors[name]?.message}</small>
-                  </label>
-                ))}
-              </div>
-            )}
-            {register && <>
-              <SchoolPicker value={school} onChange={value => { setSchool(value); setSchoolError(""); }} proposed={proposedSchool} onPropose={value => { setProposedSchool(value); setSchoolError(""); }} allowOther disabled={isSubmitting} />
-              {schoolError && <p role="alert" className="error">{t(schoolError)}</p>}
-              <PhotoSelection optional file={photo} onChange={setPhoto} disabled={isSubmitting} user={{ firstName, lastName }} />
-            </>}
-            <label>
-              Adresse email
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="vous@exemple.com"
-                {...field("email")}
-              />
-              <small className="error">{errors.email?.message}</small>
-            </label>
-            {register && <div>
-              <label htmlFor="auth-phone">{t("Téléphone")}</label>
-              <div className="phone-input"><span>+216</span><input id="auth-phone" type="tel" inputMode="numeric" autoComplete="tel-national" required pattern="[0-9]{8}" maxLength={8} placeholder="20 123 456" value={phone} onChange={event => { setPhone(event.target.value.replace(/\D/g, "").slice(0, 8)); setPhoneError(""); }} aria-describedby="auth-phone-help" /></div>
-              <small id="auth-phone-help" className="muted">{t("8 chiffres, après l’indicatif +216.")}</small>
-              {phoneError && <p role="alert" className="error">{t(phoneError)}</p>}
-            </div>}
-            <div>
-              <label htmlFor="auth-password">Mot de passe</label>
-              <PasswordInput
-                id="auth-password"
-                autoComplete={register ? "new-password" : "current-password"}
-                placeholder="Au moins 12 caractères"
-                {...field("password")}
-              />
-              <small className="error">{errors.password?.message}</small>
-            </div>
-            {register && (
+          {register ? <RegistrationWizard onBusyChange={setRegistrationBusy} /> : <>
+            <p className="muted">Connectez-vous pour retrouver votre communauté.</p>
+            <form className="form-stack" onSubmit={handleSubmit(v => attempt(async () => {
+              try {
+                const user = await store.login(v.email, v.password, remember);
+                router.push(notificationLoginDestination(user, window.location.search));
+              } finally { resetField("password"); resetField("confirm"); }
+            }))}>
+              <label>Adresse email<input type="email" autoComplete="email" placeholder="vous@exemple.com" {...field("email")} /><small className="error">{errors.email?.message}</small></label>
               <div>
-                <label htmlFor="auth-confirm">Confirmer le mot de passe</label>
-                <PasswordInput id="auth-confirm" autoComplete="new-password" {...field("confirm")} />
-                <small className="error">{errors.confirm?.message}</small>
+                <label htmlFor="auth-password">Mot de passe</label>
+                <PasswordInput id="auth-password" autoComplete="current-password" placeholder="Au moins 12 caractères" {...field("password")} />
+                <small className="error">{errors.password?.message}</small>
               </div>
-            )}
-            {!register && (
-              <label className="check-label">
-                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-                Rester connecté
-              </label>
-            )}
-            <Button disabled={isSubmitting} type="submit">
-              {isSubmitting
-                ? "Connexion en cours…"
-                : register
-                  ? "Créer mon compte"
-                  : "Se connecter"}
-              <ArrowRight size={17} />
-            </Button>
-          </form>
-          {!register && firebaseEnabled && <p><Link href="/forgot-password">Mot de passe oublié ?</Link></p>}
-          <p className="small muted">
-            {register ? "Déjà membre ?" : "Pas encore dans la team ?"}{" "}
-            <Link href={register ? "/login" : "/register"}>
-              {register ? "Se connecter" : "Créer un compte"}
-            </Link>
-          </p>
-          <div className="demo-panel">
-            <div className="row">
-              <ShieldCheck size={20} />
-              <strong>Un espace réservé à votre communauté</strong>
+              <label className="check-label"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Rester connecté</label>
+              <Button disabled={isSubmitting} type="submit">{isSubmitting ? "Connexion en cours…" : "Se connecter"}<ArrowRight size={17} /></Button>
+            </form>
+            {firebaseEnabled && <p><Link href="/forgot-password">Mot de passe oublié ?</Link></p>}
+            <p className="small muted">Pas encore dans la team ?{" "}<Link href="/register">Créer un compte</Link></p>
+            <div className="demo-panel">
+              <div className="row"><ShieldCheck size={20} /><strong>Un espace réservé à votre communauté</strong></div>
+              <p className="small muted">Les nouveaux comptes sont validés par l’administrateur avant d’accéder aux conversations.</p>
             </div>
-            <p className="small muted">
-              Les nouveaux comptes sont validés par l’administrateur avant d’accéder aux
-              conversations.
-            </p>
-          </div>
+          </>}
         </div>
       </main>
     </div>

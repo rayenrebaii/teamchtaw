@@ -3,3 +3,12 @@
 .preview { width: 80px; height: 80px; }
 .preview > img, .preview > :global(.avatar) { width: 100%; height: 100%; border-radius: 24px; object-fit: cover; }
 .editor { display: grid; gap: 16px; padding-block: 24px; margin-block: 20px; border-block: 1px solid var(--line); }
+.compact { min-width: 0; }
+.compactRow { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.photoAction { display: inline-flex; align-items: center; gap: 12px; border: 0; padding: 0; background: transparent; color: var(--ink); text-align: left; }
+.photoAction strong { font-size: 13px; font-weight: 600; }
+.photoAction small { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); }
+.compactPreview { position: relative; flex: 0 0 54px; width: 54px; height: 54px; }
+.compactPreview > img, .compactPreview > :global(.avatar) { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; font-size: 17px; }
+.camera { position: absolute; right: -1px; bottom: 0; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); color: var(--primary); }
+.remove { padding: 4px 0; border: 0; background: transparent; font-size: 11px; color: var(--muted); text-decoration: underline; }
