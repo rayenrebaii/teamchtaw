@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { attendanceService } from "@/services/attendance.service";
 import { useCommunity } from "@/stores/community";
+import { pollGroupNames } from "@/features/poll-groups";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { Empty, attempt } from "@/components/shared";
@@ -818,8 +819,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                           </div>
                           <h3 id={`${id}-poll-${poll.id}`}>{poll.question}</h3>
                           <p className="activity-group">
-                            {store.groups.find((group) => group.id === poll.groupId)?.name ??
-                              copy("Groupe indisponible")}
+                            {pollGroupNames(poll, store.groups) || copy("Groupe indisponible")}
                           </p>
                           {session && (
                             <ul className="activity-schedule">
@@ -954,7 +954,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
           <div className="activity-detail">
             <div className="row wrap between">
               <span className="small muted">
-                {store.groups.find((group) => group.id === detail.groupId)?.name}
+                {pollGroupNames(detail, store.groups)}
               </span>
               {badge(detail)}
             </div>

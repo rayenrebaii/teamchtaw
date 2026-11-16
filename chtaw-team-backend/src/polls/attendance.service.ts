@@ -19,6 +19,7 @@ import { mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
 import { assertSessionCancellationAllowed } from "./session-deletion.rules";
 import { assertNoSessionOverlap } from "./session-overlap";
 import { assertAttendanceStarted } from "./attendance-time";
+import { pollGroupIds, pollMember, pollInGroup } from "../common/poll-audience";
 
 @Injectable()
 export class AttendanceService {
@@ -36,7 +37,7 @@ export class AttendanceService {
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({
       where: { id },
-      include: { options: true, votes: true, group: true },
+      include: { groups: true, options: true, votes: true, group: true },
     });
     if (poll.type !== "SESSION") throw new BadRequestException("Ce sondage n’est pas une séance.");
     return poll;
@@ -107,15 +108,16 @@ export class AttendanceService {
       { timeout: 15000 },
     );
     const current = await this.db.poll.findUniqueOrThrow({ where: { id }, include: pollInclude });
-    await this.events.publish({
+    for (const groupId of pollGroupIds(current)) await this.events.publish({
       name: "poll:updated",
-      groupId: current.groupId,
+      groupId,
       payload: presentPoll(current),
     });
     return this.roster(actor, id);
   }
 
   async update(actor: Actor, id: string, dto: UpdateSessionDto) {
+    if (dto.groupIds) throw new BadRequestException("Utilisez l’ajout de groupes pour étendre une séance existante.");
     const policy = await this.db.poll.findUnique({
       where: { id },
       select: { mandatoryAttendance: true },
@@ -150,7 +152,7 @@ export class AttendanceService {
           );
         if (structureChanged) {
           validateSessionOverlap(dto.startsAt!);
-          await assertNoSessionOverlap(tx, poll.groupId, dto, id);
+          for (const groupId of pollGroupIds(poll)) await assertNoSessionOverlap(tx, groupId, dto, id);
           await tx.pollOption.deleteMany({ where: { pollId: id } });
           await tx.pollOption.createMany({
             data: dto.options.map((label, position) => ({
@@ -221,7 +223,7 @@ export class AttendanceService {
       },
       { timeout: 15000 },
     );
-    await this.events.publish({ name: "poll:updated", groupId: updated.groupId, payload: updated });
+    for (const groupId of updated.groupIds ?? [updated.groupId]) await this.events.publish({ name: "poll:updated", groupId, payload: updated });
     if (updated.mandatoryAttendance) await this.mandatory.processPoll(id);
     return updated;
   }
@@ -237,6 +239,7 @@ export class AttendanceService {
         where: { id },
         include: {
           group: { select: { id: true, name: true } },
+          groups: { include: { group: { select: { id: true, name: true } } } },
           options: { orderBy: { position: "asc" } },
           votes: {
             include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } }, options: true },
@@ -251,6 +254,7 @@ export class AttendanceService {
         question: poll.question,
         status: poll.status,
         group: poll.group,
+        groups: poll.groups.map(row => row.group),
         attendanceLockedAt: poll.attendanceLockedAt,
         slots: poll.options.map((option) => ({
           ...option,
@@ -287,8 +291,7 @@ export class AttendanceService {
         where: {
           type: "SESSION",
           authorId: actor.id,
-          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
-          groupId: query.groupId,
+          AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
           id: query.pollId,
           ...(query.from || query.to
             ? {
@@ -303,6 +306,7 @@ export class AttendanceService {
         },
         include: {
           group: { select: { name: true } },
+          groups: { include: { group: { select: { name: true } } } },
           participants: {
             where: { included: true },
             include: { marks: true, user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } } },
@@ -345,7 +349,7 @@ export class AttendanceService {
             totalAbsences: vote.user.studentOrganizerAbsences[0]?.total ?? 0,
             pending: 0,
           };
-          if (!row.groups.includes(poll.group.name)) row.groups.push(poll.group.name);
+          for (const name of [poll.group.name, ...poll.groups.map(group => group.group.name)]) if (!row.groups.includes(name)) row.groups.push(name);
           if (poll.status !== "CANCELLED") {
             const final = vote.final;
             if (final === "PRESENT") row.presences++;
@@ -412,16 +416,17 @@ export class AttendanceService {
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
-          ...(self ? {} : { authorId: actor.id, ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }) }),
+          ...(self ? {} : { authorId: actor.id, ...(actor.role === "ADMIN" ? {} : { AND: [pollMember(actor.id)] }) }),
           OR: [
             { votes: { some: { userId } } },
             { participants: { some: { userId } } },
-            { mandatoryAttendance: false, group: { members: { some: { userId } } } },
+            { mandatoryAttendance: false, ...pollMember(userId) },
           ],
         },
         orderBy: { createdAt: "desc" },
         include: {
           group: { select: { name: true, members: { where: { userId: actor.id }, select: { userId: true } } } },
+          groups: { include: { group: { select: { name: true, members: { where: { userId: actor.id }, select: { userId: true } } } } } },
           options: true,
           participants: {
             where: { userId },
@@ -454,7 +459,9 @@ export class AttendanceService {
         question: poll.question,
         groupName: poll.group.name,
         groupId: poll.groupId,
-        currentMember: poll.group.members.length > 0,
+        groupIds: pollGroupIds(poll),
+        groups: poll.groups.map(row => ({ id: row.groupId, name: row.group.name })),
+        currentMember: poll.group.members.length > 0 || poll.groups.some(row => row.group.members.length > 0),
         description: poll.description,
         slots: poll.options.map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
         status: poll.status,

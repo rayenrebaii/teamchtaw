@@ -83,6 +83,8 @@ export class GroupsService {
     const keys = await this.db.$transaction(async (tx) => {
       const group = await this.access.group(tx, actor, id, true);
       if (group.isGeneral) throw new ForbiddenException("Le groupe général est permanent.");
+      if (await tx.pollGroup.count({ where: { groupId: id, poll: { type: "SESSION", groups: { some: { groupId: { not: id } } } } } }))
+        throw new ConflictException("Ce groupe partage une séance avec d’autres groupes. Conservez-le pour préserver la séance commune.");
       if (await tx.sessionParticipant.count({ where: { poll: { groupId: id } } }))
         throw new ConflictException("Ce groupe possède des participants de séance historisés. Annulez les séances pour préserver leur historique.");
       if (await tx.poll.count({ where: { groupId: id, attendanceLockedAt: { not: null } } }))

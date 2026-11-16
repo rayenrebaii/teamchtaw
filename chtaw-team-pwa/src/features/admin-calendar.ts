@@ -1,4 +1,5 @@
 import type { Poll } from "@/types";
+import { pollGroupIds } from "./poll-groups";
 
 export const CALENDAR_TIME_ZONE = "Africa/Tunis";
 const dateParts = new Intl.DateTimeFormat("en", { timeZone: CALENDAR_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -24,6 +25,7 @@ export interface CalendarSlot {
   id: string;
   pollId: string;
   groupId: string;
+  groupIds: string[];
   question: string;
   label: string;
   startsAt: string;
@@ -41,7 +43,7 @@ export function calendarSlots(polls: Poll[]): CalendarSlot[] {
     const candidateEnd = Date.parse(option.endsAt ?? "");
     const end = Number.isFinite(candidateEnd) && candidateEnd > start ? candidateEnd : undefined;
     return [{
-      id: `${poll.id}:${option.id}`, pollId: poll.id, groupId: poll.groupId, question: poll.question, label: option.label,
+      id: `${poll.id}:${option.id}`, pollId: poll.id, groupId: poll.groupId, groupIds: pollGroupIds(poll), question: poll.question, label: option.label,
       startsAt: option.startsAt!, endsAt: end !== undefined ? option.endsAt! : undefined, start, end,
       firstDay: calendarDay(start), lastDay: calendarDay(end !== undefined ? end - 1 : start), cancelled: poll.status === "CANCELLED",
     }];

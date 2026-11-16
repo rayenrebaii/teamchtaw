@@ -27,7 +27,8 @@ describe("Final audit regressions", () => {
     const access = new AccessService();
     const record = { groupId: "group", authorId: "admin", archivedAt: null as Date | null };
     const tx = { poll: { findUnique: jest.fn(async () => ({ ...record })) } };
-    jest.spyOn(access, "group").mockImplementation(async () => { record.archivedAt = new Date(); return {} as never; });
+    jest.spyOn(access, "lockGroup").mockImplementation(async () => { record.archivedAt = new Date(); return {} as never; });
+    jest.spyOn(access, "actor").mockResolvedValue({ role: "ADMIN" } as never);
     jest.spyOn(access, "organizer").mockResolvedValue({ role: "ADMIN" } as never);
     await expect(access.session(tx as never, { id: "admin" } as Actor, "poll")).rejects.toThrow("introuvable");
   });

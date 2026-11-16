@@ -59,7 +59,7 @@ it("preserves session poll publishing with its time slots and existing API behav
   const dialog = within(screen.getByRole("dialog", { name: "Créer un sondage de séance" }));
   expect(dialog.queryByText(/présence|absence|pointage/i)).toBeNull();
   fireEvent.change(dialog.getByLabelText("Titre"), { target: { value: "Choisissez un créneau" } });
-  fireEvent.change(dialog.getByLabelText("Groupe"), { target: { value: "group" } });
+  fireEvent.click(dialog.getByRole("checkbox", { name: "G1" }));
   fireEvent.change(dialog.getByLabelText("Date et heure"), { target: { value: "2099-01-02T10:00" } });
   fireEvent.change(dialog.getByLabelText("Nombre maximal de participants"), { target: { value: "10" } });
   fireEvent.click(dialog.getByRole("button", { name: "Publier le sondage de séance" }));

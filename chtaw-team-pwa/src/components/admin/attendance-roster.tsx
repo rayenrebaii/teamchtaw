@@ -135,7 +135,7 @@ export function AttendanceRosterPage({
         <div>
           <span className="eyebrow"> {copy("POINTAGE DES PRÉSENCES")} </span>
           <h1>{data?.question ?? copy("Pointage de la séance")}</h1>
-          {data && <p className="muted">{data.group.name}</p>}
+          {data && <p className="muted">{data.groups?.map(group => group.name).join(" · ") || data.group.name}</p>}
           {dates.length > 0 && (
             <p className="roster-date">
               <CalendarDays size={16} aria-hidden="true" />

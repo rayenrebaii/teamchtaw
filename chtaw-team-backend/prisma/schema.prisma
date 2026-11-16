@@ -161,6 +161,7 @@ model Group {
   messages     Message[]
   media        Media[]       @relation("GroupMedia")
   polls        Poll[]
+  pollGroups   PollGroup[]
   notifications Notification[]
 }
 
@@ -207,11 +208,12 @@ model Message {
   createdAt DateTime    @default(now())
   mediaId   String?     @unique @db.Uuid
   media     Media?      @relation(fields: [mediaId], references: [id], onDelete: Restrict)
-  pollId    String?     @unique @db.Uuid
+  pollId    String?     @db.Uuid
   poll      Poll?       @relation(fields: [pollId], references: [id], onDelete: Restrict)
   notificationEvent NotificationEvent?
 
   @@index([groupId, createdAt, id])
+  @@unique([groupId, pollId])
 }
 
 model Media {
@@ -252,7 +254,8 @@ model Poll {
   createdAt           DateTime             @default(now())
   options             PollOption[]
   votes               PollVote[]
-  message             Message?
+  messages            Message[]
+  groups              PollGroup[]
   reminderDeliveries SessionReminderDelivery[]
 
   @@unique([id, groupId])
@@ -260,6 +263,16 @@ model Poll {
   @@index([type, status, createdAt])
   @@index([authorId, type, createdAt])
   @@index([archivedAt, type, createdAt])
+}
+
+// One shared session, one set of slots/votes; each group carries its own chat card.
+model PollGroup {
+  pollId String @db.Uuid
+  groupId String @db.Uuid
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  @@id([pollId, groupId])
+  @@index([groupId, pollId])
 }
 
 // Poll.authorId is the immutable organizer, including historical sessions.

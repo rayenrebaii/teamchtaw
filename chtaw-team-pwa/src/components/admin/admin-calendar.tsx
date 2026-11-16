@@ -34,7 +34,7 @@ export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
   const current = calendarWeek(today);
   const week = selectedWeek ?? current;
   const allSlots = useMemo(() => calendarSlots(store.polls.filter((poll) => poll.authorId === actor?.id)), [store.polls, actor?.id]);
-  const filtered = allSlots.filter((slot) => !groupId || slot.groupId === groupId);
+  const filtered = allSlots.filter((slot) => !groupId || slot.groupIds.includes(groupId));
   const visible = slotsInWeek(filtered, week);
   const weeks = calendarWeeks(filtered, current, week);
   const past = weeks.filter((value) => value < current).reverse();
@@ -92,7 +92,7 @@ export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
                 const status = calendarSlotStatus(slot, now);
                 return <article key={slot.id} className={styles.event} data-state={status}>
                   <span className={styles.status}>{status === "COMPLETED" && <CheckCircle2 size={13} aria-hidden="true" />}{copy(statusLabels[status])}</span>
-                  <h4>{slot.question}</h4><p className={styles.group}>{store.groups.find((group) => group.id === slot.groupId)?.name ?? copy("Groupe indisponible")}</p>
+                  <h4>{slot.question}</h4><p className={styles.group}>{slot.groupIds.map(id => store.groups.find(group => group.id === id)?.name).filter(Boolean).join(" · ") || copy("Groupe indisponible")}</p>
                   <p>{slot.label}</p><p className={styles.time}><time dateTime={slot.startsAt}>{slot.firstDay !== day ? `${displayDate(slot.firstDay)} · ` : ""}{time(slot.startsAt)}</time>{slot.endsAt && <> — <time dateTime={slot.endsAt}>{calendarDay(slot.endsAt) !== day ? `${displayDate(calendarDay(slot.endsAt))} · ` : ""}{time(slot.endsAt)}</time></>}</p>
                   {!slot.endsAt && <p className="tiny muted">{copy("Fin non renseignée")}</p>}
                   <Button variant="secondary" size="sm" aria-label={copy("Voir les votes : {title} · {slot}", { title: slot.question, slot: slot.label })} onClick={() => { setDetailId(slot.pollId); void store.sync(); }}><BarChart3 size={14} aria-hidden="true" />{copy("Voir les votes")}</Button>

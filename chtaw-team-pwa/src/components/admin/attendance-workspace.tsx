@@ -1,5 +1,6 @@
 "use client";
 import { useCopy, currentLanguage } from "@/lib/i18n";
+import { pollInGroup } from "@/features/poll-groups";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { attendanceSessionHref } from "@/features/attendance-navigation";
@@ -170,7 +171,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   {store.polls
                   .filter(
                     (p) =>
-                      p.type === "SESSION" && p.authorId === actor?.id && (!filters.groupId || p.groupId === filters.groupId),
+                      p.type === "SESSION" && p.authorId === actor?.id && (!filters.groupId || pollInGroup(p, filters.groupId)),
                   )
                   .map((p) => (
                     <option key={p.id} value={p.id}>
@@ -256,7 +257,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                       {copy(phaseLabels[session.phase] ?? session.phase)}
                     </span>
                   </div>
-                  <p className="small muted">{session.group.name}</p>
+                  <p className="small muted">{session.groups?.map(group => group.name).join(" · ") || session.group.name}</p>
                   <ul className="activity-schedule">
                     {session.options.map((option) => (
                       <li key={option.id}>
@@ -302,7 +303,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   </span>
                 </div>
                 <p className="small">
-                  {report.group.name} · {report.question}
+                  {report.groups?.map(group => group.name).join(" · ") || report.group.name} · {report.question}
                 </p>
                 <p className="tiny muted">
                   {report.user.email} {copy("· Fin de séance :")} {date(report.lastEnd)}

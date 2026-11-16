@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
+import { pollMember } from "../common/poll-audience";
 export function attendanceAccess(adminId: string): Prisma.UserWhereInput {
-  const poll = { group: { members: { some: { userId: adminId } } } };
+  const poll = pollMember(adminId);
   return { OR: [{ votes: { some: { poll } } }, { sessionParticipants: { some: { poll } } }] };
 }
 

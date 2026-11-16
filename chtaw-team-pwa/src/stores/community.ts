@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { pollInGroup } from "@/features/poll-groups";
 import type {
   AuthSession,
   User,
@@ -442,7 +443,7 @@ export const useCommunity = create<Store>((set, get) => ({
     set((s) => ({ messages: s.messages.filter((message) => message.id !== id) }));
   },
   receivePoll: (poll) => {
-    if (!get().groups.some((g) => g.id === poll.groupId)) return;
+    if (!get().groups.some((g) => pollInGroup(poll, g.id))) return;
     revision++;
     set((s) => ({
       polls: mergeById(s.polls, [poll]),
@@ -465,7 +466,7 @@ export const useCommunity = create<Store>((set, get) => ({
     set((s) => ({
       groups: s.groups.filter((g) => g.id !== id),
       messages: s.messages.filter((m) => m.groupId !== id),
-      polls: s.polls.filter((p) => p.groupId !== id),
+      polls: s.polls.filter((p) => s.groups.some(g => g.id !== id && pollInGroup(p, g.id))),
       history: Object.fromEntries(Object.entries(s.history).filter(([key]) => key !== id)),
     }));
   },

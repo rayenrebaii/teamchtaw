@@ -6,14 +6,16 @@ import { useCopy } from "@/lib/i18n";
 import { pollVoteLists } from "@/features/poll-votes";
 import { useCommunity } from "@/stores/community";
 import type { Poll } from "@/types";
+import { pollGroupIds } from "@/features/poll-groups";
 import styles from "./poll-vote-results.module.css";
 
 export function PollVoteResults({ poll }: { poll: Poll }) {
   const store = useCommunity();
   const { text: copy, locale } = useCopy();
-  const group = store.groups.find((candidate) => candidate.id === poll.groupId);
+  const audience = store.groups.filter(candidate => pollGroupIds(poll).includes(candidate.id));
+  const group = audience[0] && { ...audience[0], memberIds: [...new Set(audience.flatMap(candidate => candidate.memberIds))] };
   const { choices, voterCount, nonVoters } = pollVoteLists(poll, group, store.users);
-  const incomplete = !!store.syncErrors.users || !!store.syncErrors.groups || !!store.syncErrors.polls || !group;
+  const incomplete = !!store.syncErrors.users || !!store.syncErrors.groups || !!store.syncErrors.polls || audience.length !== pollGroupIds(poll).length;
   const person = (userId: string) => {
     const member = store.users.find((user) => user.id === userId);
     return (

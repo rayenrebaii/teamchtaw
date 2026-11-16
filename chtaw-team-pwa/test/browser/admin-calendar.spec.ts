@@ -47,8 +47,7 @@ for (const width of [320, 360, 375, 390, 430, 768, 1440]) for (const theme of ["
     await page.reload();
     await expect(event("Archived session")).toHaveAttribute("data-state", "COMPLETED");
     if (width <= 640) {
-      await page.getByRole("button", { name: en ? "More" : "Plus", exact: true }).click();
-      await page.getByRole("navigation", { name: en ? "All sections" : "Toutes les sections" }).getByRole("link", { name: en ? "Calendar" : "Calendrier", exact: true }).click();
+      await page.locator(".mobile-navigation").getByRole("link", { name: en ? "Calendar" : "Calendrier", exact: true }).click();
     } else {
       await page.locator(".rail").getByRole("link", { name: en ? "Calendar" : "Calendrier", exact: true }).click();
     }

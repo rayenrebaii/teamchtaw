@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Put,
+  Post,
   Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -17,6 +18,7 @@ import { AttendanceService } from "./attendance.service";
 import { AttendanceQueryDto, PersonalAttendanceQueryDto } from "./attendance.dto";
 import {
   ConfirmAbsenceDto,
+  AddSessionGroupsDto,
   SessionParticipantDto,
   SaveAttendanceDto,
   UpdateSessionDto,
@@ -33,6 +35,9 @@ export class AttendanceController {
     private mandatory: MandatoryAttendanceService,
     private management: SessionManagementService,
   ) {}
+  @Organizer() @Post("polls/:id/groups") addGroups(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Body() dto: AddSessionGroupsDto) {
+    return this.management.addGroups(actor, id, dto.groupIds);
+  }
   @Organizer() @Get("organizer/absence-alerts/:id") alertDetail(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.attendance.alertDetail(actor, id);
   }

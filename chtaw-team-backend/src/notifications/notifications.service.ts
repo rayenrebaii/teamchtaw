@@ -8,6 +8,7 @@ import { ConfigService } from "@nestjs/config";
 import { createHash, randomUUID } from "node:crypto";
 import { Notification, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
+import { pollInGroup } from "../common/poll-audience";
 import { AccessService, Actor } from "../common/access";
 import {
   NotificationPreferenceDto,
@@ -158,7 +159,7 @@ export class NotificationsService {
           throw new NotFoundException("Contenu indisponible.");
         return { href: `/app/groups/${item.groupId}?message=${item.entityId}` };
       }
-      const poll = await tx.poll.findFirst({ where: { id: item.entityId, groupId: item.groupId, archivedAt: null } });
+      const poll = await tx.poll.findFirst({ where: { id: item.entityId, ...pollInGroup(item.groupId), archivedAt: null } });
       if (!poll) throw new NotFoundException("Contenu indisponible.");
       return {
         href:

@@ -35,6 +35,7 @@ export function PollCard({ poll, showResults = false, hideDeleteAction = false }
         {poll.type === "SESSION" ? t("SONDAGE DE SÉANCE") : t("SONDAGE DE LA TEAM")}
       </span>
       <h3>{poll.question}</h3>
+      {isSession && !!poll.groups?.length && <p className="small muted">{t("Groupes concernés")} : {poll.groups.map(group => group.name).join(" · ")}</p>}
       {!hideDeleteAction && <DeleteContent poll={poll} />}
       {poll.description && <p>{poll.description}</p>}
       {isSession && (mine?.optionIds.length ?? 0) > 1 && <p role="status">{t("Votes historiques multiples : contactez l’organisateur pour régulariser votre choix.")}</p>}

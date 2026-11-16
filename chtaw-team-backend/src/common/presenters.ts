@@ -28,6 +28,7 @@ export const userSelect = {
 export const accountSelect = { ...userSelect, phone: true } satisfies Prisma.UserSelect;
 export const groupInclude = { members: { select: { userId: true } } } satisfies Prisma.GroupInclude;
 export const pollInclude = {
+  groups: { include: { group: { select: { id: true, name: true } } }, orderBy: { groupId: "asc" } },
   options: { orderBy: { position: "asc" } },
   votes: { include: { options: true } },
   participants: { select: { userId: true, absenceConfirmedAt: true, marks: { select: { version: true, attendance: true } } } },
@@ -49,6 +50,7 @@ export function presentPoll(poll: Prisma.PollGetPayload<{ include: typeof pollIn
   return {
     id: poll.id,
     groupId: poll.groupId,
+    ...(poll.type === "SESSION" ? { groupIds: [...new Set([poll.groupId, ...(poll.groups?.map(row => row.groupId) ?? [])])], groups: poll.groups?.map(row => row.group) ?? [] } : {}),
     authorId: poll.authorId,
     question: poll.question,
     description: poll.description,

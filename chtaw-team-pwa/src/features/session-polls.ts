@@ -1,4 +1,5 @@
 import type { Poll } from "@/types";
+import { pollInGroup } from "./poll-groups";
 import type { Roster } from "@/services/attendance.service";
 export function visibleAttendanceStudents(
   students: Roster["slots"][number]["students"],
@@ -51,7 +52,7 @@ export function filterActivities(polls: Poll[], filters: ActivityFilters, now = 
   return polls.filter(
     (poll) =>
       (filters.type === "ALL" || (poll.type ?? "ORDINARY") === filters.type) &&
-      (!filters.groupId || poll.groupId === filters.groupId) &&
+      (!filters.groupId || pollInGroup(poll, filters.groupId)) &&
       (filters.status === "ALL" || activityStatus(poll, now) === filters.status) &&
       terms.every((term) => poll.question.toLocaleLowerCase("fr").includes(term)),
   );

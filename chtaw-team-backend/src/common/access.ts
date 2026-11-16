@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { Prisma, Role, AccountStatus } from "@prisma/client";
 import { userSelect } from "./presenters";
+import { pollGroupIds } from "./poll-audience";
 export interface Actor {
   id: string;
   sessionId: string;
@@ -54,15 +55,25 @@ export class AccessService {
     return user;
   }
   async session(tx: Prisma.TransactionClient, actor: Actor, id: string) {
-    const located = await tx.poll.findUnique({ where: { id }, select: { groupId: true } });
-    if (!located) throw new NotFoundException("Séance introuvable.");
-    await this.group(tx, actor, located.groupId);
+    await this.poll(tx, actor, id);
     await this.organizer(tx, actor);
     // Archival holds the same group lock. Re-read after waiting for that lock.
     const poll = await tx.poll.findUnique({ where: { id }, select: { groupId: true, authorId: true, archivedAt: true } });
     if (!poll || poll.archivedAt) throw new NotFoundException("Séance introuvable.");
     if (poll.authorId !== actor.id) throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
     return poll;
+  }
+  async poll(tx: Prisma.TransactionClient, actor: Actor, id: string) {
+    const located = await tx.poll.findUnique({ where: { id }, include: { groups: true } });
+    if (!located) throw new NotFoundException("Sondage introuvable.");
+    const ids = pollGroupIds(located);
+    for (const groupId of ids) await this.lockGroup(tx, groupId);
+    const user = await this.actor(tx, actor);
+    if (user.role !== "ADMIN" && !await tx.groupMember.findFirst({ where: { userId: actor.id, groupId: { in: ids } } }))
+      throw new ForbiddenException("Vous ne faites pas partie des groupes de ce sondage.");
+    const current = await tx.poll.findUnique({ where: { id }, include: { groups: true } });
+    if (!current || current.archivedAt) throw new NotFoundException("Sondage introuvable.");
+    return current;
   }
   async lockGroup(tx: Prisma.TransactionClient, groupId: string) {
     await tx.$queryRaw`SELECT id FROM "Group" WHERE id = ${groupId}::uuid FOR UPDATE`;

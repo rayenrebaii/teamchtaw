@@ -32,8 +32,8 @@ it.each([
   expect(!!screen.queryByRole("button", { name: "Créer un sondage" })).toBe(role === "ADMIN");
   fireEvent.click(screen.getByRole("button", { name: "Créer un sondage de séance" }));
   const dialog = within(screen.getByRole("dialog", { name: "Créer un sondage de séance" }));
-  expect(dialog.getByLabelText("Groupe")).toHaveProperty("value", groupId);
-  expect(dialog.getByLabelText("Groupe").hasAttribute("disabled")).toBe(true);
+  expect(dialog.getByRole("checkbox", { name: groupId })).toHaveProperty("checked", true);
+  expect(dialog.getByRole("checkbox", { name: groupId }).hasAttribute("disabled")).toBe(true);
   fireEvent.change(dialog.getByLabelText("Titre"), { target: { value: saved.question } });
   fireEvent.change(dialog.getByLabelText("Date et heure"), { target: { value: "2099-01-02T10:00" } });
   fireEvent.change(dialog.getByLabelText("Nombre maximal de participants"), { target: { value: "10" } });

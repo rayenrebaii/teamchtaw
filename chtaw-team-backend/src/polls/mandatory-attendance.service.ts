@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
 import { AccessService, Actor } from "../common/access";
 import { userSelect, pollInclude, presentPoll } from "../common/presenters";
+import { pollGroupIds, pollMember, pollInGroup } from "../common/poll-audience";
 import { DomainEvents } from "../common/events";
 import { AttendanceQueryDto } from "./attendance.dto";
 import { ConfirmAbsenceDto, SaveAttendanceDto, SessionParticipantDto } from "./polls.dto";
@@ -28,7 +29,7 @@ const personInclude = {
   user: { select: { ...userSelect, studentOrganizerAbsences: true } },
 } satisfies Prisma.SessionParticipantInclude;
 type Person = Prisma.SessionParticipantGetPayload<{ include: typeof personInclude }>;
-type Session = Prisma.PollGetPayload<{ include: { options: true; group: true } }>;
+type Session = Prisma.PollGetPayload<{ include: { options: true; group: true; groups: { include: { group: true } } } }>;
 
 @Injectable()
 export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy {
@@ -66,7 +67,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
     await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
     const poll = await tx.poll.findUniqueOrThrow({
       where: { id },
-      include: { options: true, group: true },
+      include: { options: true, group: true, groups: { include: { group: true } } },
     });
     if (!poll.mandatoryAttendance || poll.type !== "SESSION")
       throw new BadRequestException("Cette séance utilise le suivi historique.");
@@ -141,14 +142,14 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       async (tx) => {
         const found = await tx.poll.findUnique({
           where: { id },
-          select: { groupId: true, mandatoryAttendance: true, archivedAt: true },
+          select: { groupId: true, groups: true, mandatoryAttendance: true, archivedAt: true },
         });
         if (!found?.mandatoryAttendance || found.archivedAt) return;
-        await this.access.lockGroup(tx, found.groupId);
+        for (const groupId of pollGroupIds(found)) await this.access.lockGroup(tx, groupId);
         await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
         const poll = await tx.poll.findUniqueOrThrow({
           where: { id },
-          include: { options: true, group: true },
+          include: { options: true, group: true, groups: { include: { group: true } } },
         });
         if (poll.archivedAt) return;
         const participants = await tx.sessionParticipant.findMany({
@@ -381,7 +382,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
               id: userId,
               role: "USER",
               status: "APPROVED",
-              memberships: { some: { groupId: poll.groupId } },
+              memberships: { some: { groupId: { in: pollGroupIds(poll) } } },
             },
           });
           if (!target)
@@ -412,9 +413,9 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
   }
   private async publish(id: string) {
     const poll = await this.db.poll.findUniqueOrThrow({ where: { id }, include: pollInclude });
-    await this.events.publish({
+    for (const groupId of pollGroupIds(poll)) await this.events.publish({
       name: "poll:updated",
-      groupId: poll.groupId,
+      groupId,
       payload: presentPoll(poll),
     });
   }
@@ -441,6 +442,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         question: poll.question,
         status: poll.status,
         group: { id: poll.group.id, name: poll.group.name },
+        groups: poll.groups.map(row => ({ id: row.groupId, name: row.group.name })),
         mandatoryAttendance: true,
         finished: sessionFinished(poll.options),
         attendanceLockedAt: poll.attendanceLockedAt,
@@ -484,12 +486,12 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         type: "SESSION",
         archivedAt: null,
         authorId: actor.id,
-          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
-        groupId: query.groupId,
+        AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
         id: query.pollId,
       },
       include: {
         group: true,
+        groups: { include: { group: { select: { id: true, name: true } } } },
         options: { orderBy: { position: "asc" } },
         participants: { where: { included: true }, include: { marks: true } },
         votes: { include: { options: true } },
@@ -519,6 +521,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           id: p.id,
           question: p.question,
           group: { id: p.groupId, name: p.group.name },
+          groups: p.groups.map(row => row.group),
           status: p.status,
           phase,
           mandatoryAttendance: p.mandatoryAttendance,
@@ -562,8 +565,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           : { reportResolvedAt: query.reportStatus === "RESOLVED" ? { not: null } : null }),
         poll: {
           authorId: actor.id,
-          ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
-          groupId: query.groupId,
+          AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
           id: query.pollId,
         },
       },
@@ -573,6 +575,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           include: {
             options: { orderBy: { position: "asc" } },
             group: true,
+            groups: { include: { group: { select: { id: true, name: true } } } },
             votes: { include: { options: true } },
           },
         },
@@ -603,6 +606,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         user: this.safeUser(p.user),
         question: p.poll.question,
         group: { id: p.poll.groupId, name: p.poll.group.name },
+        groups: p.poll.groups.map(row => row.group),
         options: p.poll.options,
         votedOptionIds:
           p.poll.votes.find((v) => v.userId === p.userId)?.options.map((o) => o.optionId) ?? [],

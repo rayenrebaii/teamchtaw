@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { attempt } from "@/components/shared";
 import type { Poll } from "@/types";
+import { pollGroupIds } from "@/features/poll-groups";
+import { GroupSelection } from "./group-selection";
 
 export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = false }: {
   poll?: Poll;
@@ -17,7 +19,8 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
 }) {
   const { text: copy } = useCopy();
   const store = useCommunity();
-  const [groupId, setGroupId] = useState(poll?.groupId ?? fixedGroupId ?? "");
+  const [groupIds, setGroupIds] = useState<string[]>(poll ? pollGroupIds(poll) : fixedGroupId ? [fixedGroupId] : []);
+  const groupId = poll?.groupId ?? fixedGroupId ?? groupIds[0] ?? "";
   const [question, setQuestion] = useState(poll?.question ?? "");
   const [description, setDescription] = useState(poll?.description ?? "");
   const [status, setStatus] = useState<SessionInput["status"]>(
@@ -52,6 +55,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
           const ok = await attempt(
             async () => {
               const input: SessionInput = {
+                ...(!poll && groupIds.length > 1 ? { groupIds } : {}),
                 question,
                 description,
                 type: "SESSION",
@@ -70,7 +74,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
               store.receivePoll(saved);
               await store.sync();
             },
-            poll ? copy("Séance mise à jour") : copy("Séance publiée dans le groupe"),
+            poll ? copy("Séance mise à jour") : copy("Séance publiée dans les groupes sélectionnés"),
           );
           setBusy(false);
           if (ok) close();
@@ -96,22 +100,11 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
             />
           </label>
         )}
-        <label>
-          {copy("Groupe")}{" "}
-          <select
-            required
-            value={groupId}
-            disabled={!!poll || !!fixedGroupId}
-            onChange={(e) => setGroupId(e.target.value)}
-          >
-            <option value=""> {copy("Choisir un groupe")} </option>
-            {store.groups.map((g) => (
-              <option value={g.id} key={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset className="attendance-history-card" disabled={busy || !!poll}>
+          <legend>{copy("Groupes concernés")}</legend>
+          <GroupSelection groups={store.groups} value={groupIds} onChange={setGroupIds} fixedId={fixedGroupId} />
+          <p className="small muted">{copy("Un seul sondage et des places partagées entre tous les groupes sélectionnés.")}</p>
+        </fieldset>
         <label>
           {copy("Statut")}{" "}
           <select
@@ -133,7 +126,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
         {mandatory && !votesOnly && (
           <p className="small muted">
             {copy(
-              "Séance obligatoire : tous les étudiants approuvés du groupe sont concernés, même sans vote. Les changements ultérieurs de membres se gèrent depuis le pointage.",
+              "Séance obligatoire : tous les étudiants approuvés des groupes sélectionnés sont concernés, même sans vote. Chaque étudiant compte une seule fois.",
             )}{" "}
           </p>
         )}

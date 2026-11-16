@@ -3,6 +3,8 @@ export interface PersonalSession {
   id: string;
   question: string;
   groupId: string;
+  groupIds?: string[];
+  groups?: { id: string; name: string }[];
   groupName: string;
   description: string;
   status: string;
@@ -92,7 +94,7 @@ export function personalAttendance(
   };
   const groups = [
     ...new Map(
-      items.map((item) => [item.groupId, { id: item.groupId, name: item.groupName }]),
+      items.flatMap((item) => (item.groups?.length ? item.groups : [{ id: item.groupId, name: item.groupName }]).map(group => [group.id, group] as const)),
     ).values(),
   ];
   const filtered = items
@@ -100,7 +102,7 @@ export function personalAttendance(
       (item) =>
         (!query.pollId || item.id === query.pollId) &&
         (!query.status || item.attendanceStatus === query.status) &&
-        (!query.groupId || item.groupId === query.groupId) &&
+        (!query.groupId || (item.groupIds ?? [item.groupId]).includes(query.groupId)) &&
         ((!query.from && !query.to) ||
           item.slots.some(
             (slot) =>

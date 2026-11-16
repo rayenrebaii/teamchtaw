@@ -27,6 +27,7 @@ import { CreatePollDto, VoteDto } from "./polls.dto";
 import { PollDeletionModule, PollDeletionService } from "./poll-deletion.service";
 import { validatePoll } from "./polls.validation";
 import { assertNoSessionOverlap } from "./session-overlap";
+import { pollMember } from "../common/poll-audience";
 @Injectable()
 export class PollsService {
   constructor(
@@ -38,7 +39,7 @@ export class PollsService {
     return this.db.$transaction(async (tx) => {
       const user = await this.access.actor(tx, actor);
       const items = await tx.poll.findMany({
-        where: { archivedAt: null, ...(user.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }), ...(user.role === "COLLABORATOR" ? { OR: [{ authorId: actor.id }, { type: "ORDINARY" }] } : {}) },
+        where: { archivedAt: null, ...(user.role === "ADMIN" ? {} : { AND: [pollMember(actor.id)] }), ...(user.role === "COLLABORATOR" ? { OR: [{ authorId: actor.id }, { type: "ORDINARY" }] } : {}) },
         include: pollInclude,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
@@ -51,6 +52,9 @@ export class PollsService {
     });
   }
   async create(actor: Actor, groupId: string, dto: CreatePollDto) {
+    if (dto.type !== "SESSION" && dto.groupIds) throw new BadRequestException("Les groupes multiples sont réservés aux séances.");
+    if (dto.groupIds && !dto.groupIds.includes(groupId)) throw new BadRequestException("Le groupe de publication doit faire partie des groupes sélectionnés.");
+    const groupIds = [...new Set(dto.groupIds ?? [groupId])].sort();
     validatePoll(dto);
     if (dto.endsAt && new Date(dto.endsAt) <= new Date())
       throw new BadRequestException("La clôture doit être dans le futur.");
@@ -58,12 +62,13 @@ export class PollsService {
       throw new BadRequestException("Les réponses doivent être différentes.");
     const result = await this.db.$transaction(async (tx) => {
       const user = await this.access.organizer(tx, actor);
-      await this.access.group(tx, actor, groupId);
+      for (const target of groupIds) await this.access.group(tx, actor, target);
       if (user.role === "COLLABORATOR" && dto.type !== "SESSION") throw new ForbiddenException("Seuls les sondages de séance sont autorisés.");
-      await assertNoSessionOverlap(tx, groupId, dto);
+      for (const target of groupIds) await assertNoSessionOverlap(tx, target, dto);
       const poll = await tx.poll.create({
         data: {
           groupId,
+          groups: { createMany: { data: groupIds.map(groupId => ({ groupId })), skipDuplicates: true } },
           authorId: actor.id,
           question: dto.question,
           description: dto.description ?? "",
@@ -89,28 +94,28 @@ export class PollsService {
       });
       if (poll.mandatoryAttendance) {
         const students = await tx.user.findMany({
-          where: { role: "USER", status: "APPROVED", memberships: { some: { groupId } } },
+          where: { role: "USER", status: "APPROVED", memberships: { some: { groupId: { in: groupIds } } } },
           select: { id: true },
         });
         await tx.sessionParticipant.createMany({
           data: students.map((user) => ({ pollId: poll.id, userId: user.id })),
         });
       }
-      const message = await tx.message.create({
-        include: messageInclude,
-        data: { groupId, authorId: actor.id, kind: "poll", pollId: poll.id },
-      });
-      return { poll: presentPoll(poll), message: presentMessage(message) };
+      const messages = [];
+      for (const target of groupIds) messages.push(presentMessage(await tx.message.create({
+        include: messageInclude, data: { groupId: target, authorId: actor.id, kind: "poll", pollId: poll.id },
+      })));
+      return { poll: presentPoll(poll), messages };
     });
-    await this.events.publish({ name: "poll:created", groupId, payload: result.poll });
-    await this.events.publish({ name: "message:created", groupId, payload: result.message });
+    for (const target of groupIds) await this.events.publish({ name: "poll:created", groupId: target, payload: result.poll });
+    for (const message of result.messages) await this.events.publish({ name: "message:created", groupId: message.groupId, payload: message });
     return result.poll;
   }
   get(actor: Actor, id: string) {
     return this.db.$transaction(async (tx) => {
+      await this.access.poll(tx, actor, id);
       const poll = await tx.poll.findUnique({ where: { id, archivedAt: null }, include: pollInclude });
       if (!poll) throw new NotFoundException("Sondage introuvable.");
-      await this.access.group(tx, actor, poll.groupId);
       if (actor.role === "COLLABORATOR" && poll.type === "SESSION" && poll.authorId !== actor.id)
         throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
       return presentPoll(poll);
@@ -120,7 +125,7 @@ export class PollsService {
     const poll = await this.db.$transaction(async (tx) => {
       const located = await tx.poll.findUnique({ where: { id, archivedAt: null }, select: { groupId: true } });
       if (!located) throw new NotFoundException("Sondage introuvable.");
-      await this.access.group(tx, actor, located.groupId);
+      await this.access.poll(tx, actor, id);
       await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
       const current = await tx.poll.findUniqueOrThrow({
         where: { id },
@@ -192,7 +197,7 @@ export class PollsService {
       });
       return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id, archivedAt: null }, include: pollInclude }));
     });
-    await this.events.publish({ name: "poll:updated", groupId: poll.groupId, payload: poll });
+    for (const groupId of poll.groupIds ?? [poll.groupId]) await this.events.publish({ name: "poll:updated", groupId, payload: poll });
     return poll;
   }
 }

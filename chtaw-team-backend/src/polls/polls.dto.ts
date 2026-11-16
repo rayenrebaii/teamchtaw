@@ -20,6 +20,9 @@ import {
 import { Type } from "class-transformer";
 import { AttendanceStatus, PollStatus, PollType } from "@prisma/client";
 export class CreatePollDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ArrayUnique() @IsUUID("all", { each: true })
+  groupIds?: string[];
   @ApiProperty()
   @IsString()
   @MinLength(3)
@@ -87,6 +90,10 @@ export class VoteDto {
   optionIds!: string[];
 }
 export class UpdateSessionDto extends CreatePollDto {}
+export class AddSessionGroupsDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ArrayUnique() @IsUUID("all", { each: true })
+  groupIds!: string[];
+}
 export class AttendanceEntryDto {
   @IsUUID() userId!: string;
   @IsUUID() optionId!: string;

@@ -18,7 +18,7 @@ function fixture() {
     sessionParticipant: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   const db = { $transaction: (fn: (value: typeof tx) => Promise<unknown>) => fn(tx) } as unknown as PrismaService;
-  const access = { group: jest.fn() } as unknown as AccessService;
+  const access = { poll: jest.fn() } as unknown as AccessService;
   const events = { publish: jest.fn() };
   return { actor, options, existing, current, tx, events, service: new PollsService(db, access, events as unknown as DomainEvents) };
 }

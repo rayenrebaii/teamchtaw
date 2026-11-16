@@ -499,15 +499,18 @@ describe("Présences obligatoires sans dépendance aux votes", () => {
     const history = (await api().get(`/api/v1/users/${studentId}/attendance`).set(auth()).expect(200)).body;
     expect(history.sessions.find((session: { id: string }) => session.id === poll.id)).toBeUndefined();
   });
-  it("removes started slots and reconciles a presence erased by removal", async () => {
+  it("refuses removing a started slot and preserves recorded presence and absence history", async () => {
     const poll = await create(2);
     await finish(poll.id);
     expect((await mark(poll.id, studentId, "PRESENT", 0)).status).toBe(200);
     expect((await mark(poll.id, studentId, "ABSENT", 1)).status).toBe(200);
     const before = (await db.absenceState.findUnique({ where: { userId: studentId } }))?.total ?? 0;
-    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth()).expect(200);
-    expect(await db.sessionMark.count({ where: { optionId: poll.options[0].id } })).toBe(0);
-    expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before + 1);
+    const marks = await db.sessionMark.findMany({ where: { pollId: poll.id } });
+    const edits = await db.sessionAttendanceEdit.findMany({ where: { pollId: poll.id } });
+    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}`).set(auth()).expect(409);
+    expect(await db.sessionMark.findMany({ where: { pollId: poll.id } })).toEqual(marks);
+    expect(await db.sessionAttendanceEdit.findMany({ where: { pollId: poll.id } })).toEqual(edits);
+    expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
     expect((await db.absenceState.findUniqueOrThrow({ where: { userId: studentId } })).total).toBe(before);
   });

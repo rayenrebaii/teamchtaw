@@ -21,6 +21,7 @@ function fixture(role: Actor["role"], authorId = "other") {
   };
   const db = { $transaction: (fn: (value: typeof tx) => Promise<unknown>) => fn(tx) } as unknown as PrismaService;
   const access = {
+    poll: jest.fn(),
     organizer: jest.fn().mockImplementation(async () => {
       if (role === "USER") throw new ForbiddenException();
       return { id: actor.id, role };

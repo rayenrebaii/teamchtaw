@@ -53,6 +53,9 @@ export interface PollVote {
 export interface Poll {
   id: string;
   groupId: string;
+  groupIds?: string[];
+  groups?: { id: string; name: string }[];
+  archivedAt?: string | null;
   authorId: string;
   question: string;
   type?: "ORDINARY" | "SESSION";

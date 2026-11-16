@@ -103,8 +103,8 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     await api().patch(`/api/v1/polls/${poll.id}`).set(auth(collab)).send({ ...data, status: "CLOSED", startsAt: [data.startsAt[0], (await db.pollOption.findUniqueOrThrow({ where: { id: b } })).startsAt!.toISOString()] }).expect(200);
     await cast(loser, [], true).expect(409);
     await api().delete(`/api/v1/polls/${poll.id}/options/${b}`).set(auth(otherCollab)).expect(403);
-    await api().delete(`/api/v1/polls/${poll.id}/options/${b}`).set(auth(admin)).expect(200);
-    expect(await db.pollVote.count({ where: { pollId: poll.id, userId: winner.id } })).toBe(0);
+    await api().delete(`/api/v1/polls/${poll.id}/options/${b}`).set(auth(admin)).expect(409);
+    expect(await db.pollVote.count({ where: { pollId: poll.id, userId: winner.id } })).toBe(1);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth(admin)).expect(204);
     expect(await db.poll.findUnique({ where: { id: poll.id } })).toBeNull();
     expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(0);

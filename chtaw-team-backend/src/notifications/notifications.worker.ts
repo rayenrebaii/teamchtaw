@@ -9,6 +9,7 @@ import { PushTransport } from "./push.transport";
 import { permits, reminderPlan } from "./notifications.rules";
 import { FirebaseIdentity } from "../auth/firebase.service";
 import { notificationContent } from "./notifications.content";
+import { pollGroupIds } from "../common/poll-audience";
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -130,11 +131,11 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       where: { status: "PENDING", scheduledFor: { lte: now } },
       orderBy: { scheduledFor: "asc" },
       take: 100,
-      include: { session: true },
+      include: { session: { include: { groups: true } } },
     });
     for (const job of jobs)
       await this.db.$transaction(async (tx) => {
-        await this.access.lockGroup(tx, job.session.groupId);
+        for (const groupId of pollGroupIds(job.session)) await this.access.lockGroup(tx, groupId);
         await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${job.sessionId}::uuid FOR UPDATE`;
         await tx.$queryRaw`SELECT id FROM "SessionReminderDelivery" WHERE id=${job.id}::uuid FOR UPDATE`;
         const current = await tx.sessionReminderDelivery.findUnique({ where: { id: job.id } });
@@ -142,16 +143,16 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
         await tx.$queryRaw`SELECT id FROM "User" WHERE id=${job.userId}::uuid FOR UPDATE`;
         const option = await tx.pollOption.findUnique({
           where: { id: job.optionId },
-          include: { poll: { include: { group: true } } },
+          include: { poll: { include: { group: true, groups: true } } },
         });
         const student = await tx.user.findFirst({
           where: {
             id: job.userId,
             role: "USER",
             status: "APPROVED",
-            memberships: { some: { groupId: job.session.groupId } },
+            memberships: { some: { groupId: { in: pollGroupIds(option?.poll ?? job.session) } } },
           },
-          include: { notificationPreference: true },
+          include: { notificationPreference: true, memberships: { where: { groupId: { in: pollGroupIds(option?.poll ?? job.session) } }, orderBy: { groupId: "asc" }, take: 1 } },
         });
         const concerned =
           option &&
@@ -199,7 +200,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
         }).format(option.startsAt);
         await this.create(tx, {
           userId: job.userId,
-          groupId: option.poll.groupId,
+          groupId: student.memberships[0]?.groupId ?? option.poll.groupId,
           type: job.reminderType,
           title: job.reminderType === "SESSION_24H" ? "Séance demain" : "Séance dans 1 heure",
           body: `Votre séance ${option.poll.group.name} commence ${job.reminderType === "SESSION_24H" ? "demain " : ""}à ${time} (${zone}).`,
@@ -219,16 +220,16 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       .$executeRaw`UPDATE "SessionReminderDelivery" d SET status=\'CANCELLED\' WHERE d.status=\'PENDING\' AND NOT EXISTS (SELECT 1 FROM "PollOption" o JOIN "Poll" p ON p.id=o."pollId" WHERE o.id=d."optionId" AND o."startsAt"=d."startsAt" AND p.status<>\'CANCELLED\')`;
     const options = await this.db.pollOption.findMany({
       where: { startsAt: { gt: now }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
-      include: { poll: true },
+      include: { poll: { include: { groups: true } } },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     });
     for (const option of options)
       await this.db.$transaction(async (tx) => {
-        await this.access.lockGroup(tx, option.poll.groupId);
+        for (const groupId of pollGroupIds(option.poll)) await this.access.lockGroup(tx, groupId);
         await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${option.pollId}::uuid FOR UPDATE`;
         const current = await tx.pollOption.findUnique({
           where: { id: option.id },
-          include: { poll: true },
+          include: { poll: { include: { groups: true } } },
         });
         if (!current?.startsAt || current.startsAt <= now || current.poll.status === "CANCELLED")
           return;
@@ -236,7 +237,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           where: {
             role: "USER",
             status: "APPROVED",
-            memberships: { some: { groupId: current.poll.groupId } },
+            memberships: { some: { groupId: { in: pollGroupIds(current.poll) } } },
             ...(current.poll.mandatoryAttendance
               ? { sessionParticipants: { some: { pollId: current.pollId, included: true } } }
               : {

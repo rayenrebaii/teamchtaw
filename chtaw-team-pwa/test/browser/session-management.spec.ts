@@ -54,12 +54,9 @@ for (const width of [320, 375, 1440]) for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "Gérer la séance : Entraînement", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Gérer la séance", exact: true });
     expect(await dialog.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
-    await dialog.getByRole("button", { name: "Retirer le créneau : Horaire 1", exact: true }).click();
-    expect(slotDeletes).toBe(0);
-    await dialog.getByRole("button", { name: "Confirmer la suppression", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Retirer le créneau : Horaire 1", exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "Retirer le créneau : Horaire 1", exact: true })).toBeDisabled();
     await expect(dialog.getByRole("button", { name: "Retirer le créneau : Horaire 2", exact: true })).toBeDisabled();
-    expect(slotDeletes).toBe(1);
+    expect(slotDeletes).toBe(0);
     await dialog.getByRole("button", { name: "Supprimer la séance", exact: true }).click();
     expect(sessionDeletes).toBe(0);
     await dialog.getByRole("button", { name: "Confirmer la suppression", exact: true }).click();

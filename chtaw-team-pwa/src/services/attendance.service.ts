@@ -4,6 +4,7 @@ export type AttendanceStatus = "NON_VERIFIE" | "PRESENT" | "ABSENT";
 export type FinalStatus =
   "NON_INSCRIT" | "EN_ATTENTE" | "PRESENT" | "ABSENT" | "ANNULE" | "NON_CONCERNE";
 export interface SessionInput {
+  groupIds?: string[];
   question: string;
   description: string;
   type: "SESSION";
@@ -24,6 +25,7 @@ export interface AttendanceEntry {
   participantVersion?: number;
 }
 export interface Roster {
+  groups?: { id: string; name: string }[];
   id: string;
   question: string;
   status: string;
@@ -103,6 +105,7 @@ export interface StudentHistory {
   }[];
 }
 export interface AttendanceSession {
+  groups?: { id: string; name: string }[];
   id: string;
   question: string;
   group: { id: string; name: string };
@@ -116,6 +119,7 @@ export interface AttendanceSession {
   toVerify: number;
 }
 export interface AttendanceReport {
+  groups?: { id: string; name: string }[];
   pollId: string;
   user: User;
   question: string;
@@ -191,6 +195,7 @@ export const attendanceService = {
       body: JSON.stringify(input),
     }),
   removeSlot: (id: string, optionId: string) => api.request<Poll>(`/polls/${encodeURIComponent(id)}/options/${encodeURIComponent(optionId)}`, { method: "DELETE" }),
+  addGroups: (id: string, groupIds: string[]) => api.request<Poll>(`/polls/${encodeURIComponent(id)}/groups`, { method: "POST", body: JSON.stringify({ groupIds }) }),
   remove: (id: string) => api.request<void>(`/polls/${encodeURIComponent(id)}`, { method: "DELETE" }),
   roster: (id: string) => api.request<Roster>(`/polls/${encodeURIComponent(id)}/attendance`),
   save: (id: string, entries: AttendanceEntry[]) =>

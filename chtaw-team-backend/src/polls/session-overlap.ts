@@ -1,5 +1,6 @@
 import { ConflictException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { pollInGroup } from "../common/poll-audience";
 
 // Call while holding the group row lock, shared by both creation and schedule edits.
 export async function assertNoSessionOverlap(
@@ -12,7 +13,7 @@ export async function assertNoSessionOverlap(
     const end = input.slotEndsAt?.[index] ? new Date(input.slotEndsAt[index]!) : null;
     const conflict = await tx.pollOption.findFirst({
       where: {
-        poll: { type: "SESSION", groupId, status: { not: "CANCELLED" }, archivedAt: null,
+        poll: { type: "SESSION", ...pollInGroup(groupId), status: { not: "CANCELLED" }, archivedAt: null,
           ...(excludeId ? { id: { not: excludeId } } : {}) },
         OR: end ? [
           { startsAt: { lt: end }, endsAt: { gt: start } },
