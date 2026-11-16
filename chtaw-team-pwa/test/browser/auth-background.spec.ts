@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+test.use({ video: process.env.CHTAW_AUTH_RECORD_VIDEO === "1" ? "on" : "off" });
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { delete Object.getPrototypeOf(navigator).serviceWorker; });
   await page.routeWebSocket("**/socket.io/**", (socket) => socket.close());
@@ -24,17 +26,31 @@ for (const route of ["login", "register"]) for (const width of [390, 1440]) for 
     await expect(scene).toHaveCSS("pointer-events", "none");
     await expect.poll(() => scene.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     const original = await form.boundingBox();
-    const baseline = await page.locator(".auth-layout").evaluate((node) => {
+    const baseline = await page.locator(".auth-main").evaluate((node) => {
       const classes = node.className;
-      node.setAttribute("class", "auth-layout");
+      node.setAttribute("class", "auth-main");
       const box = document.querySelector(".auth-form")!.getBoundingClientRect();
       node.setAttribute("class", classes);
       return { x: box.x, y: box.y, width: box.width, height: box.height };
     });
     for (const key of ["x", "y", "width", "height"] as const) expect(original![key]).toBeCloseTo(baseline[key], 0);
+    const panel = await page.locator(".auth-main").boundingBox();
+    const sceneBox = await scene.boundingBox();
+    for (const key of ["x", "y", "width", "height"] as const) expect(sceneBox![key]).toBeCloseTo(panel![key], 0);
+    await expect(scene).toHaveCSS("position", "absolute");
+    await expect(scene).toHaveCSS("overflow", "hidden");
+    await expect(page.locator(".auth-story [data-auth-background]")).toHaveCount(0);
+    await expect(page.locator(".auth-story")).toHaveCSS("background-color", "rgb(22, 6, 47)");
+    await expect(scene.locator("[data-auth-shape]:visible")).toHaveCount(width <= 800 ? 3 : 4);
+    // Observe real animation frames, including inclination and independent shape motion.
+    for (const selector of ["[data-auth-gymnast]", "[data-auth-ring]", "[data-auth-shape]"]) {
+      const object = scene.locator(selector).first();
+      const initial = await object.evaluate(node => getComputedStyle(node).transform);
+      await expect.poll(() => object.evaluate(node => getComputedStyle(node).transform)).not.toBe(initial);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await scene.evaluate((node) => node.getAnimations({ subtree: true }).length)).toBeGreaterThan(0);
-    await expect(scene.locator("span[data-mobile-hidden]:visible")).toHaveCount(width <= 800 ? 0 : 4);
+    await expect(scene.locator("span[data-mobile-hidden]:visible")).toHaveCount(width <= 800 ? 0 : 5);
     await page.getByRole("button", { name: route === "login" ? "Se connecter" : "Créer mon compte", exact: true }).click();
     await expect(form.getByText("Au moins 12 caractères.", { exact: true }).first()).toBeVisible();
     await page.screenshot({ path: `.test-browser-results/auth-background-${route}-${theme}-${width}-validation.png`, fullPage: true });

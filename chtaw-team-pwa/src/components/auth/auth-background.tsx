@@ -12,13 +12,17 @@ export function AuthBackground() {
   return (
     <div className={styles.background} aria-hidden="true" data-auth-background>
       <div className={styles.halo} />
-      <div className={styles.gymnast}>
+      <div className={styles.gymnast} data-auth-gymnast>
         <Image src="/images/auth-gymnast.webp" alt="" width={1400} height={700}
-          sizes="(max-width: 800px) 135vw, 82vw" loading="eager" />
+          sizes="(max-width: 800px) 110vw, 52vw" loading="eager" />
       </div>
-      <div className={`${styles.ringPlane} ${styles.first}`}><span className={styles.ring} /></div>
+      <div className={styles.ringPlane} data-auth-ring><span className={styles.ring} /></div>
       <div className={`${styles.ringPlane} ${styles.second}`}><span className={styles.ring} /></div>
       <div className={`${styles.ringPlane} ${styles.third}`}><span className={styles.ring} /></div>
+      <span className={`${styles.shape} ${styles.circle}`} data-auth-shape />
+      <span className={`${styles.shape} ${styles.square}`} data-auth-shape />
+      <span className={`${styles.shape} ${styles.diamond}`} data-auth-shape />
+      <span className={`${styles.shape} ${styles.smallCircle}`} data-auth-shape data-mobile-hidden />
       {particles.map(([x, y, delay, duration], index) => (
         <span key={index} className={styles.particle} data-mobile-hidden={index >= 4 ? "" : undefined} style={{
           left: `${x}%`, top: `${y}%`, animationDelay: `${delay}s`, animationDuration: `${duration}s`,

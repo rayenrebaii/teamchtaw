@@ -53,8 +53,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
     defaultValues: { firstName: "", lastName: "", confirm: "", email: "", password: "" },
   });
   return (
-    <div className={`auth-layout ${backgroundStyles.page}`}>
-      <AuthBackground />
+    <div className="auth-layout">
       <aside className="auth-story">
         <Link href="/login" className="brand" aria-label="Team Chtaw - Accueil">
           <BrandLogo />
@@ -85,7 +84,8 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
         </div>
         <span className="small muted">TEAM CHTAW © 2026 · L’ESPRIT D’ÉQUIPE, PARTOUT.</span>
       </aside>
-      <main className="auth-main">
+      <main className={`auth-main ${backgroundStyles.panel}`}>
+        <AuthBackground />
         <Link href="/login" className="mobile-auth-brand" aria-label="Team Chtaw - Accueil">
           <BrandLogo />
         </Link>
