@@ -25,7 +25,7 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
   const availableGroups = store.groups.filter(group => !pollGroupIds(poll).includes(group.id));
   const active = !poll.archivedAt && poll.status === "OPEN" && !poll.attendanceLockedAt;
   const future = poll.options.length > 0 && poll.options.every(slot => !!slot.startsAt && Date.parse(slot.startsAt) > now);
-  const canRemove = active && poll.options.every(slot => !!slot.startsAt && Date.parse(slot.startsAt) - now >= 7200000);
+  const canRemove = poll.status === "OPEN" && !poll.archivedAt;
   const option = poll.options.find((slot) => slot.id === target);
   const actor = store.users.find((user) => user.id === store.session?.userId);
   if ((actor?.role !== "ADMIN" && actor?.role !== "COLLABORATOR") || (actor?.role !== "ADMIN" && poll.authorId !== actor?.id) || poll.type !== "SESSION") return null;
@@ -46,17 +46,23 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
       <ul className={styles.slots}>{poll.options.map((slot) => <li key={slot.id}>
         <div><strong>{slot.label}</strong>{slot.startsAt && <p>{new Date(slot.startsAt).toLocaleString(locale, { timeZone: "Africa/Tunis", dateStyle: "medium", timeStyle: "short" })}</p>}
           <p>{poll.votes.filter(vote => vote.optionIds.includes(slot.id)).length} / {slot.capacity ?? "?"}{slot.capacity != null && poll.votes.filter(vote => vote.optionIds.includes(slot.id)).length >= slot.capacity ? ` · ${copy("Complet")}` : ""}</p>
+          <p>{copy(slot.validatedAt ? "Créneau validé" : "En attente de validation")}</p>
         </div>
-        <Button size="sm" variant="destructive" disabled={busy || adding || !canRemove || poll.options.length <= 1} aria-label={copy("Retirer le créneau : {slot}", { slot: slot.label })} onClick={() => { setTarget(slot.id); setFailed(false); }}><Trash2 size={14} aria-hidden="true" />{copy("Retirer")}</Button>
+        {!slot.validatedAt && <Button size="sm" disabled={busy || adding || !slot.startsAt || Date.parse(slot.startsAt) <= now} onClick={async () => {
+          setBusy(true);
+          await attempt(async () => { store.receivePoll(await attendanceService.validateSlot(poll.id, slot.id)); await store.sync(); }, copy("Créneau validé et planifié."));
+          setBusy(false);
+        }}>{copy("Valider et planifier")}</Button>}
+        <Button size="sm" variant="destructive" disabled={busy || adding || !canRemove || !slot.startsAt || Date.parse(slot.startsAt) <= now || poll.options.length <= 1} aria-label={copy("Retirer le créneau : {slot}", { slot: slot.label })} onClick={() => { setTarget(slot.id); setFailed(false); }}><Trash2 size={14} aria-hidden="true" />{copy("Retirer")}</Button>
       </li>)}</ul>
       {poll.options.length <= 1 && <p className="small muted">{copy("Pour retirer le dernier créneau, supprimez la séance.")}</p>}
-      {!canRemove && <p className="small muted">{copy("Retrait réservé aux séances ouvertes, sans pointage, au moins deux heures avant le premier créneau.")}</p>}
+      {!canRemove && <p className="small muted">{copy("Cette séance n’est plus ouverte.")}</p>}
       {!target && <Button variant="destructive" disabled={busy || adding} onClick={() => { setTarget("session"); setFailed(false); }}><Trash2 size={15} aria-hidden="true" />{copy("Supprimer la séance")}</Button>}
       {target && <section className={styles.confirmation} aria-label={copy("Confirmation de suppression")}>
-        <h4>{target === "session" ? copy("Supprimer définitivement cette séance ?") : copy("Retirer ce créneau ?")}</h4>
+        <h4>{target === "session" ? copy(future && !poll.attendanceLockedAt ? "Supprimer définitivement cette séance ?" : "Archiver cette séance ?") : copy("Retirer ce créneau ?")}</h4>
         {option && <p><strong>{option.label}</strong></p>}
         {option && <p>{copy("{count} étudiant(s) concerné(s).", { count: poll.votes.filter(vote => vote.optionIds.includes(option.id)).length })}</p>}
-        <p className="small">{copy(target === "session" ? "Tous les créneaux, votes, présences, absences et historiques de cette séance seront définitivement supprimés. Les compteurs et alertes seront recalculés." : "Cet horaire et ses votes seront retirés dans tous les groupes. Les autres horaires sont conservés. Un historique de pointage bloque cette action.")}</p>
+        <p className="small">{copy(target === "session" ? (future && !poll.attendanceLockedAt ? "Cette séance et ses votes seront définitivement supprimés." : "La séance sera retirée des listes actives ; ses votes et son historique de présence seront conservés.") : "Cet horaire et ses votes seront retirés dans tous les groupes. Les autres horaires sont conservés. Un historique de pointage bloque cette action.")}</p>
         <div className="row wrap"><Button variant="secondary" disabled={busy} onClick={() => setTarget(null)}>{copy("Annuler")}</Button>
           <Button variant="destructive" disabled={busy} onClick={async () => {
             if (busy) return;

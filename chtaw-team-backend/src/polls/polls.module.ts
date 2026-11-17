@@ -73,7 +73,7 @@ export class PollsService {
           question: dto.question,
           description: dto.description ?? "",
           type: dto.type ?? "ORDINARY",
-          mandatoryAttendance: dto.type === "SESSION" && dto.mandatoryAttendance !== false,
+          mandatoryAttendance: dto.type === "SESSION" && dto.mandatoryAttendance === true,
           status: dto.status ?? "OPEN",
           singleChoice: dto.singleChoice,
           endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
@@ -81,6 +81,7 @@ export class PollsService {
             create: dto.options.map((label, position) => ({
               label,
               position,
+              validatedAt: dto.type === "SESSION" ? null : undefined,
               capacity: dto.type === "SESSION" ? dto.capacities![position] : null,
               startsAt: dto.type === "SESSION" ? new Date(dto.startsAt![position]!) : null,
               endsAt:
@@ -195,6 +196,13 @@ export class PollsService {
       await tx.pollVoteOption.createMany({
         data: dto.optionIds.map((optionId) => ({ voteId: vote.id, optionId, pollId: id })),
       });
+      if (current.type === "SESSION" && current.mandatoryAttendance) {
+        await tx.sessionParticipant.upsert({
+          where: { pollId_userId: { pollId: id, userId: actor.id } },
+          create: { pollId: id, userId: actor.id },
+          update: { included: true },
+        });
+      }
       return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id, archivedAt: null }, include: pollInclude }));
     });
     for (const groupId of poll.groupIds ?? [poll.groupId]) await this.events.publish({ name: "poll:updated", groupId, payload: poll });

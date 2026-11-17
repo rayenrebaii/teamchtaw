@@ -7,6 +7,7 @@ const commands = {
   'backend:test': [backend, ['node_modules/jest/bin/jest.js', '--runInBand']],
   'backend:build': [backend, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.build.json']],
   'backend:typecheck': [backend, ['node_modules/typescript/bin/tsc', '--noEmit']],
+  'backend:prisma-generate': [backend, ['node_modules/prisma/build/index.js', 'generate']],
   'pwa:test': [frontend, ['node_modules/vitest/vitest.mjs', 'run']],
   'pwa:ui': [frontend, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.ui.config.ts']],
   'pwa:build': [frontend, ['node_modules/next/dist/bin/next', 'build']],

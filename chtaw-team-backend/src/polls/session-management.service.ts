@@ -6,7 +6,6 @@ import { DomainEvents } from "../common/events";
 import { messageInclude, pollInclude, presentMessage, presentPoll } from "../common/presenters";
 import { pollGroupIds } from "../common/poll-audience";
 import { assertNoSessionOverlap } from "./session-overlap";
-import { assertSessionCancellationAllowed } from "./session-deletion.rules";
 import { allSessionSlotsAbsent, reconcileAbsences } from "./attendance.reconcile";
 import { MandatoryAttendanceService } from "./mandatory-attendance.service";
 
@@ -26,6 +25,21 @@ export class SessionManagementService {
     for (const userId of ids) await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
     return { poll, ids };
   }
+  async validateSlot(actor: Actor, id: string, optionId: string) {
+    const updated = await this.db.$transaction(async tx => {
+      const { poll } = await this.lock(tx, actor, id);
+      const option = poll.options.find(item => item.id === optionId);
+      if (!option) throw new NotFoundException("Créneau introuvable.");
+      if (poll.status === "CANCELLED" || poll.archivedAt) throw new ConflictException("Cette séance n’est plus active.");
+      if (!option.validatedAt) {
+        if (!option.startsAt || option.startsAt <= new Date()) throw new ConflictException("Validez le créneau avant son début.");
+        await tx.pollOption.update({ where: { id: optionId }, data: { validatedAt: new Date() } });
+      }
+      return presentPoll(await tx.poll.findUniqueOrThrow({ where: { id }, include: pollInclude }));
+    });
+    for (const groupId of updated.groupIds ?? [updated.groupId]) await this.events.publish({ name: "poll:updated", groupId, payload: updated });
+    return updated;
+  }
   async removeSlot(actor: Actor, id: string, optionId: string) {
     const updated = await this.db.$transaction(async (tx) => {
       const { poll, ids } = await this.lock(tx, actor, id);
@@ -33,8 +47,8 @@ export class SessionManagementService {
       if (!option) throw new NotFoundException("Créneau introuvable.");
       if (poll.options.length <= 1) throw new ConflictException("Pour retirer le dernier créneau, supprimez la séance.");
       if (poll.archivedAt || poll.status !== "OPEN") throw new ConflictException("Cette séance n’est plus active.");
-      assertSessionCancellationAllowed(poll.options);
-      if (poll.attendanceLockedAt || await tx.sessionMark.count({ where: { pollId: id, optionId } }) ||
+      if (!option.startsAt || option.startsAt <= new Date()) throw new ConflictException("Ce créneau a déjà commencé et doit être conservé.");
+      if (await tx.sessionMark.count({ where: { pollId: id, optionId } }) ||
           await tx.pollVoteOption.count({ where: { pollId: id, optionId, OR: [{ version: { gt: 0 } }, { attendance: { not: "NON_VERIFIE" } }] } }) ||
           await tx.attendanceEdit.count({ where: { optionId } }) || await tx.sessionAttendanceEdit.count({ where: { pollId: id, optionId } }))
         throw new ConflictException("Cet horaire possède un historique de pointage et ne peut pas être supprimé.");

@@ -63,7 +63,7 @@ it("preserves session poll publishing with its time slots and existing API behav
   fireEvent.change(dialog.getByLabelText("Date et heure"), { target: { value: "2099-01-02T10:00" } });
   fireEvent.change(dialog.getByLabelText("Nombre maximal de participants"), { target: { value: "10" } });
   fireEvent.click(dialog.getByRole("button", { name: "Publier le sondage de séance" }));
-  await waitFor(() => expect(create).toHaveBeenCalledWith("group", expect.objectContaining({ question: "Choisissez un créneau", type: "SESSION", singleChoice: true, mandatoryAttendance: true, options: ["Horaire 1"] })));
+  await waitFor(() => expect(create).toHaveBeenCalledWith("group", expect.objectContaining({ question: "Choisissez un créneau", type: "SESSION", singleChoice: true, mandatoryAttendance: false, options: ["Horaire 1"] })));
 });
 it("shows an explicit warning instead of claiming everyone has voted when group loading fails", () => {
   useCommunity.setState({ syncErrors: { groups: "Indisponible" } });

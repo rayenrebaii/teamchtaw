@@ -51,14 +51,6 @@ export function AttendanceRosterPage({
     window.addEventListener("focus", update);
     return () => { clearInterval(timer); window.removeEventListener("focus", update); };
   }, []);
-  const [showPresent, setShowPresent] = useState(false);
-  const [enrollment, setEnrollment] = useState("ALL");
-  const [addId, setAddId] = useState("");
-  const [participantAction, setParticipantAction] = useState<{
-    userId: string;
-    included: boolean;
-    version: number;
-  } | null>(null);
   const data = remote.data;
   const slot = data?.slots.find((s) => s.id === slotId) ?? data?.slots[0];
   const slotStarted = attendanceSlotStarted(slot?.startsAt, now);
@@ -66,8 +58,8 @@ export function AttendanceRosterPage({
   const students = visibleAttendanceStudents(
     slot?.students ?? [],
     search,
-    enrollment,
-    showPresent,
+    "ALL",
+    true,
     !!data?.mandatoryAttendance,
   );
   const dirtyCount = Object.keys(drafts).length;
@@ -119,7 +111,7 @@ export function AttendanceRosterPage({
       setSaving(false);
     }
   };
-  const summary = data ? attendanceRosterSummary(data) : null;
+  const summary = data ? attendanceRosterSummary({ ...data, participants: undefined, slots: slot ? [slot] : [] }) : null;
   const dates =
     data?.slots
       .flatMap((s) => [s.startsAt, ...(s.endsAt ? [s.endsAt] : [])])
@@ -169,7 +161,7 @@ export function AttendanceRosterPage({
       )}
       {data && (
         <>
-          <div className="roster-stats" aria-label={copy("Bilan enregistré de la séance")}>
+          <div className="roster-stats" aria-label={copy("Bilan enregistré du créneau")}>
             {[
               { label: "Étudiants concernés", value: summary!.concerned },
               { label: "Présents", value: summary!.present },
@@ -230,27 +222,6 @@ export function AttendanceRosterPage({
                   />
                 </span>
               </label>
-              <label>
-                {copy("Inscription au créneau")}{" "}
-                <select
-                  value={enrollment}
-                  onChange={(e) => setEnrollment(e.target.value)}
-                  disabled={!data.mandatoryAttendance}
-                >
-                  <option value="ALL"> {copy("Tous les étudiants")} </option>
-                  <option value="VOTED"> {copy("A voté pour ce créneau")} </option>
-                  <option value="NOT_VOTED"> {copy("N’a pas voté pour ce créneau")} </option>
-                </select>
-              </label>
-              <label className="check-label roster-show-present">
-                <input
-                  type="checkbox"
-                  checked={showPresent}
-                  onChange={(e) => setShowPresent(e.target.checked)}
-                  disabled={!data.mandatoryAttendance}
-                />
-                {copy("Afficher les étudiants déjà présents")}{" "}
-              </label>
             </div>
             <div className="roster-section-heading">
               <h2>{slot?.label ?? copy("Étudiants")}</h2>
@@ -263,10 +234,10 @@ export function AttendanceRosterPage({
             <p className="roster-help">
               {data.mandatoryAttendance
                 ? copy(
-                    "Les étudiants sans vote peuvent être pointés. Les étudiants présents sur un autre créneau sont masqués par défaut. Les statuts globaux et le bilan affichent les données enregistrées.",
+                    "Seuls les étudiants ayant voté pour ce créneau sont listés. Les statuts globaux et le bilan affichent les données enregistrées.",
                   )
                 : copy(
-                    "Séance historique : seuls les étudiants inscrits au créneau sont listés. Les règles de calcul existantes sont conservées.",
+                    "Seuls les étudiants ayant voté pour ce créneau sont listés.",
                   )}
             </p>
             <div className="roster-table-shell" aria-busy={remote.loading}>
@@ -362,136 +333,6 @@ export function AttendanceRosterPage({
               </Empty>
             )}
           </section>
-          {data.mandatoryAttendance && (
-            <details className="attendance-participants">
-              <summary> {copy("Ajuster les étudiants concernés par la séance")} </summary>
-              <p className="tiny muted">
-                {copy(
-                  "La liste a été figée à la création. Les nouveaux membres ne sont ajoutés que sur votre décision ; un retrait du groupe ne supprime pas l’obligation ni l’historique de cette séance.",
-                )}{" "}
-              </p>
-              <div className="row wrap">
-                <label>
-                  {copy("Ajouter un étudiant approuvé")}{" "}
-                  <select
-                    value={addId}
-                    onChange={(e) => setAddId(e.target.value)}
-                    disabled={saving || Object.keys(drafts).length > 0}
-                  >
-                    <option value=""> {copy("Choisir un étudiant")} </option>
-                    {store.users
-                      .filter(
-                        (u) =>
-                          u.role === "USER" &&
-                          u.status === "APPROVED" &&
-                          store.groups
-                            .find((g) => g.id === data!.group.id)
-                            ?.memberIds.includes(u.id) &&
-                          !data!.participants?.some((p) => p.user.id === u.id && p.included),
-                      )
-                      .map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.firstName} {u.lastName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={
-                    !addId ||
-                    saving ||
-                    Object.keys(drafts).length > 0 ||
-                    data.status === "CANCELLED"
-                  }
-                  onClick={() =>
-                    setParticipantAction({
-                      userId: addId,
-                      included: true,
-                      version: data!.participants?.find((p) => p.user.id === addId)?.version ?? 0,
-                    })
-                  }
-                >
-                  {copy("Ajouter à la séance")}{" "}
-                </Button>
-              </div>
-              <div className="group-member-options">
-                {data.participants
-                  ?.filter((p) => p.included)
-                  .map((p) => (
-                    <div key={p.user.id} className="row between membership-row">
-                      <span>
-                        {p.user.firstName} {p.user.lastName}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={
-                          saving || Object.keys(drafts).length > 0 || data!.status === "CANCELLED"
-                        }
-                        onClick={() =>
-                          setParticipantAction({
-                            userId: p.user.id,
-                            included: false,
-                            version: p.version,
-                          })
-                        }
-                      >
-                        {copy("Retirer de cette séance")}{" "}
-                      </Button>
-                    </div>
-                  ))}
-              </div>
-              {participantAction && (
-                <div className="attendance-confirmation" role="alert">
-                  <p>
-                    {participantAction.included
-                      ? copy("Ajouter cet étudiant aux obligations de cette séance ?")
-                      : copy(
-                          "Retirer cet étudiant de cette séance ? Ses pointages resteront historisés et son compteur sera recalculé.",
-                        )}
-                  </p>
-                  <div className="row wrap">
-                    <Button
-                      variant="secondary"
-                      disabled={saving}
-                      onClick={() => setParticipantAction(null)}
-                    >
-                      {copy("Annuler")}{" "}
-                    </Button>
-                    <Button
-                      disabled={saving}
-                      onClick={async () => {
-                        setSaving(true);
-                        try {
-                          const ok = await attempt(
-                            () =>
-                              attendanceService.participant(
-                                pollId,
-                                participantAction.userId,
-                                participantAction.included,
-                                participantAction.version,
-                              ),
-                            copy("Participants mis à jour"),
-                          );
-                          if (ok) {
-                            setParticipantAction(null);
-                            setAddId("");
-                            refresh();
-                          }
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                    >
-                      {copy("Confirmer")}{" "}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </details>
-          )}
           <footer className="roster-save-bar" aria-label={copy("Enregistrement des présences")}>
             <div role="status" aria-live="polite">
               <strong>

@@ -38,6 +38,7 @@ export interface CalendarSlot {
 }
 export function calendarSlots(polls: Poll[]): CalendarSlot[] {
   return polls.filter((poll) => poll.type === "SESSION").flatMap((poll) => poll.options.flatMap((option) => {
+    if (option.validatedAt === null) return [];
     const start = Date.parse(option.startsAt ?? "");
     if (!Number.isFinite(start)) return [];
     const candidateEnd = Date.parse(option.endsAt ?? "");

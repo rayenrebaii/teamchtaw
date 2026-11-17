@@ -33,7 +33,7 @@ try {
   const snapshots = async () => {
     const result = {};
     for (const table of tables) {
-      const rows = await db.query(`SELECT to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity' AS row FROM "${table}" t ORDER BY (to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity')::text`);
+      const rows = await db.query(`SELECT to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity' - 'validatedAt' AS row FROM "${table}" t ORDER BY (to_jsonb(t) - 'activatedAt' - 'disabledAt' - 'capacity' - 'validatedAt')::text`);
       result[table] = rows.rows;
     }
     return result;
@@ -49,7 +49,8 @@ try {
   const alerts = (await db.query('SELECT "organizerId","pollIds" FROM "OrganizerAbsenceAlert"')).rows;
   assert.equal(alerts.length, 1); assert.equal(alerts[0].organizerId, adminA); assert.equal(alerts[0].pollIds.length, 3);
   const capacityMigration = "20261116120000_session_capacity";
-  for (const migration of migrations.slice(organizerIndex + 1).filter((value) => value !== capacityMigration))
+  const validationMigration = "20261118100000_slot_validation";
+  for (const migration of migrations.slice(organizerIndex + 1).filter((value) => value !== capacityMigration && value !== validationMigration))
     await db.query(await readFile(`prisma/migrations/${migration}/migration.sql`, "utf8"));
   // A real pre-migration multiple ballot and its attendance must survive byte-for-byte.
   const historical = (await db.query('SELECT id,"pollId" FROM "PollVote" LIMIT 1')).rows[0];
@@ -62,6 +63,17 @@ try {
   assert.equal((await db.query('SELECT count(*)::int AS total FROM "PollOption" WHERE capacity IS NOT NULL')).rows[0].total, 0);
   assert.equal((await db.query('SELECT count(*)::int AS total FROM "PollVoteOption" WHERE "voteId"=$1', [historical.id])).rows[0].total, 2);
   await assert.rejects(db.query('UPDATE "PollOption" SET capacity=0 WHERE id=$1', [extra]), { code: "23514" });
+  const beforeValidation = await snapshots();
+  await db.query(await readFile(`prisma/migrations/${validationMigration}/migration.sql`, "utf8"));
+  assert.deepEqual(await snapshots(), beforeValidation);
+  assert.equal((await db.query('SELECT count(*)::int AS total FROM "PollOption" o JOIN "Poll" p ON p.id=o."pollId" WHERE p.type=\'SESSION\' AND o."validatedAt" IS NULL')).rows[0].total, 0);
+  const [oldWriterSlot, newWriterSlot] = [randomUUID(), randomUUID()];
+  await db.query('INSERT INTO "PollOption" (id,"pollId",label,position) VALUES ($1,$2,\'Old writer\',2)', [oldWriterSlot, historical.pollId]);
+  await db.query('INSERT INTO "PollOption" (id,"pollId",label,position,"validatedAt") VALUES ($1,$2,\'New writer\',3,NULL)', [newWriterSlot, historical.pollId]);
+  const compatibility = (await db.query('SELECT id,"validatedAt" FROM "PollOption" WHERE id=ANY($1::uuid[])', [[oldWriterSlot, newWriterSlot]])).rows;
+  assert.ok(compatibility.find(row => row.id === oldWriterSlot)?.validatedAt);
+  assert.equal(compatibility.find(row => row.id === newWriterSlot)?.validatedAt, null);
+  console.log("Slot validation migration: existing session slots validated; previous data preserved.");
   console.log("Session capacity migration: historical ballots, attendance and counters preserved; positive capacity constraint verified.");
   console.log(JSON.stringify({ database: name, preservedTables: tables.length, assertions: 7, result: "passed", adminA: 3, adminB: 2, alerts: 1 }));
 } finally { await db.end(); }

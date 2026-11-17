@@ -44,6 +44,7 @@ export interface PollOption {
   label: string;
   startsAt?: string | null;
   endsAt?: string | null;
+  validatedAt?: string | null;
 }
 export interface PollVote {
   attendanceLocked?: boolean;

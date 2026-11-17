@@ -62,7 +62,7 @@ export function presentPoll(poll: Prisma.PollGetPayload<{ include: typeof pollIn
     createdAt: poll.createdAt,
     singleChoice: poll.singleChoice,
     endsAt: poll.endsAt ?? undefined,
-    options: poll.options.map((o) => ({ id: o.id, label: o.label, startsAt: o.startsAt, endsAt: o.endsAt, capacity: o.capacity })),
+    options: poll.options.map((o) => ({ id: o.id, label: o.label, startsAt: o.startsAt, endsAt: o.endsAt, capacity: o.capacity, validatedAt: o.validatedAt })),
     votes: poll.votes.map((v) => ({
       userId: v.userId,
       attendanceLocked: v.options.some((o) => o.version > 0 || o.attendance !== "NON_VERIFIE"),

@@ -38,13 +38,16 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     });
     return client;
   };
-  const createSession = async (start: Date, mandatoryAttendance = true) => db.poll.create({ data: {
+  const createSession = async (start: Date, mandatoryAttendance = true) => { const poll = await db.poll.create({ data: {
     authorId: admin.id, groupId, question: "Scheduled " + randomUUID(), type: "SESSION", mandatoryAttendance,
     // This intentionally differs from the actual start. A reminder must not use this vote deadline.
     endsAt: new Date(start.getTime() - 1800000),
-    options: { create: { label: "Real slot", position: 0, startsAt: start, endsAt: new Date(start.getTime() + 3600000) } },
+    options: { create: { label: "Real slot", position: 0, startsAt: start, endsAt: new Date(start.getTime() + 3600000), validatedAt: new Date() } },
     ...(mandatoryAttendance ? { participants: { create: [{ userId: student.id }, { userId: admin.id }, { userId: pending.id }, { userId: outsider.id }] } } : {}),
   }, include: { options: true } });
+    if (mandatoryAttendance) await db.pollVote.create({ data: { userId: student.id, pollId: poll.id, options: { create: { optionId: poll.options[0]!.id } } } });
+    return poll;
+  };
   beforeAll(async () => {
     const url = process.env.TEST_DATABASE_URL;
     if (!url || !/^\/chtaw_test_[a-f0-9]{12}$/.test(new URL(url).pathname) || process.env.ISOLATED_TEST_DATABASE !== new URL(url).pathname.slice(1)) throw Error("A newly created isolated test database is required.");
@@ -223,6 +226,17 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     await worker.work(); await worker.work(new Date(start.getTime() - 86400000));
     const rows = await db.notification.findMany({ where: { entityId: poll.id } });
     expect(rows).toHaveLength(1); expect(rows[0]!.userId).toBe(another.id);
+  });
+  it("annule un rappel si l’étudiant retire son vote et ignore les créneaux non validés", async () => {
+    const start = new Date(Date.now() + 120 * 3600000), poll = await createSession(start);
+    await worker.work();
+    await db.pollVote.delete({ where: { pollId_userId: { pollId: poll.id, userId: student.id } } });
+    await worker.work(new Date(start.getTime() - 86400000));
+    expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
+    const pending = await createSession(new Date(Date.now() + 130 * 3600000));
+    await db.pollOption.update({ where: { id: pending.options[0]!.id }, data: { validatedAt: null } });
+    await worker.work();
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: pending.id } })).toBe(0);
   });
   const subscriptionInput = () => {
     const key = createECDH("prime256v1"); key.generateKeys();

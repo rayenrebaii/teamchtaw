@@ -47,6 +47,9 @@ export class AttendanceController {
   @Organizer() @Delete("polls/:id/options/:optionId") removeSlot(
     @CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("optionId", ParseUUIDPipe) optionId: string,
   ) { return this.management.removeSlot(actor, id, optionId); }
+  @Organizer() @Post("polls/:id/options/:optionId/validate") validateSlot(
+    @CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Param("optionId", ParseUUIDPipe) optionId: string,
+  ) { return this.management.validateSlot(actor, id, optionId); }
   @Organizer() @Get("admin/attendance/sessions") sessions(
     @CurrentUser() actor: Actor,
     @Query() query: AttendanceQueryDto,

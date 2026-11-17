@@ -40,7 +40,7 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
   const mark = async (id: string, status: "PRESENT" | "ABSENT", firstOnly = false) => {
     const poll = await db.poll.findUniqueOrThrow({ where: { id }, include: { options: { orderBy: { position: "asc" } }, participants: { where: { userId: student.id }, include: { marks: true } } } });
     const person = poll.participants[0]!;
-    const options = firstOnly ? poll.options.slice(0, 1) : poll.options;
+    const options = poll.options.slice(0, 1);
     return api().put(`/api/v1/polls/${id}/attendance`).set(auth(collab)).send({ entries: options.map((option) => ({
       userId: student.id, optionId: option.id, status, version: person.marks.find((m) => m.optionId === option.id)?.version ?? 0, participantVersion: person.version,
     })) });
@@ -72,7 +72,7 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
   beforeEach(() => { limiter.onApplicationShutdown(); limiter = new ThrottlerStorageService(); });
   afterAll(async () => { limiter.onApplicationShutdown(); await app?.close(); });
 
-  it("serializes the last place, rolls back failed switches, and deletes attendance completely", async () => {
+  it("serializes the last place, rolls back failed switches, and archives a started session", async () => {
     const password = "Capacity-Disposable-Password-2026!";
     const user = await db.user.create({ data: { email: `${randomUUID()}@capacity.invalid`, passwordHash: await hash(password), firstName: "Capacity", lastName: "Fixture", role: "USER", status: "APPROVED", emailVerified: true } });
     await db.groupMember.create({ data: { groupId, userId: user.id } });
@@ -106,8 +106,8 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     await api().delete(`/api/v1/polls/${poll.id}/options/${b}`).set(auth(admin)).expect(409);
     expect(await db.pollVote.count({ where: { pollId: poll.id, userId: winner.id } })).toBe(1);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth(admin)).expect(204);
-    expect(await db.poll.findUnique({ where: { id: poll.id } })).toBeNull();
-    expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(0);
+    expect((await db.poll.findUniqueOrThrow({ where: { id: poll.id } })).archivedAt).not.toBeNull();
+    expect(await db.pollVote.count({ where: { pollId: poll.id } })).toBe(2);
     expect(await db.sessionAttendanceEdit.count({ where: { pollId: poll.id } })).toBe(0);
   });
 
@@ -123,6 +123,7 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     const { poll, data } = await publish(admin, inaccessibleId);
     await api().patch(`/api/v1/polls/${poll.id}`).set(auth(admin)).send({ ...data, question: "Own session edited" }).expect(200);
     await api().get(`/api/v1/polls/${poll.id}/attendance`).set(auth(admin)).expect(200);
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0]!.id}/validate`).set(auth(admin)).expect(201);
     const sessions = (await api().get(`/api/v1/admin/attendance/sessions?pollId=${poll.id}`).set(auth(admin)).expect(200)).body;
     expect(sessions.items.map((item: { id: string }) => item.id)).toContain(poll.id);
     expect(await db.groupMember.count({ where: { userId: admin.id, groupId: inaccessibleId } })).toBe(0);
@@ -153,12 +154,16 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
       expect((await event).id).toBe(poll.id);
     } finally { administrator.disconnect(); collaborator.disconnect(); }
   });
-  it("enforces ownership for every admin and collaborator mutation, without granting an admin ownership bypass", async () => {
+  it("allows administrators access while restricting collaborators to their own sessions", async () => {
     const actors = [admin, otherAdmin, collab, otherCollab];
     for (const owner of actors) {
       const { poll, data } = await publish(owner);
       for (const stranger of actors.filter((actor) => actor.id !== owner.id)) {
         const base = `/api/v1/polls/${poll.id}`;
+        if (stranger.id === admin.id || stranger.id === otherAdmin.id) {
+          await api().get(`${base}/attendance`).set(auth(stranger)).expect(200);
+          continue;
+        }
         await api().patch(base).set(auth(stranger)).send(data).expect(403);
         await api().patch(base).set(auth(stranger)).send({ ...data, status: "CANCELLED" }).expect(403);
         await api().get(`${base}/attendance`).set(auth(stranger)).expect(403);
@@ -229,10 +234,13 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     await api().put(path).set(auth(student)).send({ optionIds: [poll.options[0]!.id] }).expect(409);
   });
 
-  it("counts one absence per session, corrects alerts and erases results and reconciles alerts on deletion", async () => {
+  it("counts voted absences, corrects alerts and preserves history on archival", async () => {
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
-      const { poll } = await publish(); ids.push(poll.id); await finish(poll.id);
+      const { poll } = await publish(); ids.push(poll.id);
+      await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[0]!.id] }).expect(201);
+      await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0]!.id}/validate`).set(auth(collab)).expect(201);
+      await finish(poll.id);
       await mark(poll.id, "ABSENT").then((response) => expect(response.status).toBe(200));
     }
     const state = () => db.organizerAbsenceState.findUniqueOrThrow({ where: { userId_organizerId: { userId: student.id, organizerId: collab.id } } });
@@ -248,18 +256,25 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     expect(await db.organizerAbsenceAlert.count({ where: { userId: student.id, organizerId: collab.id, resolvedAt: null } })).toBe(1);
     const id = ids[2]!;
     await api().delete(`/api/v1/polls/${id}`).set(auth(admin)).expect(204);
-    expect(await db.poll.findUnique({ where: { id } })).toBeNull();
-    expect((await state()).total).toBe(2);
+    expect((await db.poll.findUniqueOrThrow({ where: { id } })).archivedAt).not.toBeNull();
+    expect((await state()).total).toBe(3);
     const personal = (await api().get("/api/v1/attendance/me").set(auth(student)).expect(200)).body;
-    expect(personal.sessions.find((session: { id: string }) => session.id === id)).toBeUndefined();
+    expect(personal.sessions.find((session: { id: string }) => session.id === id)).toBeDefined();
     await api().delete(`/api/v1/polls/${id}`).set(auth(admin)).expect(404);
     const remainingStudent = await db.user.create({ data: {
       email: `${randomUUID()}@audit.invalid`, passwordHash: await hash("Audit-Remaining-Fixture-2026!"), firstName: "Remaining", lastName: "Student", role: "USER", status: "APPROVED",
       memberships: { create: { groupId } },
     } });
-    await api().put(`/api/v1/polls/${ids[1]}/attendance/participants/${remainingStudent.id}`).set(auth(collab)).send({ included: true, version: 0 }).expect(200);
-    await api().put(`/api/v1/polls/${ids[1]}/attendance/absence/${remainingStudent.id}`).set(auth(collab)).send({ version: 1 }).expect(200);
-    const unrelated = await publish(otherCollab); await finish(unrelated.poll.id);
+    const remainingToken = (await api().post("/api/v1/auth/login").send({ email: remainingStudent.email, password: "Audit-Remaining-Fixture-2026!" }).expect(200)).body.accessToken;
+    const ownRemaining = await publish(collab);
+    await api().post(`/api/v1/polls/${ownRemaining.poll.id}/votes`).set({ Authorization: `Bearer ${remainingToken}` }).send({ optionIds: [ownRemaining.poll.options[0]!.id] }).expect(201);
+    await api().post(`/api/v1/polls/${ownRemaining.poll.id}/options/${ownRemaining.poll.options[0]!.id}/validate`).set(auth(collab)).expect(201);
+    await finish(ownRemaining.poll.id);
+    await api().put(`/api/v1/polls/${ownRemaining.poll.id}/attendance/absence/${remainingStudent.id}`).set(auth(collab)).send({ version: 0 }).expect(200);
+    const unrelated = await publish(otherCollab);
+    await api().post(`/api/v1/polls/${unrelated.poll.id}/votes`).set({ Authorization: `Bearer ${remainingToken}` }).send({ optionIds: [unrelated.poll.options[0]!.id] }).expect(201);
+    await api().post(`/api/v1/polls/${unrelated.poll.id}/options/${unrelated.poll.options[0]!.id}/validate`).set(auth(otherCollab)).expect(201);
+    await finish(unrelated.poll.id);
     await api().put(`/api/v1/polls/${unrelated.poll.id}/attendance/absence/${remainingStudent.id}`).set(auth(otherCollab)).send({ version: 0 }).expect(200);
     expect((await db.absenceState.findUniqueOrThrow({ where: { userId: remainingStudent.id } })).total).toBe(2);
     await api().delete(`/api/v1/users/${student.id}`).set(auth(admin)).expect(204);
@@ -271,7 +286,7 @@ describe("Final session audit: real HTTP and PostgreSQL", () => {
     expect(await db.absenceState.findUnique({ where: { userId: student.id } })).toBeNull();
     expect(await db.organizerAbsenceState.count({ where: { userId: student.id } })).toBe(0);
     expect(await db.organizerAbsenceAlert.count({ where: { userId: student.id } })).toBe(0);
-    expect(await db.poll.count({ where: { id } })).toBe(0);
+    expect((await db.poll.findUniqueOrThrow({ where: { id } })).archivedAt).not.toBeNull();
     await api().delete(`/api/v1/users/${collab.id}`).set(auth(admin)).expect(204);
     expect(await db.user.findUnique({ where: { id: collab.id } })).toBeNull();
     expect(await db.poll.count({ where: { authorId: collab.id } })).toBe(0);

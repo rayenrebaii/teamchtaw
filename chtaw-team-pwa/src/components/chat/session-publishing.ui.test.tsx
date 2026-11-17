@@ -38,7 +38,7 @@ it.each([
   fireEvent.change(dialog.getByLabelText("Date et heure"), { target: { value: "2099-01-02T10:00" } });
   fireEvent.change(dialog.getByLabelText("Nombre maximal de participants"), { target: { value: "10" } });
   fireEvent.click(dialog.getByRole("button", { name: "Publier le sondage de séance" }));
-  await waitFor(() => expect(create).toHaveBeenCalledWith(groupId, expect.objectContaining({ type: "SESSION", question: saved.question, singleChoice: true, mandatoryAttendance: true, capacities: [10], startsAt: ["2099-01-02T09:00:00.000Z"], options: ["Horaire 1"] })));
+  await waitFor(() => expect(create).toHaveBeenCalledWith(groupId, expect.objectContaining({ type: "SESSION", question: saved.question, singleChoice: true, mandatoryAttendance: false, capacities: [10], startsAt: ["2099-01-02T09:00:00.000Z"], options: ["Horaire 1"] })));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(useCommunity.getState().polls).toContainEqual(saved);
   expect(useCommunity.getState().sync).toHaveBeenCalled();

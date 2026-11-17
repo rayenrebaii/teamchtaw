@@ -155,20 +155,17 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           include: { notificationPreference: true, memberships: { where: { groupId: { in: pollGroupIds(option?.poll ?? job.session) } }, orderBy: { groupId: "asc" }, take: 1 } },
         });
         const concerned =
-          option &&
-          (option.poll.mandatoryAttendance
-            ? !!(await tx.sessionParticipant.findFirst({
-                where: { pollId: option.pollId, userId: job.userId, included: true },
-              }))
-            : !!(await tx.pollVote.findFirst({
+          option && !!(await tx.pollVote.findFirst({
                 where: {
                   pollId: option.pollId,
                   userId: job.userId,
                   options: { some: { optionId: option.id } },
                 },
-              })));
+              }));
         if (
           !option ||
+          !option.validatedAt ||
+          !!option.poll.archivedAt ||
           option.poll.status === "CANCELLED" ||
           !option.startsAt ||
           option.startsAt.getTime() !== job.startsAt.getTime() ||
@@ -219,7 +216,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     await this.db
       .$executeRaw`UPDATE "SessionReminderDelivery" d SET status=\'CANCELLED\' WHERE d.status=\'PENDING\' AND NOT EXISTS (SELECT 1 FROM "PollOption" o JOIN "Poll" p ON p.id=o."pollId" WHERE o.id=d."optionId" AND o."startsAt"=d."startsAt" AND p.status<>\'CANCELLED\')`;
     const options = await this.db.pollOption.findMany({
-      where: { startsAt: { gt: now }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
+      where: { validatedAt: { not: null }, startsAt: { gt: now }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
       include: { poll: { include: { groups: true } } },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     });
@@ -231,20 +228,14 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           where: { id: option.id },
           include: { poll: { include: { groups: true } } },
         });
-        if (!current?.startsAt || current.startsAt <= now || current.poll.status === "CANCELLED")
+        if (!current?.validatedAt || !current.startsAt || current.startsAt <= now || current.poll.status === "CANCELLED")
           return;
         const students = await tx.user.findMany({
           where: {
             role: "USER",
             status: "APPROVED",
             memberships: { some: { groupId: { in: pollGroupIds(current.poll) } } },
-            ...(current.poll.mandatoryAttendance
-              ? { sessionParticipants: { some: { pollId: current.pollId, included: true } } }
-              : {
-                  votes: {
-                    some: { pollId: current.pollId, options: { some: { optionId: current.id } } },
-                  },
-                }),
+            votes: { some: { pollId: current.pollId, options: { some: { optionId: current.id } } } },
           },
           select: { id: true },
         });

@@ -37,7 +37,7 @@ export function SessionEditor({ poll, groupId: fixedGroupId, close, votesOnly = 
   );
   const [busy, setBusy] = useState(false);
   const locked = !!poll?.votes.length || !!poll?.attendanceLockedAt;
-  const mandatory = poll ? !!poll.mandatoryAttendance : true;
+  const mandatory = poll ? !!poll.mandatoryAttendance : false;
   return (
     <Modal
       open

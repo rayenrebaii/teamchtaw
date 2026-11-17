@@ -195,6 +195,7 @@ export const attendanceService = {
       body: JSON.stringify(input),
     }),
   removeSlot: (id: string, optionId: string) => api.request<Poll>(`/polls/${encodeURIComponent(id)}/options/${encodeURIComponent(optionId)}`, { method: "DELETE" }),
+  validateSlot: (id: string, optionId: string) => api.request<Poll>(`/polls/${encodeURIComponent(id)}/options/${encodeURIComponent(optionId)}/validate`, { method: "POST" }),
   addGroups: (id: string, groupIds: string[]) => api.request<Poll>(`/polls/${encodeURIComponent(id)}/groups`, { method: "POST", body: JSON.stringify({ groupIds }) }),
   remove: (id: string) => api.request<void>(`/polls/${encodeURIComponent(id)}`, { method: "DELETE" }),
   roster: (id: string) => api.request<Roster>(`/polls/${encodeURIComponent(id)}/attendance`),

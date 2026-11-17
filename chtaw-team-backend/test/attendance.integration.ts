@@ -36,9 +36,11 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
   async function create(count: number) {
     const scheduled = input(count);
     scheduled.startsAt = scheduled.startsAt.map((value) => new Date(Date.parse(value) + ++fixtureSchedule * 7 * 86400000).toISOString());
-    return (
+    const poll = (
       await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(scheduled).expect(201)
     ).body;
+    for (const option of poll.options) await api().post(`/api/v1/polls/${poll.id}/options/${option.id}/validate`).set(auth()).expect(201);
+    return poll;
   }
   async function vote(
     poll: { id: string; options: { id: string }[] },
@@ -120,6 +122,31 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     if (app) await app.close();
   });
 
+  it("planifie uniquement les créneaux validés et retire indépendamment les autres", async () => {
+    const data = input(2);
+    data.startsAt = ["2100-01-01T10:00:00.000Z", "2100-01-01T12:00:00.000Z"];
+    const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(data).expect(201)).body;
+    await vote(poll);
+    expect((await roster(poll.id)).slots).toHaveLength(0);
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}/validate`).set(auth(studentToken)).expect(403);
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}/validate`).set(auth()).expect(201);
+    const planned = await roster(poll.id);
+    expect(planned.slots.map((slot: { id: string }) => slot.id)).toEqual([poll.options[0].id]);
+    expect(planned.slots[0].students[0].user.id).toBe(studentId);
+    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[1].id}`).set(auth()).expect(200);
+    expect((await roster(poll.id)).slots).toHaveLength(1);
+    await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
+  });
+  it("recherche les séances par date de Tunis et groupe", async () => {
+    const data = input(1);
+    data.startsAt = ["2101-01-01T23:30:00.000Z"];
+    const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(data).expect(201)).body;
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}/validate`).set(auth()).expect(201);
+    const find = (day: string) => api().get(`/api/v1/admin/attendance/sessions?pollId=${poll.id}&groupId=${groupId}&from=${day}&to=${day}`).set(auth()).expect(200);
+    expect((await find("2101-01-01")).body.total).toBe(0);
+    expect((await find("2101-01-02")).body.total).toBe(1);
+  });
+
   it.each([1, 2, 3, 5, 10])(
     "génère les listes uniquement pour les %i horaires choisis",
     async (count) => {
@@ -131,6 +158,58 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
       expect(list.slots.slice(1).every((slot: { students: unknown[] }) => slot.students.length === 0)).toBe(true);
     },
   );
+  it("sépare les votants par créneau, ouvre le pointage au début et conserve l’auteur et l’historique", async () => {
+    const poll = await create(2);
+    const collaborator = await db.user.create({ data: {
+      email: `coach-${randomUUID()}@test.invalid`, passwordHash: await argon2.hash(password),
+      firstName: "Coach", lastName: "Test", status: "APPROVED", role: "COLLABORATOR",
+    } });
+    await db.poll.update({ where: { id: poll.id }, data: { authorId: collaborator.id } });
+    const other = await db.user.create({ data: {
+      email: `slot-${randomUUID()}@test.invalid`, passwordHash: await argon2.hash(password),
+      firstName: "Autre", lastName: "Étudiant", status: "APPROVED", role: "USER",
+    } });
+    await api().put(`/api/v1/groups/${groupId}/members/${other.id}`).set(auth()).expect(200);
+    const otherToken = (await api().post("/api/v1/auth/login").send({ email: other.email, password }).expect(200)).body.accessToken;
+    await vote(poll);
+    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(otherToken)).send({ optionIds: [poll.options[1].id] }).expect(201);
+    let list = await roster(poll.id);
+    expect(list.slots[0].students.map((s: { user: { id: string } }) => s.user.id)).toEqual([studentId]);
+    expect(list.slots[1].students.map((s: { user: { id: string } }) => s.user.id)).toEqual([other.id]);
+    const entry = { userId: studentId, optionId: poll.options[0].id, status: "PRESENT", version: 0 };
+    await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [entry] }).expect(409);
+    await db.pollOption.update({ where: { id: poll.options[0].id }, data: { startsAt: new Date(Date.now() - 7200000), endsAt: new Date(Date.now() - 3600000) } });
+    await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [{ ...entry, userId: other.id }] }).expect(400);
+    await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [entry] }).expect(200);
+    list = await roster(poll.id);
+    expect(list.slots[0].students[0].attendance).toBe("PRESENT");
+    const history = (await api().get(`/api/v1/users/${studentId}/attendance`).set(auth()).expect(200)).body;
+    const record = history.sessions.find((s: { id: string }) => s.id === poll.id);
+    expect(record.selections[0].edits[0].actor.firstName).toBe("Admin");
+    await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
+    expect((await db.poll.findUniqueOrThrow({ where: { id: poll.id } })).archivedAt).not.toBeNull();
+    expect(await db.attendanceEdit.count({ where: { selection: { pollId: poll.id } } })).toBe(1);
+    const archivedHistory = (await api().get(`/api/v1/users/${studentId}/attendance`).set(auth()).expect(200)).body;
+    expect(archivedHistory.sessions.find((s: { id: string }) => s.id === poll.id).final).toBe("PRESENT");
+  });
+  it("ajoute au pointage une inscription tardive sur une ancienne séance obligatoire", async () => {
+    const data = input(1);
+    data.mandatoryAttendance = true;
+    data.startsAt = [new Date(Date.UTC(2099, 10, 1)).toISOString()];
+    const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(data).expect(201)).body;
+    const late = await db.user.create({ data: { email: `late-${randomUUID()}@test.invalid`, passwordHash: await argon2.hash(password), firstName: "Inscription", lastName: "Tardive", status: "APPROVED", role: "USER" } });
+    await api().put(`/api/v1/groups/${groupId}/members/${late.id}`).set(auth()).expect(200);
+    const token = (await api().post("/api/v1/auth/login").send({ email: late.email, password }).expect(200)).body.accessToken;
+    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(token)).send({ optionIds: [poll.options[0].id] }).expect(201);
+    expect((await roster(poll.id)).slots).toHaveLength(0);
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0].id}/validate`).set(auth()).expect(201);
+    const list = await roster(poll.id);
+    const row = list.slots[0].students.find((s: { user: { id: string } }) => s.user.id === late.id);
+    expect(row).toBeDefined();
+    expect(list.slots[0].students.some((s: { user: { id: string } }) => s.user.id === studentId)).toBe(false);
+    await db.pollOption.update({ where: { id: poll.options[0].id }, data: { startsAt: new Date(Date.now() - 7200000), endsAt: new Date(Date.now() - 3600000) } });
+    await api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth()).send({ entries: [{ userId: late.id, optionId: poll.options[0].id, status: "PRESENT", version: row.version, participantVersion: row.participantVersion }] }).expect(200);
+  });
   it("interdit aussi le pointage anticipé pour les anciennes séances sur inscription", async () => {
     const poll = await create(1);
     await vote(poll);
@@ -277,9 +356,7 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
       .expect(400);
     let history = (await api().get("/api/v1/attendance/me").set(auth(studentToken)).expect(200))
       .body;
-    expect(history.sessions.find((p: { id: string }) => p.id === poll.id).final).toBe(
-      "NON_INSCRIT",
-    );
+    expect(history.sessions.find((p: { id: string }) => p.id === poll.id)).toBeUndefined();
     await vote(poll, [poll.options[0].id]);
     await api()
       .patch(`/api/v1/polls/${poll.id}`)

@@ -60,7 +60,7 @@ export class AccessService {
     // Archival holds the same group lock. Re-read after waiting for that lock.
     const poll = await tx.poll.findUnique({ where: { id }, select: { groupId: true, authorId: true, archivedAt: true } });
     if (!poll || poll.archivedAt) throw new NotFoundException("Séance introuvable.");
-    if (poll.authorId !== actor.id) throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
+    if (actor.role !== "ADMIN" && poll.authorId !== actor.id) throw new ForbiddenException("Cette séance appartient à un autre organisateur.");
     return poll;
   }
   async poll(tx: Prisma.TransactionClient, actor: Actor, id: string) {

@@ -24,6 +24,12 @@ import {
 import { finalAttendance } from "./attendance.rules";
 import { assertAttendanceStarted } from "./attendance-time";
 
+const tunisDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis", year: "numeric", month: "2-digit", day: "2-digit" });
+function tunisDay(date: Date) {
+  const parts = tunisDate.formatToParts(date);
+  return ["year", "month", "day"].map(type => parts.find(part => part.type === type)!.value).join("-");
+}
+
 const personInclude = {
   marks: true,
   user: { select: { ...userSelect, studentOrganizerAbsences: true } },
@@ -156,18 +162,21 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           where: { pollId: id },
           include: personInclude,
         });
+        const votes = await tx.pollVote.findMany({ where: { pollId: id }, include: { options: true } });
+        const forPerson = (person: Person) => ({ ...poll, options: poll.options.filter(option => option.validatedAt && votes.some(vote => vote.userId === person.userId && vote.options.some(selection => selection.optionId === option.id))) });
         const candidates = participants.filter(
           (person) =>
             person.included &&
             !person.absenceConfirmedAt &&
-            allSessionSlotsAbsent(poll.options, person.marks),
+            allSessionSlotsAbsent(forPerson(person).options, person.marks),
         );
         for (const userId of candidates.map((person) => person.userId).sort())
           await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
         const changed: string[] = [];
         for (const person of participants) {
-          if (await this.confirmAllAbsent(tx, poll, person)) changed.push(person.userId);
-          await this.report(tx, poll, person);
+          const selectedPoll = forPerson(person);
+          if (await this.confirmAllAbsent(tx, selectedPoll, person)) changed.push(person.userId);
+          await this.report(tx, selectedPoll, person);
         }
         await reconcileAbsences(tx, changed, poll.group.name);
       },
@@ -244,6 +253,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           if (!person?.included)
             throw new BadRequestException("Étudiant non concerné par cette séance.");
           const entries = dto.entries.filter((e) => e.userId === userId);
+          const selected = await tx.pollVoteOption.findMany({ where: { pollId: id, vote: { userId } }, select: { optionId: true } });
+          const selectedPoll = { ...poll, options: poll.options.filter(option => option.validatedAt && selected.some(selection => selection.optionId === option.id)) };
           if (entries.some((e) => e.participantVersion !== person.version))
             throw new ConflictException(
               "Pointage modifié par un autre administrateur. Actualisez la liste.",
@@ -251,6 +262,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           for (const entry of entries) {
             if (!poll.options.some((o) => o.id === entry.optionId))
               throw new BadRequestException("Créneau étranger à la séance.");
+            const selection = await tx.pollVoteOption.findFirst({ where: { pollId: id, optionId: entry.optionId, vote: { userId } } });
+            if (!selection) throw new BadRequestException("Cet étudiant n’a pas voté pour cet horaire.");
             assertAttendanceStarted(poll.options.find((option) => option.id === entry.optionId));
             const mark = person.marks.find((m) => m.optionId === entry.optionId);
             if (entry.version !== (mark?.version ?? 0))
@@ -279,11 +292,11 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
             data: { version: { increment: 1 } },
             include: personInclude,
           });
-          const allAbsent = allSessionSlotsAbsent(poll.options, updated.marks);
+          const allAbsent = allSessionSlotsAbsent(selectedPoll.options, updated.marks);
           const hasPresence = updated.marks.some((m) => m.attendance === "PRESENT");
           if (
             updated.absenceConfirmedAt &&
-            (hasPresence || (allSessionSlotsAbsent(poll.options, person.marks) && !allAbsent))
+            (hasPresence || (allSessionSlotsAbsent(selectedPoll.options, person.marks) && !allAbsent))
           ) {
             await tx.sessionParticipant.update({
               where: { pollId_userId: key },
@@ -301,8 +314,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
             });
             updated.absenceConfirmedAt = null;
           }
-          await this.confirmAllAbsent(tx, poll, updated, actor.id);
-          await this.report(tx, poll, updated);
+          await this.confirmAllAbsent(tx, selectedPoll, updated, actor.id);
+          await this.report(tx, selectedPoll, updated);
         }
         await tx.poll.update({
           where: { id },
@@ -319,10 +332,11 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
     await this.db.$transaction(
       async (tx) => {
         const poll = await this.locked(tx, actor, id);
-        if (poll.status === "CANCELLED" || !sessionFinished(poll.options))
-          throw new ConflictException(
-            "Attendez la fin du dernier créneau d’une séance non annulée.",
-          );
+        const selections = await tx.pollVoteOption.findMany({ where: { pollId: id, vote: { userId } }, select: { optionId: true } });
+        const selectedOptions = poll.options.filter(option => option.validatedAt && selections.some(selection => selection.optionId === option.id));
+        if (!selectedOptions.length) throw new BadRequestException("Cet étudiant n’a pas voté pour un créneau validé.");
+        if (poll.status === "CANCELLED" || !sessionFinished(selectedOptions))
+          throw new ConflictException("Attendez la fin du créneau validé.");
         await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
         const key = { pollId: id, userId };
         const person = await tx.sessionParticipant.findUnique({
@@ -452,12 +466,12 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           version: p.version,
           final: mandatoryFinal(p),
         })),
-        slots: poll.options
+        slots: poll.options.filter((option) => option.validatedAt)
           .sort((a, b) => a.position - b.position)
           .map((option) => ({
             ...option,
             students: people
-              .filter((p) => p.included)
+              .filter((p) => p.included && votes.some((v) => v.userId === p.userId && v.options.some((o) => o.optionId === option.id)))
               .map((person) => {
                 const mark = person.marks.find((m) => m.optionId === option.id);
                 const vote = votes.find((v) => v.userId === person.userId);
@@ -485,14 +499,15 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       where: {
         type: "SESSION",
         archivedAt: null,
-        authorId: actor.id,
+        options: { some: { validatedAt: { not: null } } },
+        ...(actor.role === "ADMIN" ? {} : { authorId: actor.id }),
         AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
         id: query.pollId,
       },
       include: {
         group: true,
         groups: { include: { group: { select: { id: true, name: true } } } },
-        options: { orderBy: { position: "asc" } },
+        options: { where: { validatedAt: { not: null } }, orderBy: { position: "asc" } },
         participants: { where: { included: true }, include: { marks: true } },
         votes: { include: { options: true } },
       },
@@ -510,9 +525,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         const phase =
           p.status === "CANCELLED"
             ? "CANCELLED"
-            : !p.mandatoryAttendance
-              ? "LEGACY"
-              : sessionFinished(p.options, now)
+            : sessionFinished(p.options, now)
                 ? "FINISHED"
                 : p.options.some((o) => o.startsAt && o.startsAt <= now)
                   ? "ONGOING"
@@ -543,8 +556,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
             p.options.some(
               (o) =>
                 o.startsAt &&
-                (!query.from || o.startsAt.toISOString().slice(0, 10) >= query.from) &&
-                (!query.to || o.startsAt.toISOString().slice(0, 10) <= query.to),
+                (!query.from || tunisDay(o.startsAt) >= query.from) &&
+                (!query.to || tunisDay(o.startsAt) <= query.to),
             )),
       );
     return {

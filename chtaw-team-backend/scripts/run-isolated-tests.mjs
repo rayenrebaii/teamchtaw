@@ -105,7 +105,8 @@ try {
       await startEmulator();
       await run(["node_modules/jest/bin/jest.js", "--config", "jest.firebase-emulator.cjs", "--runInBand"]);
     } else {
-      await run(["node_modules/jest/bin/jest.js", "--config", "jest.integration.cjs", "--runInBand"]);
+      const selected = process.argv.includes("--attendance") ? "test/attendance.integration.ts" : process.argv.includes("--collaborator") ? "test/collaborator.integration.ts" : process.argv.includes("--notifications") ? "test/notifications.integration.ts" : process.argv.includes("--mandatory") ? "test/mandatory-attendance.integration.ts" : process.argv.includes("--audit") ? "test/session-audit.integration.ts" : process.argv.includes("--shared") ? "test/shared-sessions.integration.ts" : process.argv.includes("--corrections") ? "test/corrections.integration.ts" : undefined;
+      await run(["node_modules/jest/bin/jest.js", "--config", "jest.integration.cjs", "--runInBand", ...(selected ? [selected] : [])]);
     }
   }
 } catch (error) {

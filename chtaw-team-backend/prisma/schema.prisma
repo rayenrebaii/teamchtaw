@@ -326,6 +326,7 @@ model PollOption {
   position   Int
   startsAt   DateTime?
   endsAt     DateTime?
+  validatedAt DateTime? @default(now())
   notificationUpdatedAt DateTime @default(now()) @updatedAt
   marks      SessionMark[]
   selections PollVoteOption[]

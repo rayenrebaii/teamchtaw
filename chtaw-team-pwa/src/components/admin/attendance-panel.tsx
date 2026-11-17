@@ -537,7 +537,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
     setFilters((current) => ({ ...current, ...patch }));
     setPage(1);
   };
-  const results = filterActivities(store.polls.filter((poll) => actor?.role === "USER" || poll.type !== "SESSION" || poll.authorId === actor?.id), filters, now);
+  const results = filterActivities(store.polls.filter((poll) => actor?.role !== "COLLABORATOR" || poll.type !== "SESSION" || poll.authorId === actor?.id), filters, now);
   const pages = Math.max(1, Math.ceil(results.length / 10));
   const currentPage = Math.min(page, pages);
   const detail = store.polls.find((poll) => poll.id === detailId);

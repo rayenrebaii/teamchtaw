@@ -42,6 +42,11 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     await db.pollOption.updateMany({ where: { pollId: id }, data: { startsAt: new Date(Date.now() - 3600000), endsAt: new Date(Date.now() - 1800000) } });
   };
   const absent = async (token: string, id: string) => {
+    const options = await db.pollOption.findMany({ where: { pollId: id }, orderBy: { position: "asc" } });
+    const chosen = options[0]!;
+    if (!chosen.validatedAt) await api().post(`/api/v1/polls/${id}/options/${chosen.id}/validate`).set(auth(token)).expect(201);
+    if (!await db.pollVote.findUnique({ where: { pollId_userId: { pollId: id, userId: studentId } } }))
+      await api().post(`/api/v1/polls/${id}/votes`).set(auth(student)).send({ optionIds: [chosen.id] }).expect(201);
     await finish(id);
     const person = await db.sessionParticipant.findUniqueOrThrow({ where: { pollId_userId: { pollId: id, userId: studentId } } });
     return api().put(`/api/v1/polls/${id}/attendance/absence/${studentId}`).set(auth(token)).send({ version: person.version });
@@ -177,11 +182,13 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     const replacement = (await publish(collaboratorB).expect(201)).body;
     await api().delete(`/api/v1/polls/${replacement.id}`).set(auth(collaboratorB)).expect(204);
   });
-  it("autorise le pointage des non-votants et préserve les votes", async () => {
+  it("refuse le pointage sans vote puis conserve les votes des étudiants inscrits", async () => {
     await absent(collaboratorA, aPoll.id).then((response) => expect(response.status).toBe(200));
     expect(await db.pollVote.count({ where: { pollId: aPoll.id, userId: studentId } })).toBe(1);
+    const bPerson = await db.sessionParticipant.findUniqueOrThrow({ where: { pollId_userId: { pollId: bPoll.id, userId: studentId } } });
+    await api().put(`/api/v1/polls/${bPoll.id}/attendance/absence/${studentId}`).set(auth(collaboratorB)).send({ version: bPerson.version }).expect(400);
     await absent(collaboratorB, bPoll.id).then((response) => expect(response.status).toBe(200));
-    expect(await db.pollVote.count({ where: { pollId: bPoll.id } })).toBe(0);
+    expect(await db.pollVote.count({ where: { pollId: bPoll.id } })).toBe(1);
   });
   it("isole les compteurs et déclenche une seule alerte à trois absences chez A", async () => {
     const extra = await Promise.all([create(collaboratorA), create(collaboratorA)]);
@@ -213,7 +220,9 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
     expect(await db.sessionAttendanceEdit.count({ where: { pollId: aPoll.id, userId: studentId, action: "MARK" } })).toBe(1);
   });
   it("évite les doublons lors de confirmations concurrentes et protège les versions", async () => {
-    const poll = await create(collaboratorA); await finish(poll.id);
+    const poll = await create(collaboratorA);
+    await api().post(`/api/v1/polls/${poll.id}/options/${poll.options[0]!.id}/validate`).set(auth(collaboratorA)).expect(201);
+    await api().post(`/api/v1/polls/${poll.id}/votes`).set(auth(student)).send({ optionIds: [poll.options[0]!.id] }).expect(201);
     const responses = await Promise.all([absent(collaboratorA, poll.id), absent(collaboratorA, poll.id)]);
     expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
     expect(await db.organizerAbsenceAlert.count({ where: { userId: studentId, organizerId: aId, resolvedAt: null } })).toBe(1);

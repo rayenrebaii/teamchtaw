@@ -20,6 +20,11 @@ export class PollDeletionService {
       await tx.$queryRaw`SELECT id FROM "Poll" WHERE id=${id}::uuid FOR UPDATE`;
       const poll = await tx.poll.findUnique({ where: { id }, include: { groups: true, options: true, votes: { include: { options: true } }, participants: { include: { marks: true } }, group: true } });
       if (!poll) throw new NotFoundException("Sondage introuvable.");
+      if (poll.type === "SESSION" && (poll.attendanceLockedAt || poll.options.some((option) => !option.startsAt || option.startsAt <= new Date()))) {
+        await tx.poll.update({ where: { id }, data: { archivedAt: new Date() } });
+        await tx.sessionReminderDelivery.deleteMany({ where: { sessionId: id } });
+        return pollGroupIds(poll);
+      }
       const ids = [...new Set([...poll.votes.map((vote) => vote.userId), ...poll.participants.map((person) => person.userId)])].sort();
       for (const userId of ids) await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
       const messages = await tx.message.findMany({ where: { pollId: id }, select: { id: true } });

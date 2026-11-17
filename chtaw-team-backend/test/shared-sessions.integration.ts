@@ -27,11 +27,14 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
   const auth = (actor: Identity) => ({ Authorization: `Bearer ${actor.token}` });
   const input = (ids: string[] = groups.slice(0, 2), capacities = [1, 10]) => {
     const start = Date.now() + (500 + ++schedule) * 86400000;
-    return { type: "SESSION", question: "Shared training", singleChoice: true, status: "OPEN", groupIds: ids,
+    return { type: "SESSION", mandatoryAttendance: true, question: "Shared training", singleChoice: true, status: "OPEN", groupIds: ids,
       options: ["H1", "H2"], capacities, startsAt: [0, 2].map(hours => new Date(start + hours * 3600000).toISOString()) };
   };
-  const create = async (data = input(), actor = coach): Promise<Session> =>
-    (await api().post(`/api/v1/groups/${data.groupIds[0]}/polls`).set(auth(actor)).send(data).expect(201)).body;
+  const create = async (data = input(), actor = coach): Promise<Session> => {
+    const poll = (await api().post(`/api/v1/groups/${data.groupIds[0]}/polls`).set(auth(actor)).send(data).expect(201)).body as Session;
+    for (const option of poll.options) await api().post(`/api/v1/polls/${poll.id}/options/${option.id}/validate`).set(auth(actor)).expect(201);
+    return poll;
+  };
   const cast = (poll: Session, actor: Identity, optionIds: string[], replace = false) =>
     api()[replace ? "put" : "post"](`/api/v1/polls/${poll.id}/votes`).set(auth(actor)).send({ optionIds });
   const add = (poll: Session, actor: Identity, groupIds: string[]) =>
@@ -43,7 +46,7 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
   };
   const mark = async (poll: Session, student: Identity, statuses: ("PRESENT" | "ABSENT")[]) => {
     const person = await db.sessionParticipant.findUniqueOrThrow({ where: { pollId_userId: { pollId: poll.id, userId: student.id } }, include: { marks: true } });
-    return api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth(coach)).send({ entries: statuses.map((status, index) => ({
+    return api().put(`/api/v1/polls/${poll.id}/attendance`).set(auth(coach)).send({ entries: statuses.slice(0, 1).map((status, index) => ({
       userId: student.id, optionId: poll.options[index]!.id, status, version: person.marks.find(row => row.optionId === poll.options[index]!.id)?.version ?? 0, participantVersion: person.version,
     })) });
   };
@@ -94,7 +97,7 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
     const secondaryList = (await api().get("/api/v1/polls?limit=100").set(auth(students[8]!)).expect(200)).body;
     expect(secondaryList.items.filter((row: Session) => row.id === poll.id)).toHaveLength(1);
     const history = (await api().get(`/api/v1/attendance/me?groupId=${groups[1]}`).set(auth(students[0]!)).expect(200)).body;
-    expect(history.items.filter((row: Session) => row.id === poll.id)).toHaveLength(1);
+    expect(history.items.filter((row: Session) => row.id === poll.id)).toHaveLength(loser.id === students[0]!.id ? 1 : 0);
     for (const groupId of groups.slice(0, 2)) expect(events).toContainEqual(expect.objectContaining({ name: "poll:updated", groupId, payload: expect.objectContaining({ id: poll.id }) }));
     await api().get(`/api/v1/polls/${poll.id}`).set(auth(outsider)).expect(403);
   });
@@ -128,7 +131,7 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
     expect(await db.sessionParticipant.count({ where: { pollId: poll.id } })).toBe(9);
     await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[1]!.id}`).set(auth(admin)).expect(409);
     expect(await db.sessionMark.count({ where: { pollId: poll.id } })).toBe(0);
-    const guarded = await create(); await finish(guarded);
+    const guarded = await create(); await cast(guarded, students[0]!, [guarded.options[0]!.id]).expect(201); await finish(guarded);
     expect((await mark(guarded, students[0]!, ["PRESENT", "ABSENT"])).status).toBe(200);
     const before = await db.sessionMark.findMany({ where: { pollId: guarded.id }, orderBy: { optionId: "asc" } });
     await api().delete(`/api/v1/polls/${guarded.id}/options/${guarded.options[0]!.id}`).set(auth(admin)).expect(409);
@@ -142,9 +145,11 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
 
   it("counts a single absence per shared session and preserves mandatory reports and reminders", async () => {
     const poll = await create();
+    await cast(poll, students[0]!, [poll.options[0]!.id]).expect(201);
+    await cast(poll, students[8]!, [poll.options[1]!.id]).expect(201);
     await app.get(NotificationsWorker).work();
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[0]!.id } })).toBe(4);
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[8]!.id } })).toBe(4);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[0]!.id } })).toBe(2);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[8]!.id } })).toBe(2);
     await finish(poll);
     const student = students[0]!;
     const baseline = (await db.absenceState.findUnique({ where: { userId: student.id } }))?.total ?? 0;

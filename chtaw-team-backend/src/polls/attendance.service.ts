@@ -159,6 +159,7 @@ export class AttendanceService {
               pollId: id,
               label,
               position,
+              validatedAt: null,
               capacity: dto.capacities![position],
               startsAt: new Date(dto.startsAt![position]!),
               endsAt: dto.slotEndsAt?.[position] ? new Date(dto.slotEndsAt[position]!) : null,
@@ -256,7 +257,7 @@ export class AttendanceService {
         group: poll.group,
         groups: poll.groups.map(row => row.group),
         attendanceLockedAt: poll.attendanceLockedAt,
-        slots: poll.options.map((option) => ({
+        slots: poll.options.filter((option) => option.validatedAt).map((option) => ({
           ...option,
           students: poll.votes.flatMap((vote) => {
             const selection = vote.options.find((o) => o.optionId === option.id);
@@ -290,7 +291,7 @@ export class AttendanceService {
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
-          authorId: actor.id,
+          ...(actor.role === "ADMIN" ? {} : { authorId: actor.id }),
           AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
           id: query.pollId,
           ...(query.from || query.to
@@ -404,7 +405,8 @@ export class AttendanceService {
     try { new Intl.DateTimeFormat("en", { timeZone: query.timeZone }); }
     catch { throw new BadRequestException("Fuseau horaire invalide."); }
     const history = await this.history(actor, actor.id, true);
-    return { ...history, ...personalAttendance(history.sessions, query) };
+    const scheduled = history.sessions.filter(session => session.selections.some(selection => session.slots.some(slot => slot.optionId === selection.optionId)) || session.final === "PRESENT" || session.final === "ABSENT");
+    return { ...history, sessions: scheduled, ...personalAttendance(scheduled, query) };
   }
 
   history(actor: Actor, userId: string, self = false) {
@@ -416,11 +418,10 @@ export class AttendanceService {
       const polls = await tx.poll.findMany({
         where: {
           type: "SESSION",
-          ...(self ? {} : { authorId: actor.id, ...(actor.role === "ADMIN" ? {} : { AND: [pollMember(actor.id)] }) }),
+          ...(self || actor.role === "ADMIN" ? {} : { authorId: actor.id, AND: [pollMember(actor.id)] }),
           OR: [
             { votes: { some: { userId } } },
             { participants: { some: { userId } } },
-            { mandatoryAttendance: false, ...pollMember(userId) },
           ],
         },
         orderBy: { createdAt: "desc" },
@@ -463,7 +464,7 @@ export class AttendanceService {
         groups: poll.groups.map(row => ({ id: row.groupId, name: row.group.name })),
         currentMember: poll.group.members.length > 0 || poll.groups.some(row => row.group.members.length > 0),
         description: poll.description,
-        slots: poll.options.map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
+        slots: poll.options.filter((option) => option.validatedAt).map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
         status: poll.status,
         createdAt: poll.createdAt,
         archivedAt: poll.archivedAt,
@@ -477,7 +478,7 @@ export class AttendanceService {
               : finalAttendance(poll.votes[0]?.options.map((o) => o.attendance) ?? []),
         selections:
           poll.mandatoryAttendance && poll.participants[0]
-            ? poll.options.map((option) => {
+            ? poll.options.filter((option) => option.validatedAt && (poll.votes[0]?.options.some(selection => selection.optionId === option.id) || poll.participants[0]?.marks.some(mark => mark.optionId === option.id))).map((option) => {
                 const person = poll.participants[0]!;
                 const mark = person.marks.find((m) => m.optionId === option.id);
                 return {

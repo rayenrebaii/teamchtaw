@@ -55,11 +55,14 @@ describe("Corrections membres et sessions sur base isolée", () => {
   });
   it("sert les séances personnelles réelles sans accepter un autre identifiant", async () => {
     const other = await db.user.create({ data: { email: randomUUID() + "@test.invalid", firstName: "Other", lastName: "Member", passwordHash: "unused-test-only", status: "APPROVED", memberships: { create: { groupId: generalId } } } });
-    const create = async (userId: string, startsAt: Date, endsAt: Date, absent = false) => db.poll.create({ data: {
+    const create = async (userId: string, startsAt: Date, endsAt: Date, absent = false) => { const poll = await db.poll.create({ data: {
       question: "Personal " + randomUUID(), groupId: generalId, authorId: adminId, type: "SESSION", mandatoryAttendance: true,
-      options: { create: { label: "Slot", position: 0, startsAt, endsAt } },
+      options: { create: { label: "Slot", position: 0, startsAt, endsAt, validatedAt: new Date() } },
       participants: { create: { userId, ...(absent ? { absenceConfirmedAt: new Date() } : {}) } },
-    } });
+    }, include: { options: true } });
+      await db.pollVote.create({ data: { pollId: poll.id, userId, options: { create: { optionId: poll.options[0]!.id } } } });
+      return poll;
+    };
     const future = await create(memberId, new Date("2099-01-01T13:00:00Z"), new Date("2099-01-01T14:00:00Z"));
     const absent = await create(memberId, new Date("2020-01-01T13:00:00Z"), new Date("2020-01-01T14:00:00Z"), true);
     const foreign = await create(other.id, new Date("2099-01-02T13:00:00Z"), new Date("2099-01-02T14:00:00Z"));

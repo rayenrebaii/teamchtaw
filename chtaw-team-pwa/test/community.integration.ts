@@ -284,6 +284,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
         ?.votes[0]?.optionIds.sort(),
     ).toEqual([session.options[2]!.id].sort());
     await expect(attendanceService.roster(session.id)).rejects.toMatchObject({ status: 403 });
+    for (const option of session.options) await admin.request(`/polls/${session.id}/options/${option.id}/validate`, { method: "POST" });
     const roster = await admin.request<Roster>(`/polls/${session.id}/attendance`);
     expect(roster.slots[1]!.students).toHaveLength(0);
     await startFixtureSession(session.id);
@@ -389,7 +390,7 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
     });
     await state().membership(mandatoryGroup.id, member.id, true);
     const mandatoryInput = {
-      question: "Séance obligatoire sans vote",
+      question: "Séance avec vote",
       description: "",
       type: "SESSION" as const,
       status: "OPEN" as const,
@@ -403,10 +404,20 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
     };
     const mandatory = await attendanceService.create(mandatoryGroup.id, mandatoryInput);
     expect(mandatory.mandatoryAttendance).toBe(true);
+    await attendanceService.validateSlot(mandatory.id, mandatory.options[0]!.id);
     const before = await attendanceService.roster(mandatory.id);
     const first = before.slots[0]!;
-    const candidate = first.students.find((s) => s.user.id === member.id)!;
-    expect(candidate.voted).toBe(false);
+    expect(first.students.some((s) => s.user.id === member.id)).toBe(false);
+    await expect(attendanceService.save(mandatory.id, [{
+      userId: member.id, optionId: first.id, status: "PRESENT",
+      version: 0, participantVersion: 0,
+    }])).rejects.toMatchObject({ status: 400 });
+    const voter = new ApiClient(base, browserFetch().fetcher);
+    await voter.login(email, password);
+    await voter.request(`/polls/${mandatory.id}/votes`, { method: "POST", body: JSON.stringify({ optionIds: [first.id] }) });
+    await voter.logout();
+    const candidate = (await attendanceService.roster(mandatory.id)).slots[0]!.students.find((s) => s.user.id === member.id)!;
+    expect(candidate.voted).toBe(true);
     await expect(attendanceService.save(mandatory.id, [{
       userId: member.id, optionId: first.id, status: "PRESENT",
       version: candidate.version, participantVersion: candidate.participantVersion,
@@ -421,7 +432,8 @@ describe("Frontend réel → NestJS → PostgreSQL → Socket.IO", () => {
         participantVersion: candidate.participantVersion,
       },
     ]);
-    expect(pointed.slots[1]!.students.find((s) => s.user.id === member.id)!.final).toBe("PRESENT");
+    expect(pointed.slots[0]!.students.find((s) => s.user.id === member.id)!.final).toBe("PRESENT");
+    expect(pointed.slots).toHaveLength(1);
     expect(
       (await attendanceService.history(member.id)).sessions.find((s) => s.id === mandatory.id)
         ?.final,

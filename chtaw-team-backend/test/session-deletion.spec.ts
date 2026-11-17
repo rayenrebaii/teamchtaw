@@ -9,10 +9,10 @@ import { reconcileAbsences } from "../src/polls/attendance.reconcile";
 jest.mock("../src/polls/attendance.reconcile", () => ({ reconcileAbsences: jest.fn() }));
 function fixture(role: Actor["role"], authorId = "other") {
   const actor = { id: "actor", role } as Actor;
-  const poll = { id: "poll", groupId: "group", authorId, type: "SESSION", votes: [], participants: [], group: { name: "Test" } };
+  const poll = { id: "poll", groupId: "group", authorId, type: "SESSION", options: [{ startsAt: new Date("2099-01-01") }], votes: [], participants: [], group: { name: "Test" } };
   const tx = {
     $queryRaw: jest.fn(), $executeRaw: jest.fn(),
-    poll: { findUnique: jest.fn().mockResolvedValue(poll), delete: jest.fn() },
+    poll: { findUnique: jest.fn().mockResolvedValue(poll), delete: jest.fn(), update: jest.fn() },
     message: { findFirst: jest.fn().mockResolvedValue({ id: "message", groupId: "group", authorId }), findMany: jest.fn().mockResolvedValue([{ id: "message" }]), delete: jest.fn(), deleteMany: jest.fn() },
     notification: { deleteMany: jest.fn() },
     sessionReminderDelivery: { deleteMany: jest.fn() },
@@ -52,5 +52,14 @@ describe("Permanent session deletion", () => {
     const f = fixture("COLLABORATOR");
     await expect(f.polls.remove(f.actor, "poll")).rejects.toBeInstanceOf(ForbiddenException);
     expect(f.tx.poll.delete).not.toHaveBeenCalled();
+  });
+  it("archives a started session without deleting attendance or recalculating history", async () => {
+    const f = fixture("ADMIN");
+    f.poll.options[0]!.startsAt = new Date("2020-01-01");
+    await f.polls.remove(f.actor, "poll");
+    expect(f.tx.poll.update).toHaveBeenCalledWith({ where: { id: "poll" }, data: { archivedAt: expect.any(Date) } });
+    expect(f.tx.poll.delete).not.toHaveBeenCalled();
+    expect(f.tx.sessionMark.deleteMany).not.toHaveBeenCalled();
+    expect(f.tx.attendanceEdit.deleteMany).not.toHaveBeenCalled();
   });
 });

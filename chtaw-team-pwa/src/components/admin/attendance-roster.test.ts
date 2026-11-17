@@ -257,13 +257,11 @@ describe("Page dédiée de pointage", () => {
     expect(window.confirm).not.toHaveBeenCalled();
     expect(mocks.navigate).toHaveBeenCalledWith("/admin/attendance?pollId=session");
   });
-  it("masque les présents des autres créneaux et les réaffiche pour consultation", async () => {
+  it("affiche les étudiants déjà présents dans la liste du créneau", async () => {
     fixture.slots[1].students[0].final = "PRESENT";
     await mount("tuesday");
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
-    const checkbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    await click(checkbox);
     expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(row("Alice")).toBeDefined();
   });
   it("utilise les mêmes actions accessibles pour le tableau desktop et les cartes mobile", async () => {
     await mount();
@@ -272,19 +270,8 @@ describe("Page dédiée de pointage", () => {
     expect(row("Alice").querySelector('[data-label="Email"]')?.textContent).toBe(alice.email);
     expect(container.querySelectorAll(".roster-table-shell")).toHaveLength(1);
   });
-  it("filtre immédiatement les inscriptions et la recherche par email", async () => {
+  it("filtre immédiatement les étudiants par email", async () => {
     await mount();
-    const select = container.querySelector<HTMLSelectElement>(".roster-filters select")!;
-    await act(async () => {
-      select.value = "NOT_VOTED";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
-    expect(row("Bob")).toBeDefined();
-    await act(async () => {
-      select.value = "ALL";
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
     const input = container.querySelector<HTMLInputElement>('input[type="search"]')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(

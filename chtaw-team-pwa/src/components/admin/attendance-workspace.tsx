@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { Empty, attempt } from "@/components/shared";
+import { AttendanceSlotSearch } from "./attendance-slot-search";
 
 const phaseLabels: Record<string, string> = {
   UPCOMING: "À venir",
@@ -53,7 +54,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
   const load = useCallback(
     async () => ({
       kind: tab,
-      ...(tab === "history"
+      ...(tab === "history" || tab === "pointage"
         ? { items: [], total: 0 }
         : tab === "reports"
           ? await attendanceService.reports(JSON.parse(serialized))
@@ -121,7 +122,9 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
           </Button>
         ))}
       </nav>
-      {tab === "history" ? (
+      {tab === "pointage" ? (
+        <AttendanceSlotSearch initialPollId={initialPollId} />
+      ) : tab === "history" ? (
         <AttendanceDashboard key={revision} />
       ) : (
         <section
@@ -143,7 +146,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
             {tab === "reports"
               ? "Après la fin du dernier créneau, les étudiants sans présence sont signalés. Seule votre confirmation ajoute une absence au compteur."
               : copy(
-                  "Les nouvelles séances incluent les étudiants approuvés du groupe au moment de la création. Le vote indique une préférence, jamais une présence.",
+                  "Chaque créneau affiche les étudiants qui ont voté pour cet horaire. Le vote ne vaut pas présence.",
                 )}
           </p>
           <div className="request-filters">
@@ -171,7 +174,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   {store.polls
                   .filter(
                     (p) =>
-                      p.type === "SESSION" && p.authorId === actor?.id && (!filters.groupId || pollInGroup(p, filters.groupId)),
+                      p.type === "SESSION" && (actor?.role === "ADMIN" || p.authorId === actor?.id) && (!filters.groupId || pollInGroup(p, filters.groupId)),
                   )
                   .map((p) => (
                     <option key={p.id} value={p.id}>
