@@ -22,7 +22,7 @@ import {
   sessionFinished,
 } from "./attendance.reconcile";
 import { finalAttendance } from "./attendance.rules";
-import { assertAttendanceStarted } from "./attendance-time";
+import { assertAttendanceStarted, confirmedSlots, isConfirmedSlot } from "./attendance-time";
 
 const tunisDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis", year: "numeric", month: "2-digit", day: "2-digit" });
 function tunisDay(date: Date) {
@@ -163,7 +163,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           include: personInclude,
         });
         const votes = await tx.pollVote.findMany({ where: { pollId: id }, include: { options: true } });
-        const forPerson = (person: Person) => ({ ...poll, options: poll.options.filter(option => option.validatedAt && votes.some(vote => vote.userId === person.userId && vote.options.some(selection => selection.optionId === option.id))) });
+        const now = new Date();
+        const forPerson = (person: Person) => ({ ...poll, options: poll.options.filter(option => isConfirmedSlot(option, now, poll.status === "CANCELLED") && votes.some(vote => vote.userId === person.userId && vote.options.some(selection => selection.optionId === option.id))) });
         const candidates = participants.filter(
           (person) =>
             person.included &&
@@ -199,7 +200,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         status: { not: "CANCELLED" },
         OR: [
           {
-            options: { some: {}, every: { endsAt: { lte: new Date() } } },
+            options: { some: { endsAt: { lte: new Date() } } },
             participants: {
               some: {
                 included: true,
@@ -254,7 +255,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
             throw new BadRequestException("Étudiant non concerné par cette séance.");
           const entries = dto.entries.filter((e) => e.userId === userId);
           const selected = await tx.pollVoteOption.findMany({ where: { pollId: id, vote: { userId } }, select: { optionId: true } });
-          const selectedPoll = { ...poll, options: poll.options.filter(option => option.validatedAt && selected.some(selection => selection.optionId === option.id)) };
+          const now = new Date();
+          const selectedPoll = { ...poll, options: poll.options.filter(option => isConfirmedSlot(option, now) && selected.some(selection => selection.optionId === option.id)) };
           if (entries.some((e) => e.participantVersion !== person.version))
             throw new ConflictException(
               "Pointage modifié par un autre administrateur. Actualisez la liste.",
@@ -333,7 +335,8 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       async (tx) => {
         const poll = await this.locked(tx, actor, id);
         const selections = await tx.pollVoteOption.findMany({ where: { pollId: id, vote: { userId } }, select: { optionId: true } });
-        const selectedOptions = poll.options.filter(option => option.validatedAt && selections.some(selection => selection.optionId === option.id));
+        const now = new Date();
+        const selectedOptions = poll.options.filter(option => isConfirmedSlot(option, now, poll.status === "CANCELLED") && selections.some(selection => selection.optionId === option.id));
         if (!selectedOptions.length) throw new BadRequestException("Cet étudiant n’a pas voté pour un créneau validé.");
         if (poll.status === "CANCELLED" || !sessionFinished(selectedOptions))
           throw new ConflictException("Attendez la fin du créneau validé.");
@@ -451,6 +454,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
         where: { pollId: id },
         include: { options: true },
       });
+      const now = new Date();
       return {
         id,
         question: poll.question,
@@ -466,7 +470,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           version: p.version,
           final: mandatoryFinal(p),
         })),
-        slots: poll.options.filter((option) => option.validatedAt)
+        slots: poll.options.filter((option) => isConfirmedSlot(option, now, poll.status === "CANCELLED"))
           .sort((a, b) => a.position - b.position)
           .map((option) => ({
             ...option,
@@ -495,11 +499,13 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       throw new BadRequestException("Période invalide.");
     await this.db.$transaction((tx) => this.access.organizer(tx, actor));
     await this.processDueSessions();
+    const now = new Date();
+    const confirmed = confirmedSlots(now);
     const polls = await this.db.poll.findMany({
       where: {
         type: "SESSION",
         archivedAt: null,
-        options: { some: { validatedAt: { not: null } } },
+        options: { some: confirmed },
         ...(actor.role === "ADMIN" ? {} : { authorId: actor.id }),
         AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
         id: query.pollId,
@@ -507,13 +513,12 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
       include: {
         group: true,
         groups: { include: { group: { select: { id: true, name: true } } } },
-        options: { where: { validatedAt: { not: null } }, orderBy: { position: "asc" } },
+        options: { where: confirmed, orderBy: { position: "asc" } },
         participants: { where: { included: true }, include: { marks: true } },
         votes: { include: { options: true } },
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    const now = new Date();
     const rows = polls
       .map((p) => {
         const finals = p.mandatoryAttendance

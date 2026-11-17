@@ -33,7 +33,7 @@ export function AdminCalendar({ initialWeek = "" }: { initialWeek?: string }) {
   const today = calendarDay(now);
   const current = calendarWeek(today);
   const week = selectedWeek ?? current;
-  const allSlots = useMemo(() => calendarSlots(store.polls.filter((poll) => poll.authorId === actor?.id)), [store.polls, actor?.id]);
+  const allSlots = useMemo(() => calendarSlots(store.polls.filter((poll) => poll.authorId === actor?.id), now), [store.polls, actor?.id, now]);
   const filtered = allSlots.filter((slot) => !groupId || slot.groupIds.includes(groupId));
   const visible = slotsInWeek(filtered, week);
   const weeks = calendarWeeks(filtered, current, week);

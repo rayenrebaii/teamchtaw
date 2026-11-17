@@ -36,11 +36,11 @@ export interface CalendarSlot {
   lastDay: string;
   cancelled: boolean;
 }
-export function calendarSlots(polls: Poll[]): CalendarSlot[] {
+export function calendarSlots(polls: Poll[], now = Date.now()): CalendarSlot[] {
   return polls.filter((poll) => poll.type === "SESSION").flatMap((poll) => poll.options.flatMap((option) => {
-    if (option.validatedAt === null) return [];
     const start = Date.parse(option.startsAt ?? "");
     if (!Number.isFinite(start)) return [];
+    if (option.validatedAt === null && (start > now || poll.status === "CANCELLED")) return [];
     const candidateEnd = Date.parse(option.endsAt ?? "");
     const end = Number.isFinite(candidateEnd) && candidateEnd > start ? candidateEnd : undefined;
     return [{

@@ -18,7 +18,7 @@ import { MandatoryAttendanceService } from "./mandatory-attendance.service";
 import { mandatoryFinal, reconcileAbsences } from "./attendance.reconcile";
 import { assertSessionCancellationAllowed } from "./session-deletion.rules";
 import { assertNoSessionOverlap } from "./session-overlap";
-import { assertAttendanceStarted } from "./attendance-time";
+import { assertAttendanceStarted, isConfirmedSlot } from "./attendance-time";
 import { pollGroupIds, pollMember, pollInGroup } from "../common/poll-audience";
 
 @Injectable()
@@ -250,6 +250,7 @@ export class AttendanceService {
       if (!poll) throw new NotFoundException("Sondage introuvable.");
       await this.access.session(tx, actor, id);
       if (poll.type !== "SESSION") throw new BadRequestException("Sondage ordinaire.");
+      const now = new Date();
       return {
         id: poll.id,
         question: poll.question,
@@ -257,7 +258,7 @@ export class AttendanceService {
         group: poll.group,
         groups: poll.groups.map(row => row.group),
         attendanceLockedAt: poll.attendanceLockedAt,
-        slots: poll.options.filter((option) => option.validatedAt).map((option) => ({
+        slots: poll.options.filter((option) => isConfirmedSlot(option, now, poll.status === "CANCELLED")).map((option) => ({
           ...option,
           students: poll.votes.flatMap((vote) => {
             const selection = vote.options.find((o) => o.optionId === option.id);
@@ -455,6 +456,7 @@ export class AttendanceService {
         },
       });
       if (!self && !polls.length) throw new NotFoundException("Aucun historique accessible.");
+      const now = new Date();
       const sessions = polls.map((poll) => ({
         id: poll.id,
         question: poll.question,
@@ -464,7 +466,7 @@ export class AttendanceService {
         groups: poll.groups.map(row => ({ id: row.groupId, name: row.group.name })),
         currentMember: poll.group.members.length > 0 || poll.groups.some(row => row.group.members.length > 0),
         description: poll.description,
-        slots: poll.options.filter((option) => option.validatedAt).map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
+        slots: poll.options.filter((option) => isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED")).map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
         status: poll.status,
         createdAt: poll.createdAt,
         archivedAt: poll.archivedAt,
@@ -478,7 +480,7 @@ export class AttendanceService {
               : finalAttendance(poll.votes[0]?.options.map((o) => o.attendance) ?? []),
         selections:
           poll.mandatoryAttendance && poll.participants[0]
-            ? poll.options.filter((option) => option.validatedAt && (poll.votes[0]?.options.some(selection => selection.optionId === option.id) || poll.participants[0]?.marks.some(mark => mark.optionId === option.id))).map((option) => {
+            ? poll.options.filter((option) => isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED") && (poll.votes[0]?.options.some(selection => selection.optionId === option.id) || poll.participants[0]?.marks.some(mark => mark.optionId === option.id))).map((option) => {
                 const person = poll.participants[0]!;
                 const mark = person.marks.find((m) => m.optionId === option.id);
                 return {

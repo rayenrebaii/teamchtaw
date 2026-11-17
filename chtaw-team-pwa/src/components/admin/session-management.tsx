@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { attendanceService } from "@/services/attendance.service";
@@ -10,6 +11,7 @@ import { attempt } from "@/components/shared";
 import type { Poll } from "@/types";
 import { pollGroupIds, pollGroupNames } from "@/features/poll-groups";
 import { GroupSelection } from "@/components/polls/group-selection";
+import { attendanceSessionHref } from "@/features/attendance-navigation";
 import styles from "./session-management.module.css";
 
 export function SessionManagement({ poll, close }: { poll: Poll; close: () => void }) {
@@ -43,18 +45,19 @@ export function SessionManagement({ poll, close }: { poll: Poll; close: () => vo
           setAdding(false); if (ok) setSelectedGroups([]);
         }}>{adding ? copy("Enregistrement…") : copy("Ajouter les groupes sélectionnés")}</Button>
       </fieldset>}
-      <ul className={styles.slots}>{poll.options.map((slot) => <li key={slot.id}>
+      <ul className={styles.slots}>{poll.options.map((slot) => {
+        const started = !!slot.startsAt && Date.parse(slot.startsAt) <= now;
+        const confirmed = !!slot.validatedAt || (started && poll.status !== "CANCELLED");
+        return <li key={slot.id}>
         <div><strong>{slot.label}</strong>{slot.startsAt && <p>{new Date(slot.startsAt).toLocaleString(locale, { timeZone: "Africa/Tunis", dateStyle: "medium", timeStyle: "short" })}</p>}
           <p>{poll.votes.filter(vote => vote.optionIds.includes(slot.id)).length} / {slot.capacity ?? "?"}{slot.capacity != null && poll.votes.filter(vote => vote.optionIds.includes(slot.id)).length >= slot.capacity ? ` · ${copy("Complet")}` : ""}</p>
-          <p>{copy(slot.validatedAt ? "Créneau validé" : "En attente de validation")}</p>
+          <p>{copy(poll.status === "CANCELLED" ? "Séance annulée" : confirmed ? "Créneau validé" : "Validation automatique à l’heure de début")}</p>
         </div>
-        {!slot.validatedAt && <Button size="sm" disabled={busy || adding || !slot.startsAt || Date.parse(slot.startsAt) <= now} onClick={async () => {
-          setBusy(true);
-          await attempt(async () => { store.receivePoll(await attendanceService.validateSlot(poll.id, slot.id)); await store.sync(); }, copy("Créneau validé et planifié."));
-          setBusy(false);
-        }}>{copy("Valider et planifier")}</Button>}
+        {confirmed && <Button asChild size="sm" variant="secondary">
+          <Link href={`${attendanceSessionHref(poll.id, actor.role)}?slot=${encodeURIComponent(slot.id)}`}>{copy("Ouvrir la liste")}</Link>
+        </Button>}
         <Button size="sm" variant="destructive" disabled={busy || adding || !canRemove || !slot.startsAt || Date.parse(slot.startsAt) <= now || poll.options.length <= 1} aria-label={copy("Retirer le créneau : {slot}", { slot: slot.label })} onClick={() => { setTarget(slot.id); setFailed(false); }}><Trash2 size={14} aria-hidden="true" />{copy("Retirer")}</Button>
-      </li>)}</ul>
+      </li>})}</ul>
       {poll.options.length <= 1 && <p className="small muted">{copy("Pour retirer le dernier créneau, supprimez la séance.")}</p>}
       {!canRemove && <p className="small muted">{copy("Cette séance n’est plus ouverte.")}</p>}
       {!target && <Button variant="destructive" disabled={busy || adding} onClick={() => { setTarget("session"); setFailed(false); }}><Trash2 size={15} aria-hidden="true" />{copy("Supprimer la séance")}</Button>}

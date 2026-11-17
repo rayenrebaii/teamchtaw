@@ -147,6 +147,28 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     expect((await find("2101-01-02")).body.total).toBe(1);
   });
 
+  it("ouvre automatiquement le pointage du créneau commencé et exclut un créneau retiré", async () => {
+    const data = input(2);
+    data.startsAt = ["2102-01-01T12:00:00.000Z", "2102-01-01T14:00:00.000Z"];
+    const poll = (await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(data).expect(201)).body;
+    const optionId = poll.options[0].id;
+    await vote(poll);
+    const path = `/api/v1/polls/${poll.id}/attendance`;
+    const entries = [{ userId: studentId, optionId, status: "PRESENT", version: 0 }];
+    const sessions = `/api/v1/admin/attendance/sessions?pollId=${poll.id}`;
+    expect((await api().get(sessions).set(auth()).expect(200)).body.items).toEqual([]);
+    await api().put(path).set(auth()).send({ entries }).expect(409);
+    await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[1].id}`).set(auth()).expect(200);
+    const now = Date.now();
+    await db.pollOption.update({
+      where: { id: optionId },
+      data: { startsAt: new Date(now - 7200000), endsAt: new Date(now - 3600000) },
+    });
+    expect((await api().get(sessions).set(auth()).expect(200)).body.items[0].options.map((slot: { id: string }) => slot.id)).toEqual([optionId]);
+    expect((await roster(poll.id)).slots[0].students.map((row: { user: { id: string } }) => row.user.id)).toEqual([studentId]);
+    await api().put(path).set(auth()).send({ entries }).expect(200);
+  });
+
   it.each([1, 2, 3, 5, 10])(
     "génère les listes uniquement pour les %i horaires choisis",
     async (count) => {

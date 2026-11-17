@@ -80,6 +80,13 @@ Calendrier|Calendar
 Le pointage est disponible uniquement à partir de l’heure de début du créneau.|Attendance can only be recorded from the time the slot starts.
 Pour retirer le dernier créneau, supprimez la séance.|To remove the final time slot, delete the session.
 Gérer la séance|Manage session
+Créneau validé|Confirmed time slot
+Validation automatique à l’heure de début|Automatically confirmed at the scheduled start time
+Ouvrir la liste|Open attendance list
+Aucun horaire trouvé|No time slots found
+Dates et heures de Tunis. Les créneaux se valident automatiquement à leur début.|Dates and times are in Tunis time. Time slots are automatically confirmed when they start.
+Les prochains créneaux apparaîtront à leur heure de début. Vérifiez la date et le groupe sélectionnés.|Upcoming time slots will appear when they start. Check the selected date and group.
+Voir les sondages|View polls
 Retirer le créneau : {slot}|Remove time slot: {slot}
 Supprimer la séance|Delete session
 Confirmation de suppression|Deletion confirmation

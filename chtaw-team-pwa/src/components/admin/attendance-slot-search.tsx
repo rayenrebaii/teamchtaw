@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { useCopy } from "@/lib/i18n";
@@ -24,6 +24,11 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
     ...(day ? { from: day, to: day } : {}),
   }), [day, groupId, page, pollId]);
   const remote = useRemote(load);
+  const { refresh } = remote;
+  useEffect(() => {
+    const timer = window.setInterval(refresh, 15000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
   const slots = (remote.data?.items ?? []).flatMap(session => session.options
     .filter(option => option.startsAt && (!day || calendarDay(option.startsAt) === day))
     .map(option => ({ session, option })));
@@ -41,7 +46,7 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
       </select></label>
       {(day || groupId || pollId) && <Button variant="ghost" size="sm" onClick={() => { setDay(""); setGroupId(""); setPollId(""); setPage(1); }}>{copy("Réinitialiser")}</Button>}
     </div>
-    <p className="tiny muted">{copy("Dates et heures de Tunis · seuls les horaires validés sont affichés.")}</p>
+    <p className="tiny muted">{copy("Dates et heures de Tunis. Les créneaux se valident automatiquement à leur début.")}</p>
     <LoadState {...remote} retry={remote.refresh} />
     <div className="activity-list" aria-busy={remote.loading}>
       {slots.map(({ session, option }) => <article className="activity-card" key={`${session.id}:${option.id}`}>
@@ -53,7 +58,11 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
         <Button asChild size="sm"><Link href={`${attendanceSessionHref(session.id, actor?.role)}?slot=${encodeURIComponent(option.id)}`}>{copy("Ouvrir la liste")}</Link></Button>
       </article>)}
     </div>
-    {!remote.loading && !remote.error && !slots.length && <Empty title={copy("Aucun horaire trouvé")}>{copy("Essayez une autre date ou un autre groupe.")}</Empty>}
+    {!remote.loading && !remote.error && !slots.length && <Empty title={copy("Aucun horaire trouvé")}>
+      {copy("Les prochains créneaux apparaîtront à leur heure de début. Vérifiez la date et le groupe sélectionnés.")}
+      <br />
+      <Link href={actor?.role === "COLLABORATOR" ? "/collaborator/polls" : "/admin/polls"}>{copy("Voir les sondages")}</Link>
+    </Empty>}
     {remote.data && remote.data.total > 20 && <nav className="row between wrap request-pagination" aria-label={copy("Pagination des séances")}>
       <Button size="sm" variant="secondary" disabled={remote.loading || page <= 1} onClick={() => setPage(page - 1)}>{copy("Précédent")}</Button>
       <span className="tiny">{copy("Page")} {page} / {Math.ceil(remote.data.total / 20)}</span>
