@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { DeleteContent } from "@/components/delete-content";
 import { useCopy, currentLanguage } from "@/lib/i18n";
 import { useCallback, useEffect, useId, useState } from "react";
@@ -20,7 +21,7 @@ import { useCommunity } from "@/stores/community";
 import { pollGroupNames } from "@/features/poll-groups";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
-import { Empty, attempt } from "@/components/shared";
+import { Avatar, Empty, attempt } from "@/components/shared";
 import { PollCard } from "@/components/polls/poll-card";
 import { SessionEditor } from "@/components/polls/session-editor";
 import { PublishDialog } from "@/components/chat/publish-dialogs";
@@ -116,10 +117,9 @@ export function AttendanceHistory({ userId, onClose }: { userId?: string; onClos
       <LoadState {...remote} retry={remote.refresh} />
       {!remote.loading && !remote.error && remote.data && (
         <div className="form-stack">
-          <h3>
+          <div className="roster-identity"><Avatar user={remote.data.user} /><h3>
             {remote.data.user.firstName} {remote.data.user.lastName}
-          </h3>
-          <p>{remote.data.user.email}</p>
+          </h3></div>
           <p>
             {remote.data.presences} {copy("présences ·")} {remote.data.absences}{" "}
             {copy("absences confirmées")}{" "}
@@ -273,7 +273,7 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
               </p>
               <div className="request-filters">
                 <label>
-                  {copy("Nom ou email")}{" "}
+                  {copy("Nom ou prénom")}{" "}
                   <input
                     type="search"
                     value={filters.search ?? ""}
@@ -369,8 +369,7 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
                     {remote.data.items.map((row) => (
                       <tr key={row.user.id}>
                         <td>
-                          {row.user.firstName} {row.user.lastName}
-                          <span className="table-email">{row.user.email}</span>
+                          <div className="roster-identity"><Avatar user={row.user} /><strong>{row.user.firstName} {row.user.lastName}</strong></div>
                         </td>
                         <td>{row.groups.join(", ")}</td>
                         <td>{row.presences}</td>
@@ -419,11 +418,11 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
                 </Button>
                 <span>
                   {copy("Page")} {filters.page} {copy("sur")}{" "}
-                  {Math.max(1, Math.ceil(remote.data.total / 20))}
+                  {Math.max(1, Math.ceil(remote.data.total / TABLE_PAGE_SIZE))}
                 </span>
                 <Button
                   variant="secondary"
-                  disabled={+filters.page * 20 >= remote.data.total || remote.loading}
+                  disabled={+filters.page * TABLE_PAGE_SIZE >= remote.data.total || remote.loading}
                   onClick={() => update("page", String(+filters.page + 1))}
                 >
                   {copy("Suivant")}{" "}
@@ -449,7 +448,7 @@ export function AttendanceDashboard({ compact = false }: { compact?: boolean }) 
                   {alert.user?.firstName} {alert.user?.lastName}
                 </h3>
                 <p>
-                  {alert.user?.email} · {alert.groupName}
+                  {alert.groupName}
                 </p>
                 <p>
                   {copy("Alerte :")} {alert.user?.firstName} {alert.user?.lastName}{" "}
@@ -538,7 +537,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
     setPage(1);
   };
   const results = filterActivities(store.polls.filter((poll) => actor?.role !== "COLLABORATOR" || poll.type !== "SESSION" || poll.authorId === actor?.id), filters, now);
-  const pages = Math.max(1, Math.ceil(results.length / 10));
+  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(page, pages);
   const detail = store.polls.find((poll) => poll.id === detailId);
   const managed = store.polls.find((poll) => poll.id === manageId);
@@ -797,7 +796,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                   </div>
                 )}
                 <div className="activity-list">
-                  {results.slice((currentPage - 1) * 10, currentPage * 10).map((poll) => {
+                  {results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE).map((poll) => {
                     const session = poll.type === "SESSION";
                     return (
                       <article

@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
@@ -63,10 +64,10 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
       <br />
       <Link href={actor?.role === "COLLABORATOR" ? "/collaborator/polls" : "/admin/polls"}>{copy("Voir les sondages")}</Link>
     </Empty>}
-    {remote.data && remote.data.total > 20 && <nav className="row between wrap request-pagination" aria-label={copy("Pagination des séances")}>
+    {remote.data && remote.data.total > TABLE_PAGE_SIZE && <nav className="row between wrap request-pagination" aria-label={copy("Pagination des séances")}>
       <Button size="sm" variant="secondary" disabled={remote.loading || page <= 1} onClick={() => setPage(page - 1)}>{copy("Précédent")}</Button>
-      <span className="tiny">{copy("Page")} {page} / {Math.ceil(remote.data.total / 20)}</span>
-      <Button size="sm" variant="secondary" disabled={remote.loading || page * 20 >= remote.data.total} onClick={() => setPage(page + 1)}>{copy("Suivant")}</Button>
+      <span className="tiny">{copy("Page")} {page} / {Math.ceil(remote.data.total / TABLE_PAGE_SIZE)}</span>
+      <Button size="sm" variant="secondary" disabled={remote.loading || page * TABLE_PAGE_SIZE >= remote.data.total} onClick={() => setPage(page + 1)}>{copy("Suivant")}</Button>
     </nav>}
   </section>;
 }

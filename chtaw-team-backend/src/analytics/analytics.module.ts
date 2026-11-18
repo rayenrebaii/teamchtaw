@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { Admin, CurrentUser } from "../auth/security";
 import { AccessService, Actor } from "../common/access";
 import { PrismaService } from "../prisma/prisma.module";
+import { TABLE_PAGE_SIZE } from "../common/pagination";
 import { AnalyticsQuery } from "./analytics.dto";
 import { analyticsPeriod } from "./analytics.period";
 import { alertsSql, registrationsSql, sessionsSql, summarySql } from "./analytics.sql";
@@ -47,7 +48,7 @@ export class AnalyticsService {
     return this.db.$transaction(async tx => {
       await this.authorize(tx, actor, query.groupId);
       const [result] = await tx.$queryRaw<{ data: { total: number; items: SessionAnalytics[] } }[]>(sessionsSql(range, query.page));
-      return { ...result!.data, page: query.page, limit: 8,
+      return { ...result!.data, page: query.page, limit: TABLE_PAGE_SIZE,
         items: result!.data.items.map(item => ({ ...item, rate: attendanceRate(item.present, item.absent) })) };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 20000 });
   }
@@ -55,7 +56,7 @@ export class AnalyticsService {
     return this.db.$transaction(async tx => {
       await this.authorize(tx, actor, query.groupId);
       const [result] = await tx.$queryRaw<{ data: { total: number; items: AlertAnalytics[] } }[]>(alertsSql(query.groupId ?? null, query.page));
-      return { ...result!.data, page: query.page, limit: 5 };
+      return { ...result!.data, page: query.page, limit: TABLE_PAGE_SIZE };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 20000 });
   }
 }

@@ -35,12 +35,12 @@ it("opens requests from the groups header and does not render the inbox below th
   expect(await screen.findByRole("dialog", { name: "Demandes d’adhésion aux groupes" })).toBeTruthy();
 });
 
-it("paginates ten requests and combines name, email and role filters", async () => {
+it("paginates six requests and combines name, email and role filters", async () => {
   const dialog = await open();
-  expect(dialog.getAllByRole("row")).toHaveLength(11);
+  expect(dialog.getAllByRole("row")).toHaveLength(7);
   fireEvent.click(dialog.getByRole("button", { name: "Suivant" }));
   expect(dialog.getByText("Page 2 sur 2")).toBeTruthy();
-  expect(dialog.getAllByRole("row")).toHaveLength(3);
+  expect(dialog.getAllByRole("row")).toHaveLength(7);
   fireEvent.change(dialog.getByLabelText("Nom ou prénom"), { target: { value: "Person1" } });
   expect(dialog.getByText("Page 1 sur 1")).toBeTruthy();
   expect(dialog.getAllByRole("row")).toHaveLength(4);
@@ -82,7 +82,7 @@ it("retains failed requests and their selection while removing successful reques
 it("selects only the visible page and clears selection on filter changes", async () => {
   const dialog = await open();
   fireEvent.click(dialog.getByRole("checkbox", { name: "Sélectionner les demandes de cette page" }));
-  expect(dialog.getByText("10 sélectionné(s)")).toBeTruthy();
+  expect(dialog.getByText("6 sélectionné(s)")).toBeTruthy();
   fireEvent.change(dialog.getByLabelText("Rôle"), { target: { value: "USER" } });
   expect(dialog.getByText("0 sélectionné(s)")).toBeTruthy();
 });

@@ -127,21 +127,21 @@ describe("Administrator analytics on disposable PostgreSQL", () => {
     for (let i = 0; i < 5; i++) ids.push((await session(`Pagination ${i}`, "2020-10-02T12:00:00Z")).id);
     const first = (await api().get(`${endpoint}/sessions?${range}&groupId=${groupA}`).set(auth()).expect(200)).body;
     const second = (await api().get(`${endpoint}/sessions?${range}&groupId=${groupA}&page=2`).set(auth()).expect(200)).body;
-    expect(first.total).toBe(10); expect(first.items).toHaveLength(8); expect(second.items).toHaveLength(2);
+    expect(first.total).toBe(10); expect(first.limit).toBe(6); expect(first.items).toHaveLength(6); expect(second.items).toHaveLength(4);
     expect(new Set([...first.items, ...second.items].map(row => row.id)).size).toBe(10);
     await db.poll.deleteMany({ where: { id: { in: ids } } });
   });
   it("paginates active alerts without deriving their threshold from chart dates", async () => {
     const userIds: string[] = [], passwordHash = await argon2.hash("Disposable-Alert-Only-2026!");
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       const user = await db.user.create({ data: { email: `alert-page-${randomUUID()}@test.invalid`, firstName: `Alert${i}`, lastName: "Fixture", passwordHash, role: "USER", status: "APPROVED" } }); userIds.push(user.id);
       await db.organizerAbsenceState.create({ data: { userId: user.id, organizerId: ids.admin!, total: 3 } });
       await db.organizerAbsenceAlert.create({ data: { userId: user.id, organizerId: ids.admin!, generation: 1, groupName: "Analytics B", pollIds: [sharedId] } });
     }
     const first = (await api().get(`${endpoint}/alerts?groupId=${groupB}`).set(auth()).expect(200)).body;
     const second = (await api().get(`${endpoint}/alerts?groupId=${groupB}&page=2`).set(auth()).expect(200)).body;
-    expect(first.total).toBe(6); expect(first.items).toHaveLength(5); expect(second.items).toHaveLength(1);
-    expect(new Set([...first.items, ...second.items].map(row => row.id)).size).toBe(6);
+    expect(first.total).toBe(7); expect(first.limit).toBe(6); expect(first.items).toHaveLength(6); expect(second.items).toHaveLength(1);
+    expect(new Set([...first.items, ...second.items].map(row => row.id)).size).toBe(7);
     await db.organizerAbsenceAlert.deleteMany({ where: { userId: { in: userIds } } });
     await db.organizerAbsenceState.deleteMany({ where: { userId: { in: userIds } } });
     await db.user.deleteMany({ where: { id: { in: userIds } } });

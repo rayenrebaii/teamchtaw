@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useCallback, useId, useState } from "react";
 import Link from "next/link";
 import { api } from "@/services/api-client";
@@ -56,7 +57,7 @@ export function CollaboratorsScreen() {
     return filters.order === "oldest" ? delta : -delta;
   });
   const invalidRange = !isValidRequestPeriod(period.start, period.end);
-  const pages = Math.max(1, Math.ceil(results.length / 10));
+  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(page, pages);
   const groupTarget = all.find((user) => user.id === groupsId);
   async function act(action: () => Promise<unknown>, success: string) {
@@ -109,7 +110,7 @@ export function CollaboratorsScreen() {
       <div className={`table-wrap request-table ${memberStyles.table}`} role="region" aria-label={t("Liste des collaborateurs")} tabIndex={0}><table>
         <caption className={styles.srOnly}>{t("Liste des collaborateurs")}</caption>
         <thead><tr>{["Collaborateur", "Inscription", "Statut", "Groupe", "Actions"].map((label) => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
-        <tbody>{results.slice((currentPage - 1) * 10, currentPage * 10).map((user) => <tr className={memberStyles.memberRow} key={user.id}>
+        <tbody>{results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE).map((user) => <tr className={memberStyles.memberRow} key={user.id}>
         <td className={memberStyles.identity} data-label={t("Collaborateur")}><div className={memberStyles.member}><span className={styles.avatar} aria-hidden="true">{user.firstName[0]}{user.lastName[0]}</span><div className={memberStyles.memberText}>
           <div className={styles.name}><h2>{user.firstName} {user.lastName}</h2></div>
           <p className={styles.email}>{user.email}</p>

@@ -10,10 +10,14 @@ import { LoadState, useRemote } from "./attendance-panel";
 import styles from "./establishments.module.css";
 import memberStyles from "./members-panel.module.css";
 import { SchoolSuggestions } from "./school-suggestions";
+import { tablePage } from "@/lib/pagination";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 export function EstablishmentsScreen() {
   const { t, error: failure } = useCopy();
   const remote = useRemote(establishmentsService.list);
+  const [page, setPage] = useState(1);
+  const visiblePage = tablePage(remote.data ?? [], page);
   const [editor, setEditor] = useState<{ item?: Establishment } | null>(null);
   const [target, setTarget] = useState<Establishment | null>(null);
   const [name, setName] = useState("");
@@ -65,7 +69,7 @@ export function EstablishmentsScreen() {
       {!remote.loading && !remote.error && !remote.data?.length && <Empty title={t("Aucun établissement")}>{t("Ajoutez votre premier lycée.")}</Empty>}
       {!!remote.data?.length && <div className={styles.table}><table>
         <thead><tr><th scope="col">{t("Nom du lycée")}</th><th scope="col">{t("Actions")}</th></tr></thead>
-        <tbody>{remote.data.map(item => <tr key={item.id} className={styles.row}>
+        <tbody>{visiblePage.items.map(item => <tr key={item.id} className={styles.row}>
           <td><div className={`${memberStyles.member} ${styles.identity}`}><span className="avatar"><School size={19} aria-hidden="true" /></span><h2>{item.name}</h2></div></td>
           <td><div className={`${memberStyles.actions} ${styles.rowActions}`}>
             <Button variant="secondary" size="sm" disabled={busy || remote.loading} aria-label={t("Modifier {name}", { name: item.name })} onClick={() => openEditor(item)}><Pencil size={15} aria-hidden="true" />{t("Modifier")}</Button>
@@ -73,6 +77,7 @@ export function EstablishmentsScreen() {
           </div></td>
         </tr>)}</tbody>
       </table></div>}
+      <TablePagination page={visiblePage.page} total={remote.data?.length ?? 0} onChange={setPage} disabled={busy || remote.loading} />
     </section>
     <SchoolSuggestions onReviewed={remote.refresh} />
     <Modal open={!!editor} onClose={() => { if (!busy) setEditor(null); }} title={t(editor?.item ? "Modifier l’établissement" : "Ajouter un établissement")}>

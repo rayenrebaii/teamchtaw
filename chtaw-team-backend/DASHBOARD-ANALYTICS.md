@@ -17,7 +17,7 @@ au navigateur pour calculer les graphiques.
   informations également visibles sur téléphone. Le groupe filtre les analyses ;
   les séances ouvrent le détail de présence existant.
 - Signalements actifs issus du mécanisme existant, avec accès au détail.
-- Listes paginées : huit séances, cinq signalements ; six groupes par écran
+- Listes paginées : six séances, six signalements ; six groupes par écran
   pour l’histogramme, sur les seuls agrégats transmis par le serveur.
 - Filtres de période/groupe, réinitialisation et actualisation, états de
   chargement/erreur/vide, français/anglais et thèmes clair/sombre conservés.

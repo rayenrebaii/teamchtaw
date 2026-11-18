@@ -1,3 +1,4 @@
+import { TABLE_PAGE_SIZE } from "../common/pagination";
 import { Prisma } from "@prisma/client";
 import type { AnalyticsPeriod } from "./analytics.period";
 
@@ -27,7 +28,7 @@ export function attendanceCte(range: AnalyticsPeriod, page?: number) {
       ))
   ), scoped_sessions AS (
     SELECT * FROM selected_sessions
-    ${page === undefined ? Prisma.empty : Prisma.sql`ORDER BY "sessionAt" DESC, id LIMIT 8 OFFSET ${(page - 1) * 8}`}
+    ${page === undefined ? Prisma.empty : Prisma.sql`ORDER BY "sessionAt" DESC, id LIMIT ${TABLE_PAGE_SIZE} OFFSET ${(page - 1) * TABLE_PAGE_SIZE}`}
   ), outcomes AS (
     SELECT sp."pollId", sp."userId", CASE
       WHEN EXISTS (SELECT 1 FROM "SessionMark" m JOIN "PollOption" o ON o.id = m."optionId" AND o."pollId" = m."pollId"
@@ -121,7 +122,7 @@ export function alertsSql(groupId: string | null, page: number) {
     JOIN "User" u ON u.id = a."userId" JOIN "User" org ON org.id = a."organizerId"
     WHERE a."resolvedAt" IS NULL AND s.total >= 3
       AND (${groupId}::uuid IS NULL OR EXISTS (SELECT 1 FROM "PollGroup" pg WHERE pg."pollId" = ANY(a."pollIds") AND pg."groupId" = ${groupId}::uuid))
-  ), paged AS (SELECT * FROM active ORDER BY "createdAt" DESC, id LIMIT 5 OFFSET ${(page - 1) * 5})
+  ), paged AS (SELECT * FROM active ORDER BY "createdAt" DESC, id LIMIT ${TABLE_PAGE_SIZE} OFFSET ${(page - 1) * TABLE_PAGE_SIZE})
   SELECT json_build_object('total', (SELECT count(*)::int FROM active), 'items',
     (SELECT coalesce(json_agg(json_build_object('id', a.id, 'userId', a."userId", 'student', a.student,
       'organizer', a.organizer, 'absences', a.total, 'groups', coalesce((SELECT json_agg(g.name ORDER BY g.name)

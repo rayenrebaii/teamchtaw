@@ -1,3 +1,4 @@
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { api } from "./api-client";
 import type { Poll, User } from "@/types";
 export type AttendanceStatus = "NON_VERIFIE" | "PRESENT" | "ABSENT";
@@ -165,14 +166,14 @@ export interface PersonalAttendancePage {
   total: number; page: number; limit: number; timeZone: string; incompleteSchedules: boolean;
 }
 export const attendanceService = {
-  mine: (filters: Record<string, string>) => api.request<PersonalAttendancePage>("/attendance/me?" + new URLSearchParams(Object.entries(filters).filter(([, value]) => value))),
+  mine: (filters: Record<string, string>) => api.request<PersonalAttendancePage>("/attendance/me?" + new URLSearchParams(Object.entries({ limit: String(TABLE_PAGE_SIZE), ...filters }).filter(([, value]) => value))),
   sessions: (filters: Record<string, string>) =>
     api.request<{ items: AttendanceSession[]; total: number }>(
-      `/admin/attendance/sessions?${new URLSearchParams(Object.entries(filters).filter(([, v]) => v))}`,
+      `/admin/attendance/sessions?${new URLSearchParams(Object.entries({ limit: String(TABLE_PAGE_SIZE), ...filters }).filter(([, v]) => v))}`,
     ),
   reports: (filters: Record<string, string>) =>
     api.request<{ items: AttendanceReport[]; total: number }>(
-      `/admin/attendance/reports?${new URLSearchParams(Object.entries(filters).filter(([, v]) => v))}`,
+      `/admin/attendance/reports?${new URLSearchParams(Object.entries({ limit: String(TABLE_PAGE_SIZE), ...filters }).filter(([, v]) => v))}`,
     ),
   confirmAbsence: (id: string, userId: string, version: number) =>
     api.request<Roster>(
@@ -206,7 +207,7 @@ export const attendanceService = {
     }),
   overview: (filters: Record<string, string>) =>
     api.request<AttendanceOverview>(
-      `/admin/attendance?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value))}`,
+      `/admin/attendance?${new URLSearchParams(Object.entries({ limit: String(TABLE_PAGE_SIZE), ...filters }).filter(([, value]) => value))}`,
     ),
   history: (userId?: string) =>
     api.request<StudentHistory>(

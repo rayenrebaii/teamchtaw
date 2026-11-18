@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useCopy, currentLanguage } from "@/lib/i18n";
 import { pollInGroup } from "@/features/poll-groups";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +21,7 @@ import {
 } from "./attendance-panel";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
-import { Empty, attempt } from "@/components/shared";
+import { Avatar, Empty, attempt } from "@/components/shared";
 import { AttendanceSlotSearch } from "./attendance-slot-search";
 
 const phaseLabels: Record<string, string> = {
@@ -218,7 +219,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   <input
                     type="search"
                     maxLength={254}
-                    placeholder={copy("Nom ou email…")}
+                    placeholder={copy("Nom ou prénom…")}
                     value={filters.search ?? ""}
                     onChange={(e) => update({ search: e.target.value })}
                   />
@@ -296,9 +297,9 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                 key={`${report.pollId}:${report.user.id}`}
               >
                 <div className="row between wrap">
-                  <h3>
+                  <div className="roster-identity"><Avatar user={report.user} /><h3>
                     {report.user.firstName} {report.user.lastName}
-                  </h3>
+                  </h3></div>
                   <span
                     className={`badge attendance-badge ${report.resolvedAt ? "attendance-non_verifie" : "attendance-a_verifier"}`}
                   >
@@ -309,7 +310,7 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
                   {report.groups?.map(group => group.name).join(" · ") || report.group.name} · {report.question}
                 </p>
                 <p className="tiny muted">
-                  {report.user.email} {copy("· Fin de séance :")} {date(report.lastEnd)}
+                  {copy("Fin de séance :")} {date(report.lastEnd)}
                 </p>
                 <div className="attendance-report-slots">
                   {report.options.map((option) => (
@@ -394,12 +395,12 @@ export function AttendanceWorkspace({ initialPollId = "" }: { initialPollId?: st
               </Button>
               <span className="tiny">
                 {copy("Page")} {filters.page} {copy("sur")}{" "}
-                {Math.max(1, Math.ceil(data.total / 20))}
+                {Math.max(1, Math.ceil(data.total / TABLE_PAGE_SIZE))}
               </span>
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={remote.loading || +filters.page * 20 >= data.total}
+                disabled={remote.loading || +filters.page * TABLE_PAGE_SIZE >= data.total}
                 onClick={() => update({ page: String(+filters.page + 1) })}
               >
                 {copy("Suivant")}{" "}

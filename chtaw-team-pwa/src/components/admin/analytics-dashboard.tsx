@@ -9,6 +9,7 @@ import { attendanceSessionHref } from "@/features/attendance-navigation";
 import { LoadState, useRemote } from "./attendance-panel";
 import { AnalyticsPagination, AttendanceLegend, ComparisonRow, dashboardDate, RegistrationChart } from "./analytics-charts";
 import styles from "./analytics-dashboard.module.css";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 export function AnalyticsDashboard() {
   const { t, locale } = useCopy();
@@ -91,7 +92,7 @@ export function AnalyticsDashboard() {
         <LoadState {...sessions} retry={sessions.refresh} />
         <div className={styles.barList}>{currentSessions?.items.map(session => <ComparisonRow key={session.id} name={session.name} subtitle={dashboardDate(session.date, locale)} counts={session} max={Math.max(1, ...currentSessions.items.flatMap(item => [item.present, item.absent]))} href={attendanceSessionHref(session.id)} />)}</div>
         {currentSessions && !currentSessions.items.length && <p className={styles.empty}>{t("Aucune séance terminée sur cette période.")}</p>}
-        <AnalyticsPagination page={sessionPage} total={sessions.data?.total ?? 0} limit={8} change={setSessionPage} busy={sessions.loading} />
+        <AnalyticsPagination page={sessionPage} total={sessions.data?.total ?? 0} limit={TABLE_PAGE_SIZE} change={setSessionPage} busy={sessions.loading} />
       </section>
     </div>
     <p className={styles.method}>{t("Le taux = présences ÷ (présences + absences confirmées). Un vote ne vaut pas présence. Les pointages incomplets sont exclus du taux.")} {counts ? t("{count} pointage(s) incomplet(s) sur la période.", { count: counts.pending }) : ""}</p>
@@ -102,7 +103,7 @@ export function AnalyticsDashboard() {
       {currentAlerts && (currentAlerts.items.length ? <div className={`table-wrap request-table ${styles.alertTable}`}><table><caption className="sr-only">{t("Signalements actifs")}</caption><thead><tr>{["Étudiant", "Groupes concernés", "Absences", "Détail"].map(label => <th key={label} scope="col">{t(label)}</th>)}</tr></thead>
         <tbody>{currentAlerts.items.map(alert => <tr key={alert.id}><td data-label={t("Étudiant")}><strong>{alert.student}</strong><small>{t("Suivi par {name}", { name: alert.organizer })}</small></td><td data-label={t("Groupes concernés")}>{alert.groups.join(", ")}</td><td data-label={t("Absences")}><span className={styles.alertCount}>{alert.absences}</span></td><td data-label={t("Détail")}><Button asChild size="sm" variant="secondary"><Link href={`/admin/collaborator-reports?alert=${encodeURIComponent(alert.id)}`}>{t("Voir le détail")}</Link></Button></td></tr>)}</tbody>
       </table></div> : <p className={styles.empty}>{t("Aucun signalement actif dans ce périmètre.")}</p>)}
-      <AnalyticsPagination page={alertPage} total={alerts.data?.total ?? 0} limit={5} change={setAlertPage} busy={alerts.loading} />
+      <AnalyticsPagination page={alertPage} total={alerts.data?.total ?? 0} limit={TABLE_PAGE_SIZE} change={setAlertPage} busy={alerts.loading} />
     </section>
   </div>;
 }

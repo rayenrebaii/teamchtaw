@@ -74,9 +74,9 @@ it("selects just the visible page, keeps selection between pages and clears it w
   useCommunity.setState({ users: [admin, ...Array.from({ length: 12 }, (_, i) => make(`Member${String(i).padStart(2, "0")}`))] });
   render(<MembersPanel />);
   fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner les membres de cette page" }));
-  expect(screen.getByText("10 sélectionné(s)")).toBeTruthy();
+  expect(screen.getByText("6 sélectionné(s)")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
-  expect(screen.getByText("10 sélectionné(s)")).toBeTruthy();
+  expect(screen.getByText("6 sélectionné(s)")).toBeTruthy();
   expect(screen.getByRole("checkbox", { name: "Sélectionner les membres de cette page" })).toHaveProperty("checked", false);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Member11" } });
   expect(screen.getByText("0 sélectionné(s)")).toBeTruthy();

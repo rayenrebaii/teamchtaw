@@ -53,6 +53,8 @@ Refusée|Rejected
 Rechercher un membre|Search members
 Rechercher par nom, prénom ou email|Search by first name, last name or email
 Nom, prénom ou email…|Name or email…
+Nom ou prénom…|First or last name…
+Fin de séance :|Session end:
 Trier par date|Sort by date
 Les plus récentes|Newest first
 Les plus anciennes|Oldest first

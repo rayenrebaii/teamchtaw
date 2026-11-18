@@ -267,8 +267,26 @@ describe("Page dédiée de pointage", () => {
     await mount();
     expect(container.querySelectorAll(".roster-mark-actions")).toHaveLength(2);
     expect(row("Alice").querySelectorAll(".roster-mark-actions button")).toHaveLength(3);
-    expect(row("Alice").querySelector('[data-label="Email"]')?.textContent).toBe(alice.email);
+    expect(row("Alice").textContent).not.toContain(alice.email);
+    expect(row("Alice").querySelector(".avatar")).not.toBeNull();
+    expect(container.querySelectorAll("thead th")).toHaveLength(4);
     expect(container.querySelectorAll(".roster-table-shell")).toHaveLength(1);
+  });
+  it("pagine six étudiants et conserve les pointages saisis sur plusieurs pages", async () => {
+    fixture.slots[0].students = Array.from({ length: 8 }, (_, index) => ({ ...fixture.slots[0].students[0], user: user(`student-${index}`, `Student${index}`) }));
+    await mount();
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(6);
+    await click(button("Présent", row("Student0")));
+    await click(button("Suivant"));
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(2);
+    await click(button("Absent", row("Student6")));
+    await click(button("Précédent"));
+    expect(button("Présent", row("Student0")).getAttribute("aria-pressed")).toBe("true");
+    await click(button("Enregistrer les présences"));
+    expect(mocks.save).toHaveBeenCalledWith("session", expect.arrayContaining([
+      expect.objectContaining({ userId: "student-0", status: "PRESENT" }),
+      expect.objectContaining({ userId: "student-6", status: "ABSENT" }),
+    ]));
   });
   it("filtre immédiatement les étudiants par email", async () => {
     await mount();

@@ -268,6 +268,7 @@ export class AttendanceService {
                   {
                     user: {
                       id: vote.user.id,
+                      profilePhotoId: vote.user.profilePhotoId,
                       firstName: vote.user.firstName,
                       lastName: vote.user.lastName,
                       email: vote.user.email,

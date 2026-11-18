@@ -15,7 +15,9 @@ import { useUnsavedAttendance } from "@/hooks/use-unsaved-attendance";
 import { attendanceRosterSummary, attendanceReturnHref } from "@/features/attendance-navigation";
 import { attendanceLabels, visibleAttendanceStudents } from "@/features/session-polls";
 import { Button } from "@/components/ui/button";
-import { Empty, attempt } from "@/components/shared";
+import { Avatar, Empty, attempt } from "@/components/shared";
+import { tablePage } from "@/lib/pagination";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { AttendanceBadge, LoadState, useRemote } from "./attendance-panel";
 
 type Student = Roster["slots"][number]["students"][number];
@@ -42,6 +44,7 @@ export function AttendanceRosterPage({
   const remote = useRemote(load);
   const [slotId, setSlotId] = useState(initialSlotId ?? "");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [drafts, setDrafts] = useState<Record<string, AttendanceEntry>>({});
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -63,6 +66,7 @@ export function AttendanceRosterPage({
     !!data?.mandatoryAttendance,
   );
   const dirtyCount = Object.keys(drafts).length;
+  const visiblePage = tablePage(students, page);
   useUnsavedAttendance(dirtyCount > 0 || saving, slot?.id ?? "");
   const refresh = () => {
     setDrafts({});
@@ -80,6 +84,7 @@ export function AttendanceRosterPage({
     url.searchParams.set("slot", id);
     window.history.replaceState(window.history.state, "", url);
     setSlotId(id);
+    setPage(1);
   };
   const mark = (student: Student, status: AttendanceStatus) => {
     if (!slot || !attendanceSlotStarted(slot.startsAt) || saving || remote.loading || data?.status === "CANCELLED") return;
@@ -216,9 +221,9 @@ export function AttendanceRosterPage({
                   <Search size={17} aria-hidden="true" />
                   <input
                     type="search"
-                    placeholder={copy("Nom, prénom ou email…")}
+                    placeholder={copy("Nom ou prénom…")}
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   />
                 </span>
               </label>
@@ -226,9 +231,9 @@ export function AttendanceRosterPage({
             <div className="roster-section-heading">
               <h2>{slot?.label ?? copy("Étudiants")}</h2>
               <span className="tiny muted" role="status">
-                {students.length} {copy("étudiant")}
-                {students.length !== 1 ? "s" : ""} {copy("affiché")}{" "}
-                {students.length !== 1 ? "s" : ""}
+                {visiblePage.items.length} {copy("étudiant")}
+                {visiblePage.items.length !== 1 ? "s" : ""} {copy("affiché")}{" "}
+                {visiblePage.items.length !== 1 ? "s" : ""}
               </span>
             </div>
             <p className="roster-help">
@@ -247,7 +252,6 @@ export function AttendanceRosterPage({
                 </caption>
                 <colgroup>
                   <col className="roster-col-name" />
-                  <col className="roster-col-email" />
                   <col className="roster-col-vote" />
                   <col className="roster-col-global" />
                   <col className="roster-col-actions" />
@@ -255,14 +259,13 @@ export function AttendanceRosterPage({
                 <thead>
                   <tr>
                     <th scope="col"> {copy("Nom et prénom")} </th>
-                    <th scope="col"> {copy("Email")} </th>
                     <th scope="col"> {copy("Inscription au créneau")} </th>
                     <th scope="col"> {copy("Statut global")} </th>
                     <th scope="col"> {copy("Pointage du créneau")} </th>
                   </tr>
                 </thead>
                 <tbody role="rowgroup">
-                  {students.map((student) => {
+                  {visiblePage.items.map((student) => {
                     const key = `${student.user.id}:${slot!.id}`;
                     const selected = drafts[key]?.status ?? student.attendance;
                     return (
@@ -272,15 +275,12 @@ export function AttendanceRosterPage({
                         className={drafts[key] ? "roster-row-dirty" : undefined}
                       >
                         <td role="cell" data-label={copy("Étudiant")}>
-                          <strong>
+                          <div className="roster-identity"><Avatar user={student.user} /><strong>
                             {student.user.firstName} {student.user.lastName}
-                          </strong>
+                          </strong></div>
                           {drafts[key] && (
                             <span className="roster-draft-label"> {copy("Non enregistré")} </span>
                           )}
-                        </td>
-                        <td role="cell" data-label={copy("Email")}>
-                          {student.user.email}
                         </td>
                         <td role="cell" data-label={copy("Inscription")}>
                           {!data.mandatoryAttendance || student.voted
@@ -323,6 +323,7 @@ export function AttendanceRosterPage({
                 </tbody>
               </table>
             </div>
+            <TablePagination page={visiblePage.page} total={students.length} onChange={setPage} disabled={saving || remote.loading} />
             {!students.length && (
               <Empty title={copy("Aucun étudiant avec ces filtres")}>
                 {data.mandatoryAttendance

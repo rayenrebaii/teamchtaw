@@ -1,4 +1,5 @@
 import { Type, Transform } from "class-transformer";
+import { TABLE_PAGE_SIZE } from "../common/pagination";
 import {
   IsDateString,
   IsIn,
@@ -26,7 +27,7 @@ export class AttendanceQueryDto {
   @IsOptional() @IsIn(["true", "false"]) threshold?: string;
   @IsOptional() @IsIn(["asc", "desc"]) order: "asc" | "desc" = "desc";
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit: number = 20;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit: number = TABLE_PAGE_SIZE;
 }
 
 export class PersonalAttendanceQueryDto {
@@ -38,6 +39,6 @@ export class PersonalAttendanceQueryDto {
   @IsOptional() @IsUUID() groupId?: string;
   @IsOptional() @IsIn(["recommended", "asc", "desc"]) order: "recommended" | "asc" | "desc" = "recommended";
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page: number = 1;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit: number = 20;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit: number = TABLE_PAGE_SIZE;
   @IsOptional() @IsString() @MaxLength(100) timeZone: string = "Africa/Tunis";
 }

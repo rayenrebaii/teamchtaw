@@ -66,8 +66,8 @@ it("paginates sessions and alerts independently", async () => {
 });
 it("shows explicit empty states and no rate without finalized attendance", async () => {
   vi.mocked(analyticsService.summary).mockResolvedValue({ ...analyticsFixture, groups: [], kpis: { users: 0, approved: 0, pendingUsers: 0, groups: 0, sessions: 0, present: 0, absent: 0, pending: 0, rate: null }, registrations: [] });
-  vi.mocked(analyticsService.sessions).mockResolvedValue({ total: 0, items: [], page: 1, limit: 8 });
-  vi.mocked(analyticsService.alerts).mockResolvedValue({ total: 0, items: [], page: 1, limit: 5 });
+  vi.mocked(analyticsService.sessions).mockResolvedValue({ total: 0, items: [], page: 1, limit: 6 });
+  vi.mocked(analyticsService.alerts).mockResolvedValue({ total: 0, items: [], page: 1, limit: 6 });
   render(<AnalyticsDashboard />);
   await screen.findByText("Aucune séance terminée sur cette période.");
   expect(screen.getByText("Aucun signalement actif dans ce périmètre.")).toBeTruthy();

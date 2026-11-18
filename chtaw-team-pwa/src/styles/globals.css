@@ -1923,20 +1923,19 @@ form label small {
   white-space: normal;
 }
 .roster-col-name {
-  width: 18%;
-}
-.roster-col-email {
-  width: 22%;
+  width: 28%;
 }
 .roster-col-vote {
-  width: 15%;
+  width: 20%;
 }
 .roster-col-global {
-  width: 15%;
+  width: 20%;
 }
 .roster-col-actions {
-  width: 30%;
+  width: 32%;
 }
+.roster-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.roster-identity .avatar { width: 36px; height: 36px; flex: 0 0 36px; }
 .roster-table th {
   font-size: 11px;
   letter-spacing: 0;

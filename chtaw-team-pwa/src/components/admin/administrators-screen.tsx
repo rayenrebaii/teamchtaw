@@ -8,12 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { LoadState, useRemote } from "./attendance-panel";
 import type { User } from "@/types";
+import { tablePage } from "@/lib/pagination";
+import { TablePagination } from "@/components/ui/table-pagination";
 
 export function AdministratorsScreen() {
   const { t, error: failure } = useCopy();
   const actorId = useCommunity((store) => store.session?.userId);
   const load = useCallback(() => api.request<User[]>("/admin/administrators"), []);
   const remote = useRemote(load);
+  const [page, setPage] = useState(1);
+  const visiblePage = tablePage(remote.data ?? [], page);
   const [invite, setInvite] = useState(false);
   const [target, setTarget] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,7 +42,7 @@ export function AdministratorsScreen() {
       <div className="table-wrap request-table"><table>
         <caption className="sr-only">{t("Administrateurs")}</caption>
         <thead><tr>{["Nom", "E-mail", "Statut", "Actions"].map((label) => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
-        <tbody>{remote.data?.map((user) => <tr key={user.id}>
+        <tbody>{visiblePage.items.map((user) => <tr key={user.id}>
           <td data-label={t("Nom")}>{user.firstName} {user.lastName}</td><td data-label={t("E-mail")}>{user.email}</td>
           <td data-label={t("Statut")}>{t(!user.isInvitedAdmin ? "Administrateur principal" : user.activatedAt ? "Actif" : "Invitation en attente")}</td>
           <td data-label={t("Actions")}><div className="row wrap">
@@ -51,6 +55,7 @@ export function AdministratorsScreen() {
           </div></td>
         </tr>)}</tbody>
       </table></div>
+      <TablePagination page={visiblePage.page} total={remote.data?.length ?? 0} onChange={setPage} disabled={busy || remote.loading} />
     </section>
     {invite && <Modal open title={t("Inviter un administrateur")} onClose={() => { if (!busy) setInvite(false); }}>
       <form className="form-stack" onSubmit={(event) => {

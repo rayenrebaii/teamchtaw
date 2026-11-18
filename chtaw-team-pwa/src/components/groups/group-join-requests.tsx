@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Inbox, Search } from "lucide-react";
 import { groupsService, type GroupJoinRequest } from "@/services/groups.service";
@@ -84,9 +85,9 @@ function Requests({ owner, close, onCount }: { owner: string; close: () => void;
     terms.every((term) => `${request.user.firstName} ${request.user.lastName}`.toLocaleLowerCase(locale).includes(term)) &&
     request.user.email.toLocaleLowerCase(locale).includes(filters.email.trim().toLocaleLowerCase(locale)) &&
     (filters.role === "ALL" || request.user.role === filters.role));
-  const pages = Math.max(1, Math.ceil(results.length / 10));
+  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(page, pages);
-  const rows = results.slice((currentPage - 1) * 10, currentPage * 10);
+  const rows = results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE);
   const selected = (requests ?? []).filter((request) => selectedIds.includes(request.id));
   const pageSelected = rows.filter((request) => selectedIds.includes(request.id)).length;
   function update(patch: Partial<typeof filters>) { setFilters((previous) => ({ ...previous, ...patch })); setSelectedIds([]); setPage(1); }

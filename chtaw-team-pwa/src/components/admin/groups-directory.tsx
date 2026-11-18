@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useId, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Layers, LockKeyhole, MessageCircle, Pencil, Plus, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Trash2, Users, X } from "lucide-react";
@@ -50,7 +51,7 @@ export function GroupsDirectory({ onCreate, onEdit }: { onCreate: () => void; on
     return filters.order === "name-desc" ? -name : filters.order === "members" ? memberCount(b) - memberCount(a) || name : filters.order === "members-asc" ? memberCount(a) - memberCount(b) || name : name;
   });
   const invalidRange = !validBound(range.min) || !validBound(range.max) || (!!range.min && !!range.max && Number(range.min) > Number(range.max));
-  const pages = Math.max(1, Math.ceil(results.length / 10));
+  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(page, pages);
   const loadError = store.syncErrors.groups;
   async function remove() {
@@ -92,7 +93,7 @@ export function GroupsDirectory({ onCreate, onEdit }: { onCreate: () => void; on
         <p className="request-results-count" role="status" aria-live="polite">{store.loading ? t("Chargement…") : t("{count} résultat(s) sur {total} groupe(s)", { count: results.length, total: groups.length })}</p>
         <div className={`table-wrap request-table ${memberStyles.table}`} role="region" aria-label={t("Liste des groupes")} tabIndex={0}><table>
           <caption className={styles.srOnly}>{t("Liste des groupes")}</caption><thead><tr>{["Groupe", "Type", "Membres", "Description", "Actions"].map((label) => <th key={label} scope="col">{t(label)}</th>)}</tr></thead>
-          <tbody>{results.slice((currentPage - 1) * 10, currentPage * 10).map((group) => <tr className={memberStyles.memberRow} key={group.id}>
+          <tbody>{results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE).map((group) => <tr className={memberStyles.memberRow} key={group.id}>
             <td className={memberStyles.identity} data-label={t("Groupe")}><div className={memberStyles.member}><Avatar group={group} /><div className={memberStyles.memberText}><h2 className={styles.name}>{group.name}</h2></div></div></td>
             <td className={memberStyles.status} data-label={t("Type")}><span className={styles.badge}>{group.isGeneral ? <ShieldCheck size={13} aria-hidden="true" /> : <LockKeyhole size={13} aria-hidden="true" />}{t(group.isGeneral ? "Système" : "Privé")}</span></td>
             <td className={memberStyles.date} data-label={t("Membres")}><span className={styles.members}><Users size={14} aria-hidden="true" />{memberCount(group)}</span></td>

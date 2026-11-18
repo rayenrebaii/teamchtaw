@@ -15,6 +15,8 @@ const commands = {
   'pwa:analytics:preview': [frontend, ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3016']],
   'pwa:analytics:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.analytics.config.ts']],
   'pwa:release:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.release.config.ts']],
+  'pwa:tables:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.tables.config.ts']],
+  'pwa:tables:production': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.tables.production.config.ts']],
   'pwa:ui': [frontend, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.ui.config.ts']],
   'pwa:build': [frontend, ['node_modules/next/dist/bin/next', 'build']],
   'pwa:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test']],

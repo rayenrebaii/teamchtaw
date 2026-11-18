@@ -1,4 +1,5 @@
 "use client";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 import { useCopy, currentLanguage } from "@/lib/i18n";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Search, SlidersHorizontal, ChevronDown, ChevronRight, RotateCcw, CalendarDays, Users, Eye, Check, X, UserPlus, History, Ban, MailCheck, MailWarning } from "lucide-react";
@@ -234,9 +235,9 @@ export function MembersPanel({
   ] as const;
   const periodApplied = !!(filters.start || filters.end);
   const periodChanged = period.start !== filters.start || period.end !== filters.end;
-  const pages = Math.max(1, Math.ceil(results.length / 10));
+  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(page, pages);
-  const pageMembers = results.slice((currentPage - 1) * 10, currentPage * 10);
+  const pageMembers = results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE);
   const selectable = (user: User) => user.role !== "ADMIN" && (user.status === "APPROVED" || (user.role === "USER" && user.status === "PENDING"));
   const pageIds = pageMembers.filter(selectable).map((user) => user.id);
   const selected = store.users.filter((user) => selectedIds.includes(user.id) && selectable(user));
