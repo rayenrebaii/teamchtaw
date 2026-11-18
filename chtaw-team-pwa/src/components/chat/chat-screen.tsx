@@ -31,6 +31,7 @@ import { GroupMembers } from "./group-members";
 import { AddGroupMembers } from "./add-group-members";
 import { GroupEditor } from "@/components/groups/group-editor";
 import { AvailableGroups } from "@/components/groups/available-groups";
+import { MentionInput } from "./mention-input";
 export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: string; focusMessage?: string; focusPoll?: string }) {
   const store = useCommunity();
   const { t, locale, error } = useCopy();
@@ -39,7 +40,9 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
   const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
   const user = store.users.find((u) => u.id === store.session?.userId);
   const [search, setSearch] = useState("");
-  const [text, setText] = useState("");
+  const [draft, setDraft] = useState<{ groupId?: string; text: string; mentionIds: string[] }>({ text: "", mentionIds: [] });
+  const text = draft.groupId === groupId ? draft.text : "";
+  const mentionIds = draft.groupId === groupId ? draft.mentionIds : [];
   const [publish, setPublish] = useState<"photo" | "poll" | "session" | null>(null);
   const [photo, setPhoto] = useState<string>();
   const [info, setInfo] = useState(false);
@@ -322,8 +325,8 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
               if (sending) return;
               setSending(true);
               void attempt(async () => {
-                await store.post(group.id, text.trim());
-                setText((current) => (current === text ? "" : current));
+                await store.post(group.id, text.trim(), mentionIds);
+                setDraft(current => current.groupId === group.id && current.text === text ? { ...current, text: "", mentionIds: [] } : current);
               }).finally(() => setSending(false));
             }}
           >
@@ -360,20 +363,10 @@ export function ChatScreen({ groupId, focusMessage, focusPoll }: { groupId?: str
                 <CalendarPlus size={21} />
               </button>
             )}
-            <textarea
-              rows={1}
-              aria-label={t("Votre message")}
-              placeholder={t("Un message pour la team…")}
-              maxLength={4000}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
+            <MentionInput key={group.id} value={text}
+              members={store.people.filter(member => group.memberIds.includes(member.id))}
+              loading={history?.loading} retry={history?.error ? () => void store.loadHistory(group.id) : undefined}
+              onChange={(value, ids) => setDraft({ groupId: group.id, text: value, mentionIds: ids })} />
             <Button
               size="icon"
               type="submit"

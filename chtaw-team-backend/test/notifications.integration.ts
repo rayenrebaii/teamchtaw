@@ -170,7 +170,7 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
   it("persists exactly one 24h and one 1h reminder across simultaneous workers", async () => {
     const start = new Date(Date.now() + 72 * 3600000), poll = await createSession(start);
     await worker.work();
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id } })).toBe(2);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id } })).toBe(3);
     const due24 = new Date(start.getTime() - 86400000);
     await Promise.all([worker.work(due24), second.work(due24)]);
     expect(await db.notification.count({ where: { entityId: poll.id, type: "SESSION_24H" } })).toBe(1);
@@ -187,7 +187,7 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
   it("skips late 24h reminders while scheduling 1h reminders normally", async () => {
     const start = new Date(Date.now() + 3 * 3600000), poll = await createSession(start);
     await worker.work();
-    expect(await db.sessionReminderDelivery.findMany({ where: { sessionId: poll.id }, orderBy: { scheduledFor: "asc" } })).toMatchObject([{ reminderType: "SESSION_24H", status: "SKIPPED" }, { reminderType: "SESSION_1H", status: "PENDING" }]);
+    expect(await db.sessionReminderDelivery.findMany({ where: { sessionId: poll.id }, orderBy: { scheduledFor: "asc" } })).toMatchObject([{ reminderType: "SESSION_24H", status: "SKIPPED" }, { reminderType: "SESSION_1H", status: "PENDING" }, { reminderType: "SESSION_START", status: "PENDING" }]);
     await worker.work(new Date(start.getTime() - 3600000));
     expect(await db.notification.count({ where: { entityId: poll.id, type: "SESSION_24H" } })).toBe(0);
     expect(await db.notification.count({ where: { entityId: poll.id, type: "SESSION_1H" } })).toBe(1);
@@ -204,7 +204,7 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     const changed = new Date(start.getTime() + 5 * 3600000);
     await db.pollOption.update({ where: { id: poll.options[0]!.id }, data: { startsAt: changed, endsAt: new Date(changed.getTime() + 3600000) } });
     await worker.work();
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, startsAt: start, status: "CANCELLED" } })).toBe(2);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, startsAt: start, status: "CANCELLED" } })).toBe(3);
     await worker.work(new Date(start.getTime() - 86400000));
     expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
     await worker.work(new Date(changed.getTime() - 86400000));
@@ -216,7 +216,7 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     await worker.work(new Date(start.getTime() - 86400000)); await worker.work(new Date(start.getTime() - 3600000));
     expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
     await preferences(student, { sessionRemindersEnabled: true }).expect(200);
-    await worker.work(start); expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
+    await worker.work(start); expect(await db.notification.count({ where: { entityId: poll.id, type: "SESSION_START" } })).toBe(1);
     const past = await createSession(new Date(Date.now() - 3600000)); await worker.work();
     expect(await db.sessionReminderDelivery.count({ where: { sessionId: past.id } })).toBe(0);
   });
@@ -344,6 +344,74 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
     await api().post(`/api/v1/notifications/${own.id}/open`).auth(student.token, { type: "bearer" }).expect(404);
     expect(await db.notification.count({ where: { id: own.id } })).toBe(1);
     await db.groupMember.create({ data: { groupId, userId: student.id } });
+  });
+  it("notifies voters at the actual start without manual validation, once across workers", async () => {
+    const start = new Date(Date.now() + 150 * 3600000), poll = await createSession(start, false);
+    await db.pollOption.update({ where: { id: poll.options[0]!.id }, data: { validatedAt: null } });
+    await db.pollVote.create({ data: { userId: student.id, pollId: poll.id, options: { create: { optionId: poll.options[0]!.id } } } });
+    await worker.work(new Date(start.getTime() - 1));
+    expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
+    await Promise.all([worker.work(new Date(start.getTime() + 15000)), second.work(new Date(start.getTime() + 15000))]);
+    const item = await db.notification.findFirstOrThrow({ where: { entityId: poll.id, type: "SESSION_START" } });
+    expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(1);
+    expect(item.userId).toBe(student.id);
+    await db.$transaction(async tx => {
+      expect(await app.get(NotificationsService).deliveryAllowed(tx, item, new Date(start.getTime() + 30000))).toBe(true);
+      expect(await app.get(NotificationsService).deliveryAllowed(tx, item, new Date(start.getTime() + 900001))).toBe(false);
+    });
+    await worker.work(new Date(start.getTime() + 30000));
+    expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(1);
+  });
+  it("does not notify an excluded mandatory participant even when an old vote still exists", async () => {
+    const start = new Date(Date.now() + 155 * 3600000), poll = await createSession(start);
+    await worker.work();
+    await db.sessionParticipant.update({ where: { pollId_userId: { pollId: poll.id, userId: student.id } }, data: { included: false } });
+    await worker.work(start);
+    expect(await db.notification.count({ where: { entityId: poll.id } })).toBe(0);
+    const item = await db.notification.create({ data: { userId: student.id, groupId, type: "SESSION_START", entityId: poll.id, optionId: poll.options[0]!.id,
+      title: "Start", body: "", sourceKey: randomUUID(), expiresAt: new Date(start.getTime() + 900000) } });
+    await db.$transaction(async tx => expect(await app.get(NotificationsService).deliveryAllowed(tx, item, start)).toBe(false));
+  });
+  it("catches up a just-started slot in a secondary group, without sending older sessions", async () => {
+    const start = new Date(Date.now() + 160 * 3600000), poll = await createSession(start, false);
+    const secondary = await db.group.create({ data: { name: "Secondary reminders", members: { create: { userId: outsider.id } } } });
+    await db.pollGroup.create({ data: { pollId: poll.id, groupId: secondary.id } });
+    await db.pollOption.update({ where: { id: poll.options[0]!.id }, data: { validatedAt: null } });
+    await db.pollVote.create({ data: { userId: outsider.id, pollId: poll.id, options: { create: { optionId: poll.options[0]!.id } } } });
+    await worker.work(new Date(start.getTime() + 60000));
+    const item = await db.notification.findFirstOrThrow({ where: { entityId: poll.id, userId: outsider.id, type: "SESSION_START" } });
+    expect(item.groupId).toBe(secondary.id);
+    const listed = await get(outsider, "?language=en").expect(200);
+    expect(listed.body.items.find((row: { id: string }) => row.id === item.id)).toMatchObject({ title: "Your session is starting · Secondary reminders" });
+    const stale = await createSession(new Date(Date.now() - 3600000));
+    await worker.work();
+    expect(await db.notification.count({ where: { entityId: stale.id } })).toBe(0);
+  });
+  it("supports selected and group mentions for every sender role with one notification per recipient", async () => {
+    await db.user.update({ where: { id: another.id }, data: { role: "COLLABORATOR" } });
+    try {
+      for (const sender of [admin, student, another]) {
+        const recipient = sender.id === student.id ? admin : student;
+        const result = await api().post(`/api/v1/groups/${groupId}/messages`).auth(sender.token, { type: "bearer" })
+          .send({ text: "Bonjour @Notification Fixture", mentionIds: [recipient.id] }).expect(201);
+        await worker.work();
+        expect(result.body.mentionIds).toEqual([recipient.id]);
+        const rows = await db.notification.findMany({ where: { entityId: result.body.id, userId: recipient.id } });
+        expect(rows).toHaveLength(1); expect(rows[0]!.type).toBe("MENTION");
+        const opened = await api().post(`/api/v1/notifications/${rows[0]!.id}/open`).auth(recipient.token, { type: "bearer" }).expect(200);
+        expect(opened.body.href).toBe(`/app/groups/${groupId}?message=${result.body.id}`);
+        expect(await db.notification.count({ where: { id: rows[0]!.id } })).toBe(0);
+        const all = await api().post(`/api/v1/groups/${groupId}/messages`).auth(sender.token, { type: "bearer" })
+          .send({ text: "@tous bonjour @Notification Fixture", mentionIds: [recipient.id] }).expect(201);
+        await worker.work();
+        const notified = await db.notification.findMany({ where: { entityId: all.body.id } });
+        expect(notified).toHaveLength(2);
+        expect(notified.every(row => row.type === "MENTION" && row.userId !== sender.id)).toBe(true);
+      }
+      await api().post(`/api/v1/groups/${groupId}/messages`).auth(student.token, { type: "bearer" }).send({ text: "@Notification Fixture", mentionIds: [outsider.id] }).expect(400);
+      await api().post(`/api/v1/groups/${groupId}/messages`).auth(student.token, { type: "bearer" }).send({ text: "Hello", mentionIds: [admin.id] }).expect(400);
+      await api().post(`/api/v1/groups/${groupId}/messages`).auth(outsider.token, { type: "bearer" }).send({ text: "@tous" }).expect(403);
+    } finally { await db.user.update({ where: { id: another.id }, data: { role: "USER" } }); }
   });
   it("cleans this session's subscriptions on logout and retains preferences", async () => {
     await api().post("/api/v1/auth/logout").auth(student.token, { type: "bearer" }).expect(204);

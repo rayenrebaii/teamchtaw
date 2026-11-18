@@ -55,7 +55,7 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
         {items.map((item) => (
           <li className={item.readAt ? "" : "notification-unread"} key={item.id}>
             <span className="eyebrow">
-              {item.type === "MESSAGE"
+              {item.type === "MENTION" ? t("Mentions") : item.type === "MESSAGE"
                 ? t("Messages")
                 : item.type === "ABSENCE_ALERT"
                   ? t("Signalements")

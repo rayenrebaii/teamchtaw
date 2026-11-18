@@ -1,5 +1,11 @@
 import { notificationContent, notificationExcerpt } from "../src/notifications/notifications.content";
 describe("Notification source previews", () => {
+  it.each(["fr", "en"])("identifies mentions and a starting session in %s", language => {
+    expect(notificationContent({ type: "MENTION", groupName: "G1", authorName: "Nadia", text: "@tous Bonjour" }, language).title)
+      .toContain(language === "en" ? "mentioned you" : "vous a mentionné");
+    expect(notificationContent({ type: "SESSION_START", groupName: "G1", text: "Danse" }, language).title)
+      .toContain(language === "en" ? "is starting" : "commence");
+  });
   it("shows the sender, group and actual message instead of a generic notice", () => {
     expect(notificationContent({ type: "MESSAGE", groupName: "G1", authorName: "Nadia Team", text: "Bonjour\nà tous !" })).toEqual({ title: "Nadia Team · G1", body: "Bonjour à tous !" });
   });

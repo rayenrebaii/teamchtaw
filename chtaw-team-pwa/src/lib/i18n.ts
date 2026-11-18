@@ -6,6 +6,11 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "Mentions": "Mentions",
+  "Mentionner dans ce groupe": "Mention someone in this group",
+  "Membres à mentionner": "Members to mention",
+  "Notifier tous les membres du groupe": "Notify every member of this group",
+  "Mention invalide pour ce groupe.": "Invalid mention for this group.",
   "Groupes concernés": "Groups concerned",
   "Les groupes multiples sont réservés aux séances.": "Multiple groups are only supported for session polls.",
   "Le groupe de publication doit faire partie des groupes sélectionnés.": "The publishing group must be one of the selected groups.",

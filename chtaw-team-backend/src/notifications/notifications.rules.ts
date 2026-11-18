@@ -9,7 +9,7 @@ export function permits(preference: typeof defaultPreferences | null, type: stri
   const value = preference ?? defaultPreferences;
   return (
     value.enabled &&
-    (type === "MESSAGE"
+    (type === "MESSAGE" || type === "MENTION"
       ? value.messagesEnabled
       : type === "POLL"
         ? value.pollsEnabled
@@ -45,13 +45,14 @@ export function reminderPlan(startsAt: Date, changedAt: Date, createdAt: Date, n
   return [
     { type: "SESSION_24H", offset: 86400000 },
     { type: "SESSION_1H", offset: 3600000 },
+    { type: "SESSION_START", offset: 0 },
   ].map(({ type, offset }) => {
     const scheduledFor = new Date(startsAt.getTime() - offset);
     return {
       type,
       scheduledFor,
       status:
-        scheduledFor < now || createdAt > scheduledFor || changedAt > scheduledFor
+        now.getTime() - scheduledFor.getTime() > 900000 || createdAt > scheduledFor || (offset !== 0 && changedAt > scheduledFor)
           ? "SKIPPED"
           : "PENDING",
     };

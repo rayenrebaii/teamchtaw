@@ -75,7 +75,7 @@ interface Store {
   saveGroup: (group: Group) => Promise<Group>;
   groupImage: (id: string, file: File) => Promise<void>;
   deleteGroup: (id: string) => Promise<void>;
-  post: (groupId: string, text: string) => Promise<void>;
+  post: (groupId: string, text: string, mentionIds?: string[]) => Promise<void>;
   photo: (
     groupId: string,
     file: File,
@@ -402,8 +402,8 @@ export const useCommunity = create<Store>((set, get) => ({
     get().removeGroup(id);
     await get().sync();
   },
-  post: async (groupId, text) => {
-    get().receiveMessage(await messagesService.send(groupId, text));
+  post: async (groupId, text, mentionIds) => {
+    get().receiveMessage(await messagesService.send(groupId, text, mentionIds));
   },
   photo: async (groupId, file, caption, progress) => {
     get().receiveMessage(await uploadsService.photo(groupId, file, caption, progress));

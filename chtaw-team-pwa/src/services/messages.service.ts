@@ -7,9 +7,9 @@ export const messagesService = {
         (cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""),
     ),
   remove: (groupId: string, id: string) => api.request(`/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  send: (groupId: string, text: string) =>
+  send: (groupId: string, text: string, mentionIds?: string[]) =>
     api.request<Message>(`/groups/${encodeURIComponent(groupId)}/messages`, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...(mentionIds?.length ? { mentionIds } : {}) }),
     }),
 };

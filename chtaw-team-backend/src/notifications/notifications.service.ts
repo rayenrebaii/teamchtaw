@@ -18,11 +18,12 @@ import {
 import { defaultPreferences, permits, validPushEndpoint } from "./notifications.rules";
 import { PushTransport } from "./push.transport";
 import { notificationContent } from "./notifications.content";
+import { isConfirmedSlot } from "../polls/attendance-time";
 export function notificationWhere(actor: Actor): Prisma.NotificationWhereInput {
   return {
     userId: actor.id,
     ...(actor.role === "ADMIN" ? {} : { group: { members: { some: { userId: actor.id } } } }),
-    ...(actor.role !== "USER" ? { type: { in: ["MESSAGE", "POLL", "ABSENCE_ALERT"] } } : {}),
+    ...(actor.role !== "USER" ? { type: { in: ["MESSAGE", "MENTION", "POLL", "ABSENCE_ALERT"] } } : {}),
   };
 }
 @Injectable()
@@ -154,7 +155,7 @@ export class NotificationsService {
         if (!alert) throw new NotFoundException("Signalement indisponible.");
         return { href: `${actor.role === "ADMIN" ? "/admin/collaborator-reports" : "/collaborator/reports"}?alert=${alert.id}` };
       }
-      if (item.type === "MESSAGE") {
+      if (item.type === "MESSAGE" || item.type === "MENTION") {
         if (!(await tx.message.findFirst({ where: { id: item.entityId, groupId: item.groupId } })))
           throw new NotFoundException("Contenu indisponible.");
         return { href: `/app/groups/${item.groupId}?message=${item.entityId}` };
@@ -169,17 +170,17 @@ export class NotificationsService {
       };
   }
   async describe(tx: Prisma.TransactionClient, items: { id: string; type: string; entityId: string; groupId: string; groupName: string; optionId?: string | null; title: string; body: string }[], language = "fr") {
-    const messageIds = items.filter((item) => item.type === "MESSAGE").map((item) => item.entityId);
+    const messageIds = items.filter((item) => item.type === "MESSAGE" || item.type === "MENTION").map((item) => item.entityId);
     const pollIds = items.filter((item) => item.type === "POLL" || item.type.startsWith("SESSION_")).map((item) => item.entityId);
     const alertIds = items.filter((item) => item.type === "ABSENCE_ALERT").map((item) => item.entityId);
     const [messages, polls, alerts] = await Promise.all([
       messageIds.length ? tx.message.findMany({ where: { id: { in: messageIds } }, include: { author: { select: { firstName: true, lastName: true } } } }) : [],
-      pollIds.length ? tx.poll.findMany({ where: { id: { in: pollIds }, archivedAt: null }, include: { author: { select: { firstName: true, lastName: true } }, options: { select: { id: true, label: true, startsAt: true } } } }) : [],
+      pollIds.length ? tx.poll.findMany({ where: { id: { in: pollIds }, archivedAt: null }, include: { groups: true, author: { select: { firstName: true, lastName: true } }, options: { select: { id: true, label: true, startsAt: true } } } }) : [],
       alertIds.length ? tx.organizerAbsenceAlert.findMany({ where: { id: { in: alertIds } }, include: { user: { select: { firstName: true, lastName: true } } } }) : [],
     ]);
     return new Map(items.map((item) => {
       const message = messages.find((row) => row.id === item.entityId && row.groupId === item.groupId);
-      const poll = polls.find((row) => row.id === item.entityId && row.groupId === item.groupId);
+      const poll = polls.find((row) => row.id === item.entityId && (row.groupId === item.groupId || row.groups.some(group => group.groupId === item.groupId)));
       const alert = alerts.find((row) => row.id === item.entityId);
       const author = message?.author ?? poll?.author;
       const option = poll?.options.find((row) => row.id === item.optionId);
@@ -261,15 +262,16 @@ export class NotificationsService {
         !option ||
         option.pollId !== item.entityId ||
         option.poll.status === "CANCELLED" ||
+        !isConfirmedSlot(option, now) || option.poll.archivedAt ||
         !option.startsAt ||
-        option.startsAt <= now ||
-        option.startsAt.getTime() !== item.expiresAt.getTime()
+        (item.type === "SESSION_START"
+          ? now < option.startsAt || (option.endsAt !== null && option.endsAt <= now) || Math.min(option.startsAt.getTime() + 900000, option.endsAt?.getTime() ?? Infinity) !== item.expiresAt.getTime()
+          : option.startsAt <= now || option.startsAt.getTime() !== item.expiresAt.getTime())
       )
         return false;
-      if (option.poll.mandatoryAttendance)
-        return !!(await tx.sessionParticipant.findFirst({
-          where: { pollId: item.entityId, userId: user.id, included: true },
-        }));
+      if (option.poll.mandatoryAttendance && !(await tx.sessionParticipant.findFirst({
+        where: { pollId: item.entityId, userId: user.id, included: true },
+      }))) return false;
       return !!(await tx.pollVote.findFirst({
         where: {
           pollId: item.entityId,

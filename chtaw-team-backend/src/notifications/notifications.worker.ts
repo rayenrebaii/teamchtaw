@@ -10,6 +10,8 @@ import { permits, reminderPlan } from "./notifications.rules";
 import { FirebaseIdentity } from "../auth/firebase.service";
 import { notificationContent } from "./notifications.content";
 import { pollGroupIds } from "../common/poll-audience";
+import { isMentioned } from "../messages/mentions";
+import { confirmedSlots, isConfirmedSlot } from "../polls/attendance-time";
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -94,13 +96,14 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
             include: { message: { include: { group: true, author: { select: { firstName: true, lastName: true } }, poll: { select: { question: true, type: true } } } } },
           });
           if (!event || event.processedAt) return;
-          const type = event.message.kind === "poll" ? "POLL" : "MESSAGE";
           for (const userId of [...event.recipientIds].sort()) {
+            const type = event.message.kind === "poll" ? "POLL" : isMentioned(event.message, userId) ? "MENTION" : "MESSAGE";
             await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
             const member = await tx.user.findFirst({
               where: {
                 id: userId,
                 status: "APPROVED",
+                disabledAt: null,
                 memberships: { some: { groupId: event.message.groupId } },
               },
               include: { notificationPreference: true },
@@ -150,11 +153,12 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
             id: job.userId,
             role: "USER",
             status: "APPROVED",
+            disabledAt: null,
             memberships: { some: { groupId: { in: pollGroupIds(option?.poll ?? job.session) } } },
           },
           include: { notificationPreference: true, memberships: { where: { groupId: { in: pollGroupIds(option?.poll ?? job.session) } }, orderBy: { groupId: "asc" }, take: 1 } },
         });
-        const concerned =
+        const reserved =
           option && !!(await tx.pollVote.findFirst({
                 where: {
                   pollId: option.pollId,
@@ -162,14 +166,18 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
                   options: { some: { optionId: option.id } },
                 },
               }));
+        const concerned = reserved && (!option!.poll.mandatoryAttendance || !!(await tx.sessionParticipant.findFirst({
+          where: { pollId: option!.pollId, userId: job.userId, included: true },
+        })));
         if (
           !option ||
-          !option.validatedAt ||
+          !isConfirmedSlot(option, now) ||
           !!option.poll.archivedAt ||
           option.poll.status === "CANCELLED" ||
           !option.startsAt ||
           option.startsAt.getTime() !== job.startsAt.getTime() ||
-          option.startsAt <= now ||
+          (job.reminderType !== "SESSION_START" && option.startsAt <= now) ||
+          (job.reminderType === "SESSION_START" && !!option.endsAt && option.endsAt <= now) ||
           !student ||
           !concerned
         ) {
@@ -199,12 +207,14 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           userId: job.userId,
           groupId: student.memberships[0]?.groupId ?? option.poll.groupId,
           type: job.reminderType,
-          title: job.reminderType === "SESSION_24H" ? "Séance demain" : "Séance dans 1 heure",
+          title: job.reminderType === "SESSION_START" ? "Votre séance commence" : job.reminderType === "SESSION_24H" ? "Séance demain" : "Séance dans 1 heure",
           body: `Votre séance ${option.poll.group.name} commence ${job.reminderType === "SESSION_24H" ? "demain " : ""}à ${time} (${zone}).`,
           entityId: option.pollId,
           optionId: option.id,
           sourceKey: "reminder:" + job.id,
-          expiresAt: option.startsAt,
+          expiresAt: job.reminderType === "SESSION_START"
+            ? new Date(Math.min(option.startsAt.getTime() + 900000, option.endsAt?.getTime() ?? Infinity))
+            : option.startsAt,
         });
         await tx.sessionReminderDelivery.update({
           where: { id: job.id },
@@ -216,7 +226,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     await this.db
       .$executeRaw`UPDATE "SessionReminderDelivery" d SET status=\'CANCELLED\' WHERE d.status=\'PENDING\' AND NOT EXISTS (SELECT 1 FROM "PollOption" o JOIN "Poll" p ON p.id=o."pollId" WHERE o.id=d."optionId" AND o."startsAt"=d."startsAt" AND p.status<>\'CANCELLED\')`;
     const options = await this.db.pollOption.findMany({
-      where: { validatedAt: { not: null }, startsAt: { gt: now }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
+      where: { ...confirmedSlots(now), startsAt: { gte: new Date(now.getTime() - 900000) }, poll: { type: "SESSION", archivedAt: null, status: { not: "CANCELLED" } } },
       include: { poll: { include: { groups: true } } },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     });
@@ -228,12 +238,14 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           where: { id: option.id },
           include: { poll: { include: { groups: true } } },
         });
-        if (!current?.validatedAt || !current.startsAt || current.startsAt <= now || current.poll.status === "CANCELLED")
+        if (!current || !isConfirmedSlot(current, now) || !current.startsAt || current.startsAt.getTime() < now.getTime() - 900000 || current.poll.archivedAt || current.poll.status === "CANCELLED")
           return;
         const students = await tx.user.findMany({
           where: {
             role: "USER",
             status: "APPROVED",
+            disabledAt: null,
+            ...(current.poll.mandatoryAttendance ? { sessionParticipants: { some: { pollId: current.pollId, included: true } } } : {}),
             memberships: { some: { groupId: { in: pollGroupIds(current.poll) } } },
             votes: { some: { pollId: current.pollId, options: { some: { optionId: current.id } } } },
           },

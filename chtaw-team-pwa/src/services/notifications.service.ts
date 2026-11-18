@@ -3,7 +3,7 @@ export interface AppNotification {
   id: string;
   groupId: string;
   groupName: string;
-  type: "MESSAGE" | "POLL" | "SESSION_24H" | "SESSION_1H" | "ABSENCE_ALERT";
+  type: "MESSAGE" | "MENTION" | "POLL" | "SESSION_24H" | "SESSION_1H" | "SESSION_START" | "ABSENCE_ALERT";
   title: string;
   body: string;
   entityId: string;

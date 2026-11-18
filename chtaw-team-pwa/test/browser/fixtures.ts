@@ -8,7 +8,7 @@ export async function fixture(page: Page, role: "USER" | "ADMIN" | "COLLABORATOR
   await page.addInitScript(({ theme, language }) => { if (!localStorage.getItem("chtaw-theme")) localStorage.setItem("chtaw-theme", theme); if (!localStorage.getItem("chtaw-language")) localStorage.setItem("chtaw-language", language); }, { theme, language });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname.replace("/api/v1", "");
-    const headers = { "Access-Control-Allow-Origin": "http://127.0.0.1:3001", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "Authorization,Content-Type,X-Session-Transport", "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,DELETE,OPTIONS" };
+    const headers = { "Access-Control-Allow-Origin": route.request().headers()["origin"] || "http://127.0.0.1:3001", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "Authorization,Content-Type,X-Session-Transport", "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,DELETE,OPTIONS" };
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
     let body: unknown;
     if (path === "/auth/refresh") body = { accessToken: "client-render-fixture", expiresIn: 900, userId: user.id, sessionId: "fixture-session" };

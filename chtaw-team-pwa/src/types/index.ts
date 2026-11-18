@@ -72,6 +72,7 @@ export interface Poll {
   endsAt?: string;
 }
 export interface Message {
+  mentionIds?: string[];
   author?: MemberSummary;
   id: string;
   groupId: string;

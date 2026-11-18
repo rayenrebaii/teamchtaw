@@ -14,7 +14,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { ArrayMaxSize, ArrayUnique, IsArray, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.module";
 import { AccessService, Actor } from "../common/access";
 import { DomainEvents } from "../common/events";
@@ -28,6 +28,12 @@ export class SendMessageDto {
   @MaxLength(4000)
   @Transform(({ value }: { value: unknown }) => (typeof value === "string" ? value.trim() : value))
   text!: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  mentionIds?: string[];
 }
 @Injectable()
 export class MessagesService {
@@ -68,9 +74,16 @@ export class MessagesService {
   async send(actor: Actor, groupId: string, dto: SendMessageDto) {
     const message = await this.db.$transaction(async (tx) => {
       await this.access.group(tx, actor, groupId);
+      const mentionIds = dto.mentionIds ?? [];
+      if (mentionIds.length) {
+        const members = await tx.user.findMany({ where: { id: { in: mentionIds }, status: "APPROVED", disabledAt: null,
+          memberships: { some: { groupId } } }, select: { id: true, firstName: true, lastName: true } });
+        if (members.length !== mentionIds.length || members.some(member => !dto.text.includes(`@${member.firstName} ${member.lastName}`)))
+          throw new BadRequestException("Mention invalide pour ce groupe.");
+      }
       return presentMessage(
         await tx.message.create({
-          data: { groupId, authorId: actor.id, kind: "text", text: dto.text },
+          data: { groupId, authorId: actor.id, kind: "text", text: dto.text, mentionIds },
           include: messageInclude,
         }),
       );

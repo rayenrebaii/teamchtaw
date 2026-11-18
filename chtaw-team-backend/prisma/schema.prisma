@@ -205,6 +205,7 @@ model Message {
   author    User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
   kind      MessageKind @default(text)
   text      String      @default("") @db.VarChar(4000)
+    mentionIds String[]   @default([]) @db.Uuid
   createdAt DateTime    @default(now())
   mediaId   String?     @unique @db.Uuid
   media     Media?      @relation(fields: [mediaId], references: [id], onDelete: Restrict)

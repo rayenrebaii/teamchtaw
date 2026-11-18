@@ -7,26 +7,35 @@ import { defaultPreferences, permits, reminderPlan, validPushEndpoint } from "..
 import { NotificationPreferenceDto, SubscribePushDto } from "../src/notifications/notifications.dto";
 import { validateEnvironment } from "../src/config/environment";
 describe("Notification rules", () => {
-  it.each(["MESSAGE", "POLL", "SESSION_24H", "SESSION_1H"])("respects master preference for %s", (type) => {
+  it("catches up a start reminder after a short restart, but never sends stale sessions", () => {
+    const start = new Date("2026-11-10T13:00:00Z"), before = new Date("2026-11-08T12:00:00Z");
+    expect(reminderPlan(start, before, before, new Date(start.getTime() + 30000))[2]!.status).toBe("PENDING");
+    expect(reminderPlan(start, before, before, new Date(start.getTime() + 900001))[2]!.status).toBe("SKIPPED");
+    expect(reminderPlan(start, before, new Date(start.getTime() + 1), start)[2]!.status).toBe("SKIPPED");
+    const due = new Date(start.getTime() - 3600000);
+    expect(reminderPlan(start, before, before, new Date(due.getTime() + 15000))[1]!.status).toBe("PENDING");
+  });
+  it.each(["MESSAGE", "MENTION", "POLL", "SESSION_24H", "SESSION_1H", "SESSION_START"])("respects master preference for %s", (type) => {
     expect(permits(null, type)).toBe(true);
     expect(permits({ ...defaultPreferences, enabled: false }, type)).toBe(false);
   });
   it("keeps categories independent and disables both reminders together", () => {
     expect(permits({ ...defaultPreferences, messagesEnabled: false }, "POLL")).toBe(true);
     expect(permits({ ...defaultPreferences, pollsEnabled: false }, "POLL")).toBe(false);
-    for (const type of ["SESSION_24H", "SESSION_1H"]) expect(permits({ ...defaultPreferences, sessionRemindersEnabled: false }, type)).toBe(false);
+    for (const type of ["SESSION_24H", "SESSION_1H", "SESSION_START"]) expect(permits({ ...defaultPreferences, sessionRemindersEnabled: false }, type)).toBe(false);
   });
   it("uses real slot starts, not a vote deadline", () => {
     const start = new Date("2026-11-10T13:00:00Z"), before = new Date("2026-11-08T12:00:00Z");
     expect(reminderPlan(start, before, before, before)).toEqual([
       { type: "SESSION_24H", scheduledFor: new Date("2026-11-09T13:00:00Z"), status: "PENDING" },
       { type: "SESSION_1H", scheduledFor: new Date("2026-11-10T12:00:00Z"), status: "PENDING" },
+      { type: "SESSION_START", scheduledFor: start, status: "PENDING" },
     ]);
   });
   it("skips retrospective reminders but preserves the next future reminder", () => {
     const start = new Date("2026-11-10T13:00:00Z"), late = new Date("2026-11-10T10:00:00Z");
-    expect(reminderPlan(start, late, late, late).map((job) => job.status)).toEqual(["SKIPPED", "PENDING"]);
-    expect(reminderPlan(start, late, late, new Date("2026-11-10T12:30:00Z")).map((job) => job.status)).toEqual(["SKIPPED", "SKIPPED"]);
+    expect(reminderPlan(start, late, late, late).map((job) => job.status)).toEqual(["SKIPPED", "PENDING", "PENDING"]);
+    expect(reminderPlan(start, late, late, new Date("2026-11-10T12:30:00Z")).map((job) => job.status)).toEqual(["SKIPPED", "SKIPPED", "PENDING"]);
   });
   it.each(["http://fcm.googleapis.com/a", "https://127.0.0.1/a", "https://[::1]/", "https://localhost/", "https://fcm.googleapis.com.evil.test/", "https://user:secret@fcm.googleapis.com/a", "https://fcm.googleapis.com:444/a", "https://evil.test/a"])("rejects untrusted push endpoints: %s", (endpoint) => {
     expect(validPushEndpoint(endpoint)).toBe(false);

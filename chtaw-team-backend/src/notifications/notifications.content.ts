@@ -20,14 +20,14 @@ export function notificationContent(source: NotificationSource, language = "fr",
   const en = language === "en";
   const author = source.authorName || (en ? "Member" : "Membre");
   let title = source.title || "Team Chtaw", body = source.body || "";
-  if (source.type === "MESSAGE" && source.text !== undefined) {
-    title = `${author} · ${source.groupName}`;
+  if ((source.type === "MESSAGE" || source.type === "MENTION") && source.text !== undefined) {
+    title = `${author}${source.type === "MENTION" ? (en ? " mentioned you" : " vous a mentionné") : ""} · ${source.groupName}`;
     body = source.photo ? "Photo" + (source.text ? ` : ${source.text}` : "") : source.text;
   } else if (source.type === "POLL" && source.text !== undefined) {
     title = `${author} · ${source.groupName}`;
     body = `${source.session ? (en ? "Session poll" : "Sondage de séance") : (en ? "Poll" : "Sondage")} : ${source.text}`;
   } else if (source.type.startsWith("SESSION_") && source.text !== undefined) {
-    title = `${source.type === "SESSION_24H" ? (en ? "Session tomorrow" : "Séance demain") : (en ? "Session in 1 hour" : "Séance dans 1 heure")} · ${source.groupName}`;
+    title = `${source.type === "SESSION_START" ? (en ? "Your session is starting" : "Votre séance commence") : source.type === "SESSION_24H" ? (en ? "Session tomorrow" : "Séance demain") : (en ? "Session in 1 hour" : "Séance dans 1 heure")} · ${source.groupName}`;
     body = `${author} · ${source.text}${source.slot ? ` · ${source.slot}` : ""}${source.startsAt ? ` · ${new Intl.DateTimeFormat(en ? "en-GB" : "fr-FR", { timeZone, dateStyle: "short", timeStyle: "short" }).format(source.startsAt)}` : ""}`;
   } else if (source.type === "ABSENCE_ALERT" && source.studentName) {
     title = `${en ? "Absence report" : "Signalement d’absences"} · ${source.groupName}`;

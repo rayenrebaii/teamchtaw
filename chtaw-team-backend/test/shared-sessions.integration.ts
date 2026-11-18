@@ -148,8 +148,8 @@ describe("Shared sessions: isolated PostgreSQL and real HTTP authentication", ()
     await cast(poll, students[0]!, [poll.options[0]!.id]).expect(201);
     await cast(poll, students[8]!, [poll.options[1]!.id]).expect(201);
     await app.get(NotificationsWorker).work();
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[0]!.id } })).toBe(2);
-    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[8]!.id } })).toBe(2);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[0]!.id } })).toBe(3);
+    expect(await db.sessionReminderDelivery.count({ where: { sessionId: poll.id, userId: students[8]!.id } })).toBe(3);
     await finish(poll);
     const student = students[0]!;
     const baseline = (await db.absenceState.findUnique({ where: { userId: student.id } }))?.total ?? 0;
