@@ -15,6 +15,7 @@ export interface PersonalSession {
   selections: { optionId: string }[];
 }
 export interface PersonalQuery {
+  phase?: "HISTORY";
   pollId?: string;
   from?: string;
   to?: string;
@@ -49,7 +50,7 @@ export function personalAttendance(
     .map((session) => {
       const chosen = new Set(session.selections.map((selection) => selection.optionId));
       const slots = session.slots
-        .filter((slot) => session.mandatoryAttendance || !chosen.size || chosen.has(slot.optionId))
+        .filter((slot) => !chosen.size || chosen.has(slot.optionId))
         .sort(
           (first, second) =>
             (first.startsAt?.getTime() ?? Infinity) - (second.startsAt?.getTime() ?? Infinity),
@@ -101,6 +102,7 @@ export function personalAttendance(
     .filter(
       (item) =>
         (!query.pollId || item.id === query.pollId) &&
+        (!query.phase || item.startsAt === null || item.startsAt <= now) &&
         (!query.status || item.attendanceStatus === query.status) &&
         (!query.groupId || (item.groupIds ?? [item.groupId]).includes(query.groupId)) &&
         ((!query.from && !query.to) ||

@@ -5,6 +5,20 @@ function session(id: string, start: string, final = "EN_ATTENTE", end?: string):
   return { id, question: id, groupId: "group", groupName: "G1", description: "", status: "OPEN", final, mandatoryAttendance: true, slots: [{ optionId: "slot", label: "Créneau", startsAt: new Date(start), endsAt: end ? new Date(end) : null }], selections: [] };
 }
 describe("Présences personnelles : temps, statuts et filtres", () => {
+  it("counts a mandatory reservation by its chosen future slot and keeps it out of history", () => {
+    const booked = { ...session("booked", "2026-10-01T10:00:00Z"), slots: [
+      { optionId: "old", label: "Earlier choice", startsAt: new Date("2026-10-01T10:00:00Z"), endsAt: new Date("2026-10-01T11:00:00Z") },
+      { optionId: "chosen", label: "Reservation", startsAt: new Date("2026-10-12T10:00:00Z"), endsAt: new Date("2026-10-12T11:00:00Z") },
+    ], selections: [{ optionId: "chosen" }] };
+    const data = [booked, session("present", "2026-10-01T10:00:00Z", "PRESENT"), session("pending", "2026-10-02T10:00:00Z"), session("absent", "2026-10-03T10:00:00Z", "ABSENT")];
+    expect(personalAttendance(data, query, now).stats.upcoming).toBe(1);
+    const future = personalAttendance(data, { ...query, status: "UPCOMING" }, now);
+    expect(future.items.map(row => row.id)).toEqual(["booked"]);
+    expect(future.items[0]!.slots.map(row => row.optionId)).toEqual(["chosen"]);
+    const history = personalAttendance(data, { ...query, phase: "HISTORY", order: "desc" }, now);
+    expect(history.items.map(row => row.attendanceStatus)).toEqual(["ABSENT", "PENDING", "PRESENT"]);
+    expect(history.stats.upcoming).toBe(1);
+  });
   it.each(["2026-10-10T13:00:00Z", "2026-10-11T10:00:00Z", "2027-01-01T10:00:00Z"])("classe la séance future %s sans absence ni séance terminée", (start) => {
     const result = personalAttendance([session("future", start, "ABSENT")], query, now);
     expect(result.items[0]!.attendanceStatus).toBe("UPCOMING");

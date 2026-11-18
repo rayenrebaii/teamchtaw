@@ -33,13 +33,14 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     ),
   });
   let fixtureSchedule = 0;
-  async function create(count: number) {
+  async function create(count: number, validate = true, mandatoryAttendance = false) {
     const scheduled = input(count);
+    scheduled.mandatoryAttendance = mandatoryAttendance;
     scheduled.startsAt = scheduled.startsAt.map((value) => new Date(Date.parse(value) + ++fixtureSchedule * 7 * 86400000).toISOString());
     const poll = (
       await api().post(`/api/v1/groups/${groupId}/polls`).set(auth()).send(scheduled).expect(201)
     ).body;
-    for (const option of poll.options) await api().post(`/api/v1/polls/${poll.id}/options/${option.id}/validate`).set(auth()).expect(201);
+    if (validate) for (const option of poll.options) await api().post(`/api/v1/polls/${poll.id}/options/${option.id}/validate`).set(auth()).expect(201);
     return poll;
   }
   async function vote(
@@ -61,12 +62,13 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     await db.pollOption.updateMany({ where: { pollId: id, startsAt: { gt: new Date() } }, data: { startsAt: new Date(Date.now() - 60000) } });
     const list = await roster(id);
     const entries = list.slots.flatMap(
-      (slot: { id: string; students: { user: { id: string }; version: number }[] }) =>
+      (slot: { id: string; students: { user: { id: string }; version: number; participantVersion?: number }[] }) =>
         slot.students.map((s) => ({
           userId: s.user.id,
           optionId: slot.id,
           status,
           version: s.version,
+          ...(s.participantVersion === undefined ? {} : { participantVersion: s.participantVersion }),
         })),
     );
     return api().put(`/api/v1/polls/${id}/attendance`).set(auth()).send({ entries });
@@ -136,6 +138,23 @@ describe("Séances, présences et alertes réelles PostgreSQL", () => {
     await api().delete(`/api/v1/polls/${poll.id}/options/${poll.options[1].id}`).set(auth()).expect(200);
     expect((await roster(poll.id)).slots).toHaveLength(1);
     await api().delete(`/api/v1/polls/${poll.id}`).set(auth()).expect(204);
+  });
+  it.each([false, true])("includes an unvalidated future reservation and separates history (mandatory=%s)", async mandatory => {
+    const baseline = (await api().get("/api/v1/attendance/me?status=UPCOMING").set(auth(studentToken)).expect(200)).body.stats.upcoming;
+    const poll = await create(2, false, mandatory);
+    await vote(poll, [poll.options[1].id]);
+    const future = (await api().get(`/api/v1/attendance/me?status=UPCOMING&pollId=${poll.id}`).set(auth(studentToken)).expect(200)).body;
+    expect(future.stats.upcoming).toBe(baseline + 1);
+    expect(future.items).toHaveLength(1);
+    expect(future.items[0].slots.map((slot: { optionId: string }) => slot.optionId)).toEqual([poll.options[1].id]);
+    expect((await roster(poll.id)).slots).toHaveLength(0);
+    const history = (await api().get(`/api/v1/attendance/me?phase=HISTORY&pollId=${poll.id}`).set(auth(studentToken)).expect(200)).body;
+    expect(history.items).toEqual([]);
+    expect((await mark(poll.id, "PRESENT")).status).toBe(200);
+    const present = (await api().get(`/api/v1/attendance/me?phase=HISTORY&pollId=${poll.id}`).set(auth(studentToken)).expect(200)).body;
+    expect(present.items).toHaveLength(1);
+    expect(present.items[0].attendanceStatus).toBe("PRESENT");
+    await api().get("/api/v1/attendance/me?phase=OTHER").set(auth(studentToken)).expect(400);
   });
   it("recherche les séances par date de Tunis et groupe", async () => {
     const data = input(1);

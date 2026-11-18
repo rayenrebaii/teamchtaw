@@ -5,21 +5,22 @@ import { attendanceService, type PersonalAttendancePage } from "@/services/atten
 import { useCommunity } from "@/stores/community";
 import { useCopy } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import styles from "./student-attendance.module.css";
 export function StudentAttendance() {
   const { t, locale, error } = useCopy();
   const owner = useCommunity((state) => state.session?.userId);
   const polls = useCommunity((state) => state.polls);
   const [upcomingPage, setUpcomingPage] = useState(1);
-  const [absencePage, setAbsencePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{
     key: string;
     upcoming?: PersonalAttendancePage;
-    absences?: PersonalAttendancePage;
+    history?: PersonalAttendancePage;
     error?: string;
   }>();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Tunis";
-  const key = JSON.stringify({ owner, upcomingPage, absencePage, timeZone, revision });
+  const key = JSON.stringify({ owner, upcomingPage, historyPage, timeZone, revision });
   const current = result?.key === key ? result : undefined;
   useEffect(() => {
     if (!owner) return;
@@ -32,16 +33,16 @@ export function StudentAttendance() {
         timeZone,
       }),
       attendanceService.mine({
-        status: "ABSENT",
-        page: String(absencePage),
+        phase: "HISTORY",
+        page: String(historyPage),
         order: "desc",
         timeZone,
       }),
     ])
-      .then(([upcoming, absences]) => {
-        if (upcoming.user.id !== owner || absences.user.id !== owner)
+      .then(([upcoming, history]) => {
+        if (upcoming.user.id !== owner || history.user.id !== owner)
           throw Error("La session a changé.");
-        if (active) setResult({ key, upcoming, absences });
+        if (active) setResult({ key, upcoming, history });
       })
       .catch((reason: unknown) => {
         if (active)
@@ -53,7 +54,7 @@ export function StudentAttendance() {
     return () => {
       active = false;
     };
-  }, [key, owner, upcomingPage, absencePage, timeZone, polls]);
+  }, [key, owner, upcomingPage, historyPage, timeZone, polls]);
   useEffect(() => {
     const refresh = () => setRevision((value) => value + 1);
     const timer = setInterval(refresh, 60000);
@@ -145,12 +146,15 @@ export function StudentAttendance() {
       </section>
     );
   };
+  const history = current?.history;
+  const historyPages = history ? Math.max(1, Math.ceil(history.total / history.limit)) : 1;
+  const statusLabels = { UPCOMING: "À venir", PRESENT: "Présent", ABSENT: "Absent", PENDING: "En attente de pointage", CANCELLED: "Annulée" };
   return (
     <div className="account-page personal-attendance">
       <header className="page-heading">
         <div>
           <h1>{t("Mes présences")}</h1>
-          <p className="muted">{t("Retrouvez vos absences et vos prochaines séances.")}</p>
+          <p className="muted">{t("Retrouvez vos prochaines séances et votre historique de présence.")}</p>
         </div>
         <CalendarDays aria-hidden="true" />
       </header>
@@ -176,10 +180,41 @@ export function StudentAttendance() {
           <Button onClick={() => setRevision((value) => value + 1)}>{t("Réessayer")}</Button>
         </div>
       )}
-      {current?.upcoming && current.absences && (
+      {current?.upcoming && history && (
         <>
           {section(current.upcoming, true, upcomingPage, setUpcomingPage)}
-          {section(current.absences, false, absencePage, setAbsencePage)}
+          <section className="personal-session-section" aria-labelledby="my-attendance-history">
+            <div className="row wrap between">
+              <h2 id="my-attendance-history">{t("Historique de mes présences")}</h2>
+              <span className="count-badge">{history.total}</span>
+            </div>
+            {!history.items.length ? <p className="panel muted">{t("Aucune séance dans votre historique")}</p> : (
+              <div className={styles.tableWrap}>
+                <table className={styles.table} role="table" aria-label={t("Historique de mes présences")}>
+                  <thead><tr role="row">
+                    {["Séance", "Groupe", "Date et horaire", "État"].map(label => <th key={label} scope="col" role="columnheader">{t(label)}</th>)}
+                  </tr></thead>
+                  <tbody>{history.items.map(session => <tr key={session.id} role="row">
+                    <td role="cell" data-label={t("Séance")}><strong>{session.question}</strong></td>
+                    <td role="cell" data-label={t("Groupe")}>{session.groupName}</td>
+                    <td role="cell" data-label={t("Date et horaire")}>
+                      <ul className={styles.dates}>{session.slots.map(slot => <li key={slot.optionId}>
+                        <span>{slot.label}</span>
+                        <span>{slot.startsAt ? date(slot.startsAt) : t("Date non renseignée")}{slot.endsAt ? ` → ${date(slot.endsAt, slot.startsAt?.slice(0, 10) !== slot.endsAt.slice(0, 10))}` : ""}</span>
+                      </li>)}</ul>
+                      {!session.slots.length && t("Date non renseignée")}
+                    </td>
+                    <td role="cell" data-label={t("État")}><span className={`badge personal-status-${session.attendanceStatus.toLowerCase()}`}>{t(statusLabels[session.attendanceStatus])}</span></td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            )}
+            {historyPages > 1 && <nav className="row wrap between" aria-label={t("Historique de mes présences")}>
+              <Button variant="secondary" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>{t("Précédent")}</Button>
+              <span>{t("Page {page} sur {pages}", { page: historyPage, pages: historyPages })}</span>
+              <Button variant="secondary" disabled={historyPage >= historyPages} onClick={() => setHistoryPage(historyPage + 1)}>{t("Suivant")}</Button>
+            </nav>}
+          </section>
         </>
       )}
     </div>

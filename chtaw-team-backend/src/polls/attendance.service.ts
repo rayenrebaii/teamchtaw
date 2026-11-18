@@ -466,7 +466,7 @@ export class AttendanceService {
         groups: poll.groups.map(row => ({ id: row.groupId, name: row.group.name })),
         currentMember: poll.group.members.length > 0 || poll.groups.some(row => row.group.members.length > 0),
         description: poll.description,
-        slots: poll.options.filter((option) => isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED")).map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
+        slots: poll.options.filter((option) => (self && !poll.archivedAt) || isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED")).map((option) => ({ optionId: option.id, label: option.label, startsAt: option.startsAt, endsAt: option.endsAt })),
         status: poll.status,
         createdAt: poll.createdAt,
         archivedAt: poll.archivedAt,
@@ -480,7 +480,7 @@ export class AttendanceService {
               : finalAttendance(poll.votes[0]?.options.map((o) => o.attendance) ?? []),
         selections:
           poll.mandatoryAttendance && poll.participants[0]
-            ? poll.options.filter((option) => isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED") && (poll.votes[0]?.options.some(selection => selection.optionId === option.id) || poll.participants[0]?.marks.some(mark => mark.optionId === option.id))).map((option) => {
+            ? poll.options.filter((option) => ((self && !poll.archivedAt) || isConfirmedSlot(option, poll.archivedAt ?? now, poll.status === "CANCELLED")) && (poll.votes[0]?.options.some(selection => selection.optionId === option.id) || poll.participants[0]?.marks.some(mark => mark.optionId === option.id))).map((option) => {
                 const person = poll.participants[0]!;
                 const mark = person.marks.find((m) => m.optionId === option.id);
                 return {

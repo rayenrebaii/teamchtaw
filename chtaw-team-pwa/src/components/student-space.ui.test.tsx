@@ -136,7 +136,7 @@ describe("Espace étudiant simplifié", () => {
     expect(mine).toHaveBeenCalledWith(
       expect.objectContaining({ status: "UPCOMING", order: "asc" }),
     );
-    expect(mine).toHaveBeenCalledWith(expect.objectContaining({ status: "ABSENT", order: "desc" }));
+    expect(mine).toHaveBeenCalledWith(expect.objectContaining({ phase: "HISTORY", order: "desc" }));
   });
   it("gère les erreurs réseau puis recharge les données réelles", async () => {
     const mine = vi
@@ -167,7 +167,7 @@ describe("Espace étudiant simplifié", () => {
     render(<StudentAttendance />);
     expect(screen.getByRole("heading", { name: "My attendance" })).toBeTruthy();
     expect(await screen.findByText("Séance future personnelle")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Your absences" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "My attendance history" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Mes présences" })).toBeNull();
   });
   it("préserve la consultation et la modification autorisée du profil", () => {
@@ -282,22 +282,41 @@ it("garde les deux sections utiles quand aucune séance n’est disponible", asy
   });
   render(<StudentAttendance />);
   expect(await screen.findByText("Aucune séance à venir")).toBeTruthy();
-  expect(screen.getByText("Aucune absence validée")).toBeTruthy();
+  expect(screen.getByText("Aucune séance dans votre historique")).toBeTruthy();
   expect(screen.queryByRole("tablist")).toBeNull();
 });
-it("pagine les absences indépendamment des prochaines séances", async () => {
+it("pagine l’historique indépendamment des prochaines séances", async () => {
   const mine = vi.spyOn(attendanceService, "mine").mockImplementation(async (filters) => {
     const data = response(filters.status === "UPCOMING", Number(filters.page));
-    return filters.status === "ABSENT" ? { ...data, total: 2, limit: 1 } : data;
+    return filters.phase === "HISTORY" ? { ...data, total: 2, limit: 1 } : data;
   });
   render(<StudentAttendance />);
   await screen.findByText("Absence officielle");
-  const nav = screen.getByRole("navigation", { name: "Vos absences" });
+  const nav = screen.getByRole("navigation", { name: "Historique de mes présences" });
   fireEvent.click(within(nav).getByRole("button", { name: "Suivant" }));
   await waitFor(() =>
-    expect(mine).toHaveBeenCalledWith(expect.objectContaining({ status: "ABSENT", page: "2" })),
+    expect(mine).toHaveBeenCalledWith(expect.objectContaining({ phase: "HISTORY", page: "2" })),
   );
   expect(mine).toHaveBeenCalledWith(expect.objectContaining({ status: "UPCOMING", page: "1" }));
+});
+it("shows official present and absent states plus pending entries in the client's history table", async () => {
+  vi.spyOn(attendanceService, "mine").mockImplementation(async filters => {
+    if (filters.status === "UPCOMING") return response(true);
+    const data = response(false), base = data.items[0]!;
+    return { ...data, total: 4, items: [base,
+      { ...base, id: "present", question: "Séance suivie", attendanceStatus: "PRESENT", final: "PRESENT" },
+      { ...base, id: "pending", question: "Pointage à confirmer", attendanceStatus: "PENDING", final: "EN_ATTENTE" },
+      { ...base, id: "cancelled", question: "Séance annulée", attendanceStatus: "CANCELLED", final: "ANNULE" },
+    ] };
+  });
+  render(<StudentAttendance />);
+  const table = within(await screen.findByRole("table", { name: "Historique de mes présences" }));
+  expect(table.getAllByRole("columnheader").map(node => node.textContent)).toEqual(["Séance", "Groupe", "Date et horaire", "État"]);
+  expect(table.getByRole("row", { name: /Séance suivie/ }).textContent).toContain("Présent");
+  expect(table.getByRole("row", { name: /Absence officielle/ }).textContent).toContain("Absent");
+  expect(table.getByRole("row", { name: /Pointage à confirmer/ }).textContent).toContain("En attente de pointage");
+  expect(table.getByRole("row", { name: /Séance annulée/ }).textContent).toContain("Annulée");
+  expect(table.queryByText("Séance future personnelle")).toBeNull();
 });
 it("présente les instructions Safari sans annoncer d’installation", () => {
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) Safari/605");

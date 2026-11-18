@@ -6,6 +6,12 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "Historique de mes présences": "My attendance history",
+  "Retrouvez vos prochaines séances et votre historique de présence.": "View your upcoming sessions and attendance history.",
+  "Aucune séance dans votre historique": "No sessions in your history",
+  "Date et horaire": "Date and time",
+  "État": "Status",
+  "En attente de pointage": "Awaiting attendance",
   "Supprimer cette notification": "Delete this notification",
   "Mentions": "Mentions",
   "Mentionner dans ce groupe": "Mention someone in this group",

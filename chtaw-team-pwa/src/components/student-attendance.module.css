@@ -1,0 +1,22 @@
+.tableWrap { margin-block: 16px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); }
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .85rem; }
+.table th { text-align: left; background: var(--surface-alt); color: var(--muted); font-size: .75rem; }
+.table th, .table td { padding: 16px; vertical-align: top; overflow-wrap: anywhere; }
+.table th:first-child { width: 28%; }
+.table th:nth-child(2) { width: 18%; }
+.table th:nth-child(3) { width: 34%; }
+.table tr + tr td { border-top: 1px solid var(--line); }
+.table td :global(.badge) { white-space: normal; }
+.dates { padding: 0; margin: 0; list-style: none; display: grid; gap: 10px; }
+.dates li { display: grid; gap: 4px; }
+.dates li > span:first-child { color: var(--muted); font-size: .75rem; }
+@media (max-width: 640px) {
+  .tableWrap { border: 0; border-radius: 0; background: transparent; }
+  .table, .table tbody { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table tbody tr { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  .table tbody tr + tr { margin-top: 12px; }
+  .table td { display: grid; gap: 5px; padding: 0; border: 0 !important; }
+  .table td::before { content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 600; }
+  .table td :global(.badge) { justify-self: start; }
+}
