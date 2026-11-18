@@ -1,11 +1,27 @@
 "use client";
 import { adminEnglish } from "./admin-copy";
+import { analyticsEnglish } from "./analytics-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
 import { groupsEnglish } from "./groups-copy";
 import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  ...analyticsEnglish,
+  "Invitez un agent à aider l’administrateur principal dans la saisie et le suivi des présences.": "Invite an agent to help the principal administrator with data entry and attendance.",
+  "L’agent dispose des accès de gestion. Ses séances, sondages et publications appartiennent à l’administrateur principal, qui reste protégé.": "The agent has management access. Their sessions, polls and posts belong to the principal administrator, who remains protected.",
+  "Son accès sera retiré et ses sessions déconnectées. Les séances, publications et historiques de présence de l’administrateur principal seront conservés.": "Their access will be removed and sessions disconnected. The principal administrator’s sessions, posts and attendance history will be preserved.",
+  "Accès de l’agent retiré.": "Agent access removed.",
+  "Retirer l’accès": "Remove access",
+  "Administrateurs": "Administrators",
+  "Administrateur principal": "Principal administrator",
+  "Compte protégé": "Protected account",
+  "Inviter un administrateur": "Invite an administrator",
+  "Invitez un ami à gérer toute l’application. L’administrateur principal reste protégé.": "Invite a friend to manage the entire application. The principal administrator remains protected.",
+  "Cet administrateur aura tous les accès de gestion, sans pouvoir supprimer l’administrateur principal.": "This administrator will have full management access and cannot delete the principal administrator.",
+  "Administrateur créé et invitation envoyée.": "Administrator created and invitation sent.",
+  "Supprimer cet administrateur ?": "Delete this administrator?",
+  "Administrateur supprimé.": "Administrator deleted.",
   "Historique de mes présences": "My attendance history",
   "Retrouvez vos prochaines séances et votre historique de présence.": "View your upcoming sessions and attendance history.",
   "Aucune séance dans votre historique": "No sessions in your history",

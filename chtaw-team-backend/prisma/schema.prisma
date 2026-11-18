@@ -96,6 +96,10 @@ model User {
   establishmentSuggestionId String?              @db.Uuid
   establishmentSuggestion EstablishmentSuggestion? @relation(fields: [establishmentSuggestionId], references: [id], onDelete: SetNull)
   role                   Role                    @default(USER)
+  isInvitedAdmin         Boolean                 @default(false)
+  principalAdminId       String?                 @db.Uuid
+  principalAdmin         User?                   @relation("AdministrationAgents", fields: [principalAdminId], references: [id], onDelete: Restrict)
+  administrationAgents   User[]                  @relation("AdministrationAgents")
   status                 AccountStatus           @default(PENDING)
   joinedAt               DateTime                @default(now())
   updatedAt              DateTime                @updatedAt

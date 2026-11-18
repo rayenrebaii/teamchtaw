@@ -16,7 +16,7 @@ import { ApiBearerAuth, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import { ArrayMaxSize, ArrayUnique, IsArray, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "class-validator";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { presentMessage, messageInclude } from "../common/presenters";
 import { PageDto } from "../common/query.dto";
@@ -83,7 +83,7 @@ export class MessagesService {
       }
       return presentMessage(
         await tx.message.create({
-          data: { groupId, authorId: actor.id, kind: "text", text: dto.text, mentionIds },
+          data: { groupId, authorId: administrationOwner(actor), kind: "text", text: dto.text, mentionIds },
           include: messageInclude,
         }),
       );

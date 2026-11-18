@@ -10,6 +10,7 @@ import { Modal } from "./ui/dialog";
 import type { User } from "@/types";
 export interface NavigationItem { href: string; label: string; Icon: LucideIcon }
 export function isNavigationActive(path: string, href: string) {
+  if (href === "/admin") return path === href;
   return path === href || (href === "/app" ? path.startsWith("/app/groups/") : path.startsWith(href + "/"));
 }
 export function NavigationItems({ items, path, close }: { items: NavigationItem[]; path: string; close?: () => void }) {

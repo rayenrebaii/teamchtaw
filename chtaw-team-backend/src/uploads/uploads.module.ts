@@ -23,7 +23,7 @@ import type { Response } from "express";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { presentMessage, messageInclude } from "../common/presenters";
 import { Admin, CurrentUser } from "../auth/security";
@@ -72,7 +72,7 @@ export class UploadsService {
         const media = await tx.media.create({
           data: {
             groupId,
-            uploaderId: actor.id,
+            uploaderId: administrationOwner(actor),
             storageKey: key,
             mimeType: "image/webp",
             size: image.buffer.length,
@@ -85,7 +85,7 @@ export class UploadsService {
             include: messageInclude,
             data: {
               groupId,
-              authorId: actor.id,
+              authorId: administrationOwner(actor),
               kind: "photo",
               text: dto.caption ?? "",
               mediaId: media.id,

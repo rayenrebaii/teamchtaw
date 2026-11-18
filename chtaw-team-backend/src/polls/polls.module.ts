@@ -18,7 +18,7 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { DomainEvents } from "../common/events";
 import { pollInclude, presentPoll, presentMessage, messageInclude } from "../common/presenters";
 import { PageDto } from "../common/query.dto";
@@ -69,7 +69,7 @@ export class PollsService {
         data: {
           groupId,
           groups: { createMany: { data: groupIds.map(groupId => ({ groupId })), skipDuplicates: true } },
-          authorId: actor.id,
+          authorId: administrationOwner(user),
           question: dto.question,
           description: dto.description ?? "",
           type: dto.type ?? "ORDINARY",
@@ -104,7 +104,7 @@ export class PollsService {
       }
       const messages = [];
       for (const target of groupIds) messages.push(presentMessage(await tx.message.create({
-        include: messageInclude, data: { groupId: target, authorId: actor.id, kind: "poll", pollId: poll.id },
+        include: messageInclude, data: { groupId: target, authorId: poll.authorId, kind: "poll", pollId: poll.id },
       })));
       return { poll: presentPoll(poll), messages };
     });

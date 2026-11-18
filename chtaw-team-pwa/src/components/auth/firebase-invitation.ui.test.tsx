@@ -15,12 +15,12 @@ async function fill() {
   await waitFor(() => expect(screen.getByRole("button").hasAttribute("disabled")).toBe(false));
   fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "collab@test.invalid" } });
   fireEvent.change(screen.getByLabelText("Mot de passe choisi dans Firebase"), { target: { value: "Firebase-password-2026!" } });
-  fireEvent.click(screen.getByRole("button", { name: "Activer mon compte collaborateur" }));
+  fireEvent.click(screen.getByRole("button", { name: "Activer mon compte" }));
 }
 it("active avec un ID token frais sans transmettre le mot de passe au backend", async () => {
   const request = vi.spyOn(api, "request").mockResolvedValue({ success: true });
   render(<AccountAction />); await fill();
-  expect((await screen.findByRole("status")).textContent).toContain("compte collaborateur est activé");
+  expect((await screen.findByRole("status")).textContent).toContain("compte est activé");
   expect(firebase.signIn).toHaveBeenCalledWith(firebase.auth, "collab@test.invalid", "Firebase-password-2026!");
   expect(request).toHaveBeenCalledWith("/auth/account-links/activate-firebase", expect.objectContaining({ body: JSON.stringify({ token: "a".repeat(43), idToken: "firebase-id-token" }) }), false);
   expect(firebase.signOut).toHaveBeenCalled(); expect(window.location.hash).toBe("");

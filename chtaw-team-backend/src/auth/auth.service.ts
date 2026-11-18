@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { randomUUID } from "node:crypto";
+import { isInvitedAccount } from "./invited-account";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
 import { DomainEvents } from "../common/events";
@@ -91,15 +92,15 @@ export class AuthService {
     return this.openSession(user, token.auth_time);
   }
   private async openSession(user: Prisma.UserGetPayload<{ select: typeof userSelect }> & { passwordHash?: string }, firebaseAuthTime?: number) {
-    if (user.disabledAt || (user.role === "COLLABORATOR" && !user.activatedAt)) throw new UnauthorizedException("Compte désactivé ou invitation non activée.");
+    if (user.disabledAt || (isInvitedAccount(user) && !user.activatedAt)) throw new UnauthorizedException("Compte désactivé ou invitation non activée.");
     const id = randomUUID();
     const pair = await this.tokens(user.id, id, 0);
     const tokenHash = await argon2.hash(pair.refreshToken, passwordOptions);
     await this.db.$transaction(async (tx) => {
       // Serialize login against disable/reset so an in-flight login cannot reopen a revoked session.
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${user.id}::uuid FOR UPDATE`;
-      const current = await tx.user.findUnique({ where: { id: user.id }, select: { role: true, disabledAt: true, activatedAt: true, passwordHash: true } });
-      if (!current || current.disabledAt || (current.role === "COLLABORATOR" && !current.activatedAt) ||
+      const current = await tx.user.findUnique({ where: { id: user.id }, select: { role: true, isInvitedAdmin: true, disabledAt: true, activatedAt: true, passwordHash: true } });
+      if (!current || current.disabledAt || (isInvitedAccount(current) && !current.activatedAt) ||
         (user.passwordHash && current.passwordHash !== user.passwordHash)) throw new UnauthorizedException("Reconnectez-vous.");
       await tx.refreshSession.create({
       data: {

@@ -8,6 +8,7 @@ import request from "supertest";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../src/prisma/prisma.module";
 import { configureApp } from "../src/bootstrap";
+import { ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
 
 describe("Invitation native Firebase sans Resend : HTTP, codes réels et PostgreSQL isolé", () => {
   let app: INestApplication, db: PrismaService, firebase: App;
@@ -16,6 +17,7 @@ describe("Invitation native Firebase sans Resend : HTTP, codes réels et Postgre
   const host = "127.0.0.1:9099";
   const email = `collaborator-${randomUUID()}@emulator.invalid`;
   const password = "Firebase-Emulator-Password-2026!";
+  let limiter = new ThrottlerStorageService();
   const api = () => request(app.getHttpServer());
   const headers = (token = admin) => ({ Authorization: `Bearer ${token}` });
   async function rpc(action: string, body: object) {
@@ -44,14 +46,16 @@ describe("Invitation native Firebase sans Resend : HTTP, codes réels et Postgre
     delete process.env.RESEND_API_KEY; delete process.env.ACCOUNT_EMAIL_FROM;
     firebase = initializeApp({ projectId: project }, "chtaw-auth");
     const { AppModule } = await import("../src/app.module");
-    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(ThrottlerStorage).useValue({ increment: (...args: Parameters<ThrottlerStorageService["increment"]>) => limiter.increment(...args) }).compile();
     app = configureApp(module.createNestApplication({ bodyParser: false, logger: false })); await app.init(); db = app.get(PrismaService);
     const adminEmail = `admin-${randomUUID()}@emulator.invalid`;
     const identity = await getAuth(firebase).createUser({ email: adminEmail, password, emailVerified: true });
     await db.user.create({ data: { firebaseUid: identity.uid, email: adminEmail, passwordHash: "unused-emulator-password", firstName: "Admin", lastName: "Emulator", role: "ADMIN", status: "APPROVED", emailVerified: true } });
     admin = (await api().post("/api/v1/auth/firebase").send({ idToken: await signIn(adminEmail) }).expect(200)).body.accessToken;
   });
-  afterAll(async () => { await app?.close(); if (firebase) await deleteApp(firebase); });
+  beforeEach(() => { limiter.onApplicationShutdown(); limiter = new ThrottlerStorageService(); });
+  afterAll(async () => { limiter.onApplicationShutdown(); await app?.close(); if (firebase) await deleteApp(firebase); });
   it("crée exclusivement par l’admin un compte sans mot de passe et émet un e-mail Firebase natif", async () => {
     const created = (await api().post("/api/v1/admin/collaborators").set(headers()).send({ email, firstName: "Collab", lastName: "Emulator" }).expect(201)).body;
     userId = created.user.id;
@@ -91,6 +95,25 @@ describe("Invitation native Firebase sans Resend : HTTP, codes réels et Postgre
     await api().get("/api/v1/auth/me").set(headers(collaborator)).expect(401);
     const login = (await api().post("/api/v1/auth/firebase").send({ idToken: await signIn(email, nextPassword) }).expect(200)).body;
     expect(login.user.role).toBe("COLLABORATOR");
+  });
+  it("activates an administration agent via Firebase and preserves the principal when removing access", async () => {
+    const address = `agent-${randomUUID()}@emulator.invalid`;
+    const created = (await api().post("/api/v1/admin/administrators").set(headers()).send({ email: address, firstName: "Agent", lastName: "Emulator" }).expect(201)).body;
+    expect(created.user).toMatchObject({ role: "ADMIN", isInvitedAdmin: true, status: "PENDING" });
+    expect(created.invitation).toMatchObject({ sent: true, provider: "firebase" });
+    const message = await lastEmail(address);
+    const agentNonce = new URL(new URL(message.oobLink).searchParams.get("continueUrl")!).hash.slice(1);
+    expect((await rpc("resetPassword", { oobCode: message.oobCode, newPassword: password })).ok).toBe(true);
+    const identityToken = await signIn(address);
+    await api().post("/api/v1/auth/firebase").send({ idToken: identityToken }).expect(401);
+    await api().post("/api/v1/auth/account-links/activate-firebase").send({ token: agentNonce, idToken: identityToken }).expect(201);
+    const login = (await api().post("/api/v1/auth/firebase").send({ idToken: await signIn(address) }).expect(200)).body;
+    expect(login.user).toMatchObject({ role: "ADMIN", isInvitedAdmin: true, principalAdminId: created.user.principalAdminId, status: "APPROVED" });
+    await api().get("/api/v1/admin/analytics").set(headers(login.accessToken)).expect(200);
+    await api().delete(`/api/v1/users/${created.user.principalAdminId}`).set(headers(login.accessToken)).expect(403);
+    await api().delete(`/api/v1/users/${created.user.id}`).set(headers()).expect(204);
+    await api().get("/api/v1/auth/me").set(headers(login.accessToken)).expect(401);
+    await api().post("/api/v1/auth/firebase").send({ idToken: await signIn(address) }).expect(401);
   });
   it("refuse une invitation expirée et un compte désactivé, sans ouvrir de session", async () => {
     const address = `expired-${randomUUID()}@emulator.invalid`;

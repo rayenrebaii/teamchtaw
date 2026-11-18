@@ -9,6 +9,7 @@ import { EventsModule } from "./common/events";
 import { AuthModule } from "./auth/auth.module";
 import { JwtGuard, PermissionsGuard, Public } from "./auth/security";
 import { UsersModule } from "./users/users.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { CollaboratorsModule } from "./users/collaborators.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
 import { GroupsModule } from "./groups/groups.module";
@@ -44,6 +45,7 @@ class HealthController {
     EventsModule,
     AuthModule,
     UsersModule,
+    AnalyticsModule,
     CollaboratorsModule,
     ApprovalsModule,
     GroupsModule,

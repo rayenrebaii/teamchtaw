@@ -71,6 +71,60 @@ describe("Collaborateurs : parcours et isolation transactionnelle", () => {
   // Each business scenario has its own request budget; production throttles remain enabled.
   beforeEach(() => { limiter.onApplicationShutdown(); limiter = new ThrottlerStorageService(); });
 
+  it("invites full administrators while protecting the principal administrator and revoking deleted sessions", async () => {
+    const email = `invited-admin-${suffix}@test.invalid`;
+    const dto = { email, firstName: "Friend", lastName: "Admin" };
+    await api().get("/api/v1/admin/administrators").set(auth(student)).expect(403);
+    await api().post("/api/v1/admin/administrators").set(auth(student)).send(dto).expect(403);
+    await api().post("/api/v1/admin/administrators").set(auth()).send({ ...dto, isInvitedAdmin: false }).expect(400);
+    const created = (await api().post("/api/v1/admin/administrators").set(auth()).send(dto).expect(201)).body;
+    expect(created.user).toMatchObject({ role: "ADMIN", status: "PENDING", isInvitedAdmin: true, principalAdminId: adminId, activatedAt: null });
+    expect(created.user.passwordHash).toBeUndefined();
+    expect(created.invitation.sent).toBe(true);
+    await api().post("/api/v1/admin/administrators").set(auth()).send(dto).expect(409);
+    // Disposable fixture password proves the activation gate even with a valid password.
+    await db.user.update({ where: { id: created.user.id }, data: { passwordHash: await argon2.hash(password) } });
+    await api().post("/api/v1/auth/login").send({ email, password }).expect(401);
+    const nonce = deliveries.get(email)!;
+    await redeem(nonce).expect(201);
+    await redeem(nonce).expect(400);
+    const friend = await login(email);
+    await api().get("/api/v1/admin/stats").set(auth(friend)).expect(200);
+    await api().get("/api/v1/users").set(auth(friend)).expect(200);
+    await api().get(`/api/v1/groups/${forbiddenGroup}`).set(auth(friend)).expect(200);
+    const sharedPoll = (await api().post(`/api/v1/groups/${forbiddenGroup}/polls`).set(auth(friend)).send({ ...input(), mandatoryAttendance: false }).expect(201)).body;
+    expect(sharedPoll.authorId).toBe(adminId);
+    const sharedMessage = (await api().post(`/api/v1/groups/${forbiddenGroup}/messages`).set(auth(friend)).send({ text: "Shared administration fixture" }).expect(201)).body;
+    expect((await db.message.findUniqueOrThrow({ where: { id: sharedMessage.id } })).authorId).toBe(adminId);
+    expect(await db.groupMember.count({ where: { userId: created.user.id, groupId } })).toBe(1);
+    const directory = (await api().get("/api/v1/admin/administrators").set(auth(friend)).expect(200)).body;
+    expect(directory.find((user: { id: string }) => user.id === adminId).isInvitedAdmin).toBe(false);
+    await api().delete(`/api/v1/users/${adminId}`).set(auth(friend)).expect(403);
+    await api().delete(`/api/v1/users/${created.user.id}`).set(auth(friend)).expect(403);
+    await api().post(`/api/v1/admin/administrators/${adminId}/reset-password`).set(auth(friend)).expect(404);
+    await api().patch(`/api/v1/admin/students/${adminId}/disabled`).set(auth(friend)).send({ disabled: true }).expect(404);
+    const pending = (await api().post("/api/v1/admin/administrators").set(auth(friend)).send({ ...dto, email: `pending-admin-${suffix}@test.invalid` }).expect(201)).body.user;
+    expect(pending.principalAdminId).toBe(adminId);
+    await api().delete(`/api/v1/users/${pending.id}`).set(auth()).expect(204);
+    await api().delete(`/api/v1/users/${created.user.id}`).set(auth()).expect(204);
+    await api().get("/api/v1/admin/stats").set(auth(friend)).expect(401);
+    expect((await db.poll.findUniqueOrThrow({ where: { id: sharedPoll.id } })).authorId).toBe(adminId);
+    expect(await db.message.count({ where: { id: sharedMessage.id } })).toBe(1);
+    expect((await db.user.findUniqueOrThrow({ where: { id: created.user.id } })).disabledAt).not.toBeNull();
+    await api().delete(`/api/v1/polls/${sharedPoll.id}`).set(auth()).expect(204);
+    expect(await db.user.count({ where: { id: adminId } })).toBe(1);
+  });
+
+  it("retains an invited administrator on mail failure and supports resending", async () => {
+    const email = `retry-admin-${suffix}@test.invalid`;
+    mail.send.mockRejectedValueOnce(new Error("Fixture delivery unavailable"));
+    const result = (await api().post("/api/v1/admin/administrators").set(auth()).send({ email, firstName: "Retry", lastName: "Admin" }).expect(201)).body;
+    expect(result.invitation.sent).toBe(false);
+    await api().post(`/api/v1/admin/administrators/${result.user.id}/invitation`).set(auth()).expect(201);
+    await api().delete(`/api/v1/users/${result.user.id}`).set(auth()).expect(204);
+    await redeem(deliveries.get(email)!).expect(400);
+  });
+
   it("réserve la création à l’admin et garde le compte en attente d’invitation", async () => {
     for (const email of [emailA, emailB]) {
       const response = await api().post("/api/v1/admin/collaborators").set(auth()).send({ email, firstName: "Collaborator", lastName: "Test" }).expect(201);

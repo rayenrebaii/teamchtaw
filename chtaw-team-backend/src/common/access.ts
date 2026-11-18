@@ -9,6 +9,8 @@ import { userSelect } from "./presenters";
 import { pollGroupIds } from "./poll-audience";
 export interface Actor {
   id: string;
+  isInvitedAdmin?: boolean;
+  principalAdminId?: string | null;
   sessionId: string;
   role: Role;
   status: AccountStatus;
@@ -18,6 +20,12 @@ export interface Actor {
   bio: string;
   joinedAt: Date;
   emailVerified?: boolean;
+}
+// Shared content belongs to the principal; audit records continue to use actor.id.
+export function administrationOwner(user: { id: string; isInvitedAdmin?: boolean; principalAdminId?: string | null }) {
+  if (!user.isInvitedAdmin) return user.id;
+  if (!user.principalAdminId) throw new ForbiddenException("Administrateur principal introuvable.");
+  return user.principalAdminId;
 }
 @Injectable()
 export class AccessService {

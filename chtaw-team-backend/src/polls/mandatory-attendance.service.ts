@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { userSelect, pollInclude, presentPoll } from "../common/presenters";
 import { pollGroupIds, pollMember, pollInGroup } from "../common/poll-audience";
 import { DomainEvents } from "../common/events";
@@ -484,7 +484,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
                   attendance: mark?.attendance ?? "NON_VERIFIE",
                   version: mark?.version ?? 0,
                   participantVersion: person.version,
-                  absences: person.user.studentOrganizerAbsences.find((state) => state.organizerId === actor.id)?.total ?? 0,
+                  absences: person.user.studentOrganizerAbsences.find((state) => state.organizerId === administrationOwner(actor))?.total ?? 0,
                   final: mandatoryFinal(person),
                   voted: !!vote?.options.some((o) => o.optionId === option.id),
                   hasVoted: !!vote,
@@ -582,7 +582,7 @@ export class MandatoryAttendanceService implements OnModuleInit, OnModuleDestroy
           ? {}
           : { reportResolvedAt: query.reportStatus === "RESOLVED" ? { not: null } : null }),
         poll: {
-          authorId: actor.id,
+          authorId: administrationOwner(actor),
           AND: [...(actor.role === "ADMIN" ? [] : [pollMember(actor.id)]), pollInGroup(query.groupId)],
           id: query.pollId,
         },

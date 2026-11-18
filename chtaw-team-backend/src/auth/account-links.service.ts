@@ -6,6 +6,7 @@ import { PrismaService } from "../prisma/prisma.module";
 import { DomainEvents } from "../common/events";
 import { FirebaseIdentity } from "./firebase.service";
 import { passwordOptions } from "./auth.service";
+import { isInvitedAccount } from "./invited-account";
 
 @Injectable()
 export class AccountMailer {
@@ -48,8 +49,8 @@ export class AccountLinksService {
     const link = await this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId}::uuid FOR UPDATE`;
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      if (user.disabledAt || (purpose === "INVITE" && (user.role !== "COLLABORATOR" || user.activatedAt)) ||
-        (purpose === "RESET" && user.role === "COLLABORATOR" && !user.activatedAt)) throw new BadRequestException("Action indisponible pour ce compte.");
+      if (user.disabledAt || (purpose === "INVITE" && (!isInvitedAccount(user) || user.activatedAt)) ||
+        (purpose === "RESET" && isInvitedAccount(user) && !user.activatedAt)) throw new BadRequestException("Action indisponible pour ce compte.");
       const recent = await tx.accountLink.findFirst({ where: { userId, purpose, createdAt: { gt: new Date(Date.now() - 60000) }, usedAt: null } });
       if (recent) throw new BadRequestException("Patientez une minute avant un nouvel envoi.");
       await tx.accountLink.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
@@ -81,15 +82,20 @@ export class AccountLinksService {
     const passwordHash = await argon2.hash(password, passwordOptions);
     const digest = this.digest(token);
     const result = await this.db.$transaction(async (tx) => {
-      const found = await tx.accountLink.findUnique({ where: { tokenHash: digest } });
+      const found = await tx.accountLink.findUnique({ where: { tokenHash: digest }, include: { user: true } });
       if (!found) throw new BadRequestException("Lien invalide ou expiré. Demandez un nouveau lien.");
+      if (found.user.isInvitedAdmin) await tx.$queryRaw`SELECT id FROM "Group" ORDER BY id FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${found.userId}::uuid FOR UPDATE`;
       const link = await tx.accountLink.findUniqueOrThrow({ where: { id: found.id }, include: { user: true } });
       if (link.usedAt || link.expiresAt <= new Date() || link.user.disabledAt ||
-        (link.purpose === "INVITE" && (link.user.role !== "COLLABORATOR" || link.user.activatedAt)))
+        (link.purpose === "INVITE" && (!isInvitedAccount(link.user) || link.user.activatedAt)))
         throw new BadRequestException("Lien invalide ou expiré. Demandez un nouveau lien.");
       await tx.user.update({ where: { id: link.userId }, data: { passwordHash,
         ...(link.purpose === "INVITE" ? { activatedAt: new Date(), emailVerified: true, status: "APPROVED" } : {}) } });
+      if (link.purpose === "INVITE" && link.user.isInvitedAdmin) {
+        const groups = await tx.group.findMany({ select: { id: true } });
+        await tx.groupMember.createMany({ data: groups.map((group) => ({ groupId: group.id, userId: link.userId })), skipDuplicates: true });
+      }
       await tx.accountLink.updateMany({ where: { userId: link.userId, usedAt: null }, data: { usedAt: new Date() } });
       const sessions = await tx.refreshSession.findMany({ where: { userId: link.userId, revokedAt: null }, select: { id: true } });
       await tx.refreshSession.updateMany({ where: { userId: link.userId, revokedAt: null }, data: { revokedAt: new Date() } });
@@ -102,15 +108,20 @@ export class AccountLinksService {
   async activateFirebase(token: string, idToken: string) {
     if (!this.firebase.enabled) throw new BadRequestException("Firebase n’est pas activé.");
     const sessions = await this.db.$transaction(async (tx) => {
-      const found = await tx.accountLink.findUnique({ where: { tokenHash: this.digest(token) } });
+      const found = await tx.accountLink.findUnique({ where: { tokenHash: this.digest(token) }, include: { user: true } });
       if (!found) throw new BadRequestException("Lien invalide ou expiré.");
+      if (found.user.isInvitedAdmin) await tx.$queryRaw`SELECT id FROM "Group" ORDER BY id FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM "User" WHERE id=${found.userId}::uuid FOR UPDATE`;
       const link = await tx.accountLink.findUniqueOrThrow({ where: { id: found.id }, include: { user: true } });
       if (link.purpose !== "INVITE" || link.usedAt || link.expiresAt <= new Date() || link.user.disabledAt ||
-        link.user.role !== "COLLABORATOR" || link.user.activatedAt)
+        !isInvitedAccount(link.user) || link.user.activatedAt)
         throw new BadRequestException("Lien invalide ou expiré. Demandez une nouvelle invitation à l’administrateur.");
       await this.firebase.activateInvitation(link.user.firebaseUid, link.user.email, idToken, link.createdAt);
       await tx.user.update({ where: { id: link.userId }, data: { activatedAt: new Date(), emailVerified: true, status: "APPROVED" } });
+      if (link.user.isInvitedAdmin) {
+        const groups = await tx.group.findMany({ select: { id: true } });
+        await tx.groupMember.createMany({ data: groups.map((group) => ({ groupId: group.id, userId: link.userId })), skipDuplicates: true });
+      }
       await tx.accountLink.updateMany({ where: { userId: link.userId, usedAt: null }, data: { usedAt: new Date() } });
       const active = await tx.refreshSession.findMany({ where: { userId: link.userId, revokedAt: null }, select: { id: true } });
       await tx.refreshSession.updateMany({ where: { userId: link.userId, revokedAt: null }, data: { revokedAt: new Date() } });

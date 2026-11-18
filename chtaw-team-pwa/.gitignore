@@ -8,4 +8,5 @@ next-env.d.ts
 !.env.example
 
 .test-browser-results/
+.test-analytics-browser/
 playwright-report/

@@ -23,6 +23,8 @@ export const userSelect = {
   joinedAt: true,
   disabledAt: true,
   activatedAt: true,
+  isInvitedAdmin: true,
+  principalAdminId: true,
 } satisfies Prisma.UserSelect;
 // Telephone is returned only in own-account and administrator responses.
 export const accountSelect = { ...userSelect, phone: true } satisfies Prisma.UserSelect;

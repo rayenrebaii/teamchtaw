@@ -16,6 +16,12 @@ beforeEach(() => {
   useCommunity.setState({ session: { userId: admin.id, mode: "real" }, users: [admin], groups: [{ id: "group", name: "G1", color: "#be9af5", isGeneral: false, description: "", memberIds: [admin.id] }], sync: vi.fn().mockResolvedValue(undefined) });
 });
 afterEach(() => { cleanup(); useCommunity.setState({ sync }); vi.useRealTimers(); });
+it("shows the principal's calendar for an administration agent", () => {
+  const agent: User = { ...admin, id: "agent", isInvitedAdmin: true, principalAdminId: admin.id };
+  useCommunity.setState({ users: [admin, agent], session: { userId: agent.id, mode: "real" }, polls: [session("Séance du principal", "2026-11-04T09:00:00Z", "2026-11-04T10:00:00Z")] });
+  render(<AdminCalendar />);
+  expect(screen.getByRole("heading", { name: "Séance du principal" })).toBeTruthy();
+});
 it("automatically imports new saved session slots and marks them completed after their end", () => {
   render(<AdminCalendar />);
   expect(screen.getByText("Aucun créneau enregistré pour cette semaine.")).toBeTruthy();

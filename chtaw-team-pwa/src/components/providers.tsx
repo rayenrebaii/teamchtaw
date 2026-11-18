@@ -17,11 +17,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return <SessionProviders>{children}</SessionProviders>;
 }
 function SessionProviders({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const store = useCommunity();
   const { t, error } = useCopy();
   const realtime = useRef<RealtimeService | null>(null);
   const userId = store.session?.userId;
   const groupIds = JSON.stringify(store.groups.map((g) => g.id));
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    // Leaving the analytical dashboard loads the data needed by the destination page.
+    const leftDashboard = ["/admin", "/login"].includes(previousPath.current) && pathname !== "/admin" && pathname !== "/login";
+    previousPath.current = pathname;
+    if (leftDashboard && useCommunity.getState().session) void useCommunity.getState().sync();
+  }, [pathname]);
   useEffect(() => {
     const unsubscribe = api.onExpired(() => useCommunity.getState().clear());
     void useCommunity.getState().restore();

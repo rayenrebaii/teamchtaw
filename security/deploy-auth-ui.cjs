@@ -22,7 +22,7 @@ async function main() {
   const mode = process.argv[2] || 'inspect';
   if (mode === 'inspect') {
     const project = await request(`/v9/projects/${projectId}`);
-    console.log(JSON.stringify({ id: project.id, name: project.name, rootDirectory: project.rootDirectory, production: { id: project.targets?.production?.id, gitSource: project.targets?.production?.gitSource } }));
+    console.log(JSON.stringify({ id: project.id, name: project.name, rootDirectory: project.rootDirectory, productionBranch: project.link?.productionBranch, production: { id: project.targets?.production?.id, gitSource: project.targets?.production?.gitSource } }));
   } else if (mode === 'deploy') {
     const sha = process.argv[3];
     const head = execFileSync('git', ['-c', `safe.directory=${path.resolve(__dirname, '..').replaceAll('\\', '/')}`, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();

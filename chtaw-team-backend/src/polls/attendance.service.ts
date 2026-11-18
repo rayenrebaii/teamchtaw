@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { userSelect, pollInclude, presentPoll } from "../common/presenters";
 import { finalAttendance } from "./attendance.rules";
 import { SaveAttendanceDto, UpdateSessionDto } from "./polls.dto";
@@ -243,7 +243,7 @@ export class AttendanceService {
           groups: { include: { group: { select: { id: true, name: true } } } },
           options: { orderBy: { position: "asc" } },
           votes: {
-            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } }, options: true },
+            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: administrationOwner(actor) } } } }, options: true },
           },
         },
       });
@@ -311,10 +311,10 @@ export class AttendanceService {
           groups: { include: { group: { select: { name: true } } } },
           participants: {
             where: { included: true },
-            include: { marks: true, user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } } },
+            include: { marks: true, user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: administrationOwner(actor) } } } } },
           },
           votes: {
-            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: actor.id } } } }, options: true },
+            include: { user: { select: { ...userSelect, studentOrganizerAbsences: { where: { organizerId: administrationOwner(actor) } } } }, options: true },
           },
         },
       });
@@ -383,7 +383,7 @@ export class AttendanceService {
         where: {
           resolvedAt: null,
           readAt: null,
-          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: administrationOwner(actor) }),
         },
       });
       return {
@@ -503,7 +503,7 @@ export class AttendanceService {
               })),
       }));
       const alerts = await tx.organizerAbsenceAlert.findMany({
-        where: { userId, ...(self ? {} : { organizerId: actor.id }) },
+        where: { userId, ...(self ? {} : { organizerId: administrationOwner(actor) }) },
         orderBy: { createdAt: "desc" },
       });
       return {
@@ -521,7 +521,7 @@ export class AttendanceService {
       await this.access.organizer(tx, actor);
       return tx.organizerAbsenceAlert.findMany({
         where: {
-          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: administrationOwner(actor) }),
         },
         orderBy: { createdAt: "desc" },
         include: { user: { select: userSelect }, organizer: { select: userSelect } },
@@ -534,7 +534,7 @@ export class AttendanceService {
       const alert = await tx.organizerAbsenceAlert.findFirst({
         where: {
           id,
-          ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }),
+          ...(actor.role === "ADMIN" ? {} : { organizerId: administrationOwner(actor) }),
         },
       });
       if (!alert) {
@@ -553,7 +553,7 @@ export class AttendanceService {
     return this.db.$transaction(async (tx) => {
       await this.access.organizer(tx, actor);
       const alert = await tx.organizerAbsenceAlert.findFirst({ where: { id,
-        ...(actor.role === "ADMIN" ? {} : { organizerId: actor.id }) },
+        ...(actor.role === "ADMIN" ? {} : { organizerId: administrationOwner(actor) }) },
         include: { user: { select: userSelect }, organizer: { select: userSelect } } });
       if (!alert) throw new NotFoundException("Signalement introuvable.");
       if (confirm) {

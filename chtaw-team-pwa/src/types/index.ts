@@ -10,6 +10,8 @@ export interface User {
   emailVerified?: boolean;
   disabledAt?: string | null;
   activatedAt?: string | null;
+  isInvitedAdmin?: boolean;
+  principalAdminId?: string | null;
   joinedAt: string;
   bio: string;
   phone?: string | null;

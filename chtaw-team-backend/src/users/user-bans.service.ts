@@ -33,9 +33,22 @@ export class UserBansService {
       ) ORDER BY id FOR UPDATE`;
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException("Compte introuvable.");
-      if (user.id === actor.id || user.role === "ADMIN")
+      if (user.id === actor.id || (user.role === "ADMIN" && !user.isInvitedAdmin))
         throw new ForbiddenException("Un compte administrateur ne peut pas être supprimé.");
-      if (user.status !== "APPROVED" && user.role !== "COLLABORATOR")
+      // Removing an agent revokes access while preserving attendance audit authors.
+      // Shared content is owned by the principal and must survive the agent's departure.
+      if (user.isInvitedAdmin) {
+        const sessions = await tx.refreshSession.findMany({ where: { userId }, select: { id: true } });
+        await tx.user.update({ where: { id: userId }, data: { disabledAt: new Date() } });
+        await tx.accountLink.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
+        await tx.refreshSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+        await tx.pushSubscription.deleteMany({ where: { userId } });
+        const memberships = await tx.groupMember.findMany({ where: { userId }, select: { groupId: true } });
+        await tx.groupMember.deleteMany({ where: { userId } });
+        const groups = await tx.group.findMany({ where: { id: { in: memberships.map((membership) => membership.groupId) } }, include: groupInclude });
+        return { sessions, media: [], groups: groups.map(presentGroup) };
+      }
+      if (user.status !== "APPROVED" && user.role !== "COLLABORATOR" && !user.isInvitedAdmin)
         throw new ConflictException("Seul un membre approuvé peut être banni.");
       const affectedStudents = await tx.user.findMany({
         where: { id: { not: userId }, role: "USER", OR: [

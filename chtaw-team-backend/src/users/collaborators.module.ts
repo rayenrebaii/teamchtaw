@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import * as argon2 from "argon2";
 import { PrismaService } from "../prisma/prisma.module";
-import { AccessService, Actor } from "../common/access";
+import { AccessService, Actor, administrationOwner } from "../common/access";
 import { userSelect } from "../common/presenters";
 import { Admin, CurrentUser, Organizer } from "../auth/security";
 import { AccountLinksService } from "../auth/account-links.service";
@@ -42,15 +42,15 @@ export class CollaboratorsService {
         select: { ...userSelect, memberships: { select: { groupId: true } } }, orderBy: [{ joinedAt: "desc" }, { id: "asc" }] });
     });
   }
-  async create(actor: Actor, dto: CreateCollaboratorDto) {
+  async create(actor: Actor, dto: CreateCollaboratorDto, role: "COLLABORATOR" | "ADMIN" = "COLLABORATOR") {
     const id = randomUUID();
     const passwordHash = await argon2.hash(randomUUID(), passwordOptions);
     const user = await this.db.$transaction(async (tx) => {
-      await this.access.actor(tx, actor, true, true);
+      const current = await this.access.actor(tx, actor, true, true);
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${dto.email}, 0))`;
       if (await tx.user.findUnique({ where: { email: dto.email } })) throw new ConflictException("Cette adresse est déjà utilisée.");
       if (this.firebase.enabled) await this.firebase.createCollaborator(id, dto.email);
-      try { return await tx.user.create({ data: { ...dto, id, passwordHash, role: "COLLABORATOR", status: "PENDING",
+      try { return await tx.user.create({ data: { email: dto.email, firstName: dto.firstName, lastName: dto.lastName, id, passwordHash, role, isInvitedAdmin: role === "ADMIN", principalAdminId: role === "ADMIN" ? administrationOwner(current) : null, status: "PENDING",
         ...(this.firebase.enabled ? { firebaseUid: id } : {}) }, select: userSelect }); }
       catch (error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") throw new ConflictException("Cette adresse est déjà utilisée."); throw error; }
     }, { timeout: 25000 });
@@ -58,10 +58,10 @@ export class CollaboratorsService {
     try { return { user, invitation: await this.links.issue(user.id, "INVITE") }; }
     catch { return { user, invitation: { sent: false, message: "Compte créé. Invitation non envoyée : vérifiez la configuration puis renvoyez-la." } }; }
   }
-  async issue(actor: Actor, id: string, purpose: "INVITE" | "RESET") {
+  async issue(actor: Actor, id: string, purpose: "INVITE" | "RESET", role: "COLLABORATOR" | "ADMIN" = "COLLABORATOR") {
     await this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor, true, true);
-      if (!await tx.user.findFirst({ where: { id, role: "COLLABORATOR" } })) throw new NotFoundException();
+      if (!await tx.user.findFirst({ where: { id, role, ...(role === "ADMIN" ? { isInvitedAdmin: true } : {}) } })) throw new NotFoundException();
     });
     return this.links.issue(id, purpose);
   }
@@ -121,5 +121,19 @@ export class OrganizerUsersController {
   @Organizer() @Get("organizer/participants") participants(@CurrentUser() actor: Actor) { return this.service.participants(actor); }
   @Admin() @Patch("admin/students/:id/disabled") disabled(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string, @Body() dto: DisabledDto) { return this.service.disabled(actor, id, dto.disabled, "USER"); }
 }
-@Module({ providers: [CollaboratorsService], controllers: [CollaboratorsController, OrganizerUsersController] })
+@Admin()
+@Controller("admin/administrators")
+export class AdministratorsController {
+  constructor(private service: CollaboratorsService, private db: PrismaService, private access: AccessService) {}
+  @Get() list(@CurrentUser() actor: Actor) {
+    return this.db.$transaction(async (tx) => {
+      await this.access.actor(tx, actor, true, true);
+      return tx.user.findMany({ where: { role: "ADMIN", disabledAt: null }, select: userSelect, orderBy: [{ joinedAt: "asc" }, { id: "asc" }] });
+    });
+  }
+  @Post() create(@CurrentUser() actor: Actor, @Body() dto: CreateCollaboratorDto) { return this.service.create(actor, dto, "ADMIN"); }
+  @Post(":id/invitation") invite(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) { return this.service.issue(actor, id, "INVITE", "ADMIN"); }
+  @Post(":id/reset-password") reset(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) { return this.service.issue(actor, id, "RESET", "ADMIN"); }
+}
+@Module({ providers: [CollaboratorsService], controllers: [CollaboratorsController, OrganizerUsersController, AdministratorsController] })
 export class CollaboratorsModule {}

@@ -48,7 +48,7 @@ export class GroupsService {
     return this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor, true, true);
       const admins = await tx.user.findMany({
-        where: { role: "ADMIN", status: "APPROVED" },
+        where: { role: "ADMIN", status: "APPROVED", disabledAt: null },
         select: { id: true },
       });
       return presentGroup(

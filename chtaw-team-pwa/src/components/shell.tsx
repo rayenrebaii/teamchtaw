@@ -59,11 +59,13 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/app/attendance", label: t("Présences"), Icon: CalendarDays },
         ]
       : user.role === "ADMIN" ? [
+          { href: "/admin", label: t("Tableau de bord"), Icon: ChartNoAxesColumn },
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/admin/users", label: t("Membres"), Icon: Users },
           { href: "/admin/calendar", label: t("Calendrier"), Icon: CalendarDays },
           { href: "/admin/polls", label: t("Sondages"), Icon: ChartNoAxesColumn },
           { href: "/admin/collaborators", label: t("Collaborateurs"), Icon: UserRoundCog },
+          { href: "/admin/administrators", label: t("Administrateurs"), Icon: UserRoundCog },
           { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
           { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
           { href: "/admin/establishments", label: t("Établissements"), Icon: School },
@@ -74,7 +76,7 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/collaborator/attendance", label: t("Présences"), Icon: CalendarDays },
           { href: "/collaborator/reports", label: t("Signalements"), Icon: Layers },
         ];
-  const mobileItems = user.role === "ADMIN" ? links.slice(0, 4) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
+  const mobileItems = user.role === "ADMIN" ? links.slice(0, 4).map(link => link.href === "/admin" ? { ...link, label: t("Analyses") } : link) : user.role === "COLLABORATOR" ? links.filter((link) => ["/collaborator", "/collaborator/polls", "/collaborator/attendance"].includes(link.href)) : links;
   const moreItems = user.role === "ADMIN" ? links.slice(4) : user.role === "COLLABORATOR" ? links.filter((link) => !mobileItems.includes(link)) : [];
   return (
     <div

@@ -180,7 +180,7 @@ describe("Notification center and compact header", () => {
     const { container } = render(<Shell admin><p>Page content</p></Shell>);
     const rail = container.querySelector(".rail") as HTMLElement;
     expect(Array.from(rail.querySelectorAll("nav a")).map((link) => link.getAttribute("href"))).toEqual([
-      "/app", "/admin/users", "/admin/calendar", "/admin/polls", "/admin/collaborators", "/admin/attendance", "/admin/groups", "/admin/establishments",
+      "/admin", "/app", "/admin/users", "/admin/calendar", "/admin/polls", "/admin/collaborators", "/admin/administrators", "/admin/attendance", "/admin/groups", "/admin/establishments",
     ]);
     expect(within(rail).getByRole("link", { name: language === "fr" ? "Établissements" : "Schools" })).toBeTruthy();
     expect(rail.querySelector('a[href="/app/profile"]')).toBeNull();

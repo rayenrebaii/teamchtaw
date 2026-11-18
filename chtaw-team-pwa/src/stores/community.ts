@@ -110,6 +110,7 @@ let syncFlight: Promise<void> | null = null;
 let syncAgain = false;
 let revision = 0;
 let restoreFlight: Promise<void> | null = null;
+export const isAnalyticsRoute = () => typeof window !== "undefined" && window.location.pathname.replace(/\/$/, "") === "/admin";
 function announce() {
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("chtaw-auth");
@@ -220,6 +221,10 @@ export const useCommunity = create<Store>((set, get) => ({
               });
             return;
           }
+          if (user.role === "ADMIN" && (isAnalyticsRoute() || (typeof window !== "undefined" && window.location.pathname === "/login"))) {
+            if (version === revision) set({ users: [user], error: null, syncErrors: {} });
+            return;
+          }
           const responses = await Promise.allSettled([
             groupsService.list(),
             pollsService.all(),
@@ -324,6 +329,7 @@ export const useCommunity = create<Store>((set, get) => ({
   },
   catchUp: async () => {
     await get().sync();
+    if (isAnalyticsRoute()) return;
     const owner = get().session?.userId;
     for (const [id, state] of Object.entries(get().history)) {
       if (!state.loaded || state.loading || !get().groups.some((g) => g.id === id)) continue;
