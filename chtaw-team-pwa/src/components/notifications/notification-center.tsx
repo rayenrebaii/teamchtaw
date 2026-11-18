@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, Trash2 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { useNotifications } from "@/stores/notifications";
 import { notificationsService } from "@/services/notifications.service";
@@ -10,7 +10,7 @@ import { useCopy } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import { attempt } from "@/components/shared";
-import { openNotification } from "@/services/notification-open";
+import { openNotification, removeNotification } from "@/services/notification-open";
 import { validNotificationId } from "@/features/notification-navigation";
 function NotificationItems({ compact = false, close }: { compact?: boolean; close?: () => void }) {
   const store = useNotifications(),
@@ -88,6 +88,7 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
               </time>
               <span>{item.readAt ? t("Lue") : t("Non lue")}</span>
             </div>
+            <div className="row wrap">
             {!item.readAt && (
               <Button
                 size="sm"
@@ -103,6 +104,19 @@ function NotificationItems({ compact = false, close }: { compact?: boolean; clos
                 {t("Marquer comme lue")}
               </Button>
             )}
+            <Button size="sm" variant="ghost" disabled={busy} aria-label={t("Supprimer cette notification")}
+              onClick={() => {
+                const owner = community.session?.userId;
+                if (!owner || pending.current) return;
+                pending.current = true; setBusy(true);
+                void attempt(async () => {
+                  await removeNotification(item.id, owner);
+                  if (useCommunity.getState().session?.userId === owner) void useNotifications.getState().sync();
+                }).finally(() => { pending.current = false; setBusy(false); });
+              }}>
+              <Trash2 size={14} aria-hidden="true" /> {t("Supprimer")}
+            </Button>
+            </div>
           </li>
         ))}
       </ul>

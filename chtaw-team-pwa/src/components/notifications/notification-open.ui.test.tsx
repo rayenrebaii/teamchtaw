@@ -19,6 +19,41 @@ beforeEach(() => {
   vi.spyOn(notificationsService, "list").mockResolvedValue({ items: [], unreadCount: 0, nextCursor: null });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it.each(["USER", "ADMIN", "COLLABORATOR"] as const)("lets %s delete read and unread notifications without opening their source", async role => {
+  useCommunity.setState({ users: [{ ...user, role }] });
+  useNotifications.setState({ items: [row, { ...row, id: "read", readAt: row.createdAt }] });
+  let finish!: (value: { unreadCount: number }) => void;
+  const remove = vi.spyOn(notificationsService, "remove").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const open = vi.spyOn(notificationsService, "open");
+  render(<NotificationsPage />);
+  const buttons = screen.getAllByRole("button", { name: "Supprimer cette notification" });
+  expect(buttons).toHaveLength(2);
+  fireEvent.click(buttons[0]); fireEvent.click(buttons[0]);
+  expect(remove).toHaveBeenCalledTimes(1); expect(remove).toHaveBeenCalledWith(row.id);
+  await act(async () => finish({ unreadCount: 0 }));
+  await waitFor(() => expect(useNotifications.getState().unreadCount).toBe(0));
+  expect(open).not.toHaveBeenCalled(); expect(navigation.push).not.toHaveBeenCalled();
+});
+it("keeps a failed deletion visible for retry in the notification dialog", async () => {
+  vi.spyOn(notificationsService, "remove").mockRejectedValue(Error("Offline"));
+  render(<NotificationBell />);
+  fireEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer cette notification" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Supprimer cette notification" }).hasAttribute("disabled")).toBe(false));
+  expect(useNotifications.getState().items).toHaveLength(1);
+  expect(navigation.push).not.toHaveBeenCalled();
+});
+it("does not change the next account's notification list after a pending deletion", async () => {
+  let finish!: (value: { unreadCount: number }) => void;
+  vi.spyOn(notificationsService, "remove").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  render(<NotificationsPage />);
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer cette notification" }));
+  await act(async () => {
+    useCommunity.getState().clear(); useNotifications.getState().reset("other"); useNotifications.setState({ unreadCount: 5 });
+    finish({ unreadCount: 0 });
+  });
+  expect(useNotifications.getState().unreadCount).toBe(5);
+});
 it("shows the sender and actual content and consumes a click once before opening its exact message", async () => {
   let finish!: (value: { href: string; unreadCount: number }) => void;
   const open = vi.spyOn(notificationsService, "open").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));

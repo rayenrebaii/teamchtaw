@@ -70,6 +70,9 @@ export class NotificationsController {
   @Post(":id/open") @HttpCode(200) open(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
     return this.notifications.open(actor, id);
   }
+  @Delete(":id") remove(@CurrentUser() actor: Actor, @Param("id", ParseUUIDPipe) id: string) {
+    return this.notifications.remove(actor, id);
+  }
 }
 @Injectable()
 export class NotificationFeed implements OnModuleInit, OnModuleDestroy {

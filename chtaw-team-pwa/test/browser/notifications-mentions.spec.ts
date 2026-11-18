@@ -13,7 +13,9 @@ for (const role of ["USER", "ADMIN", "COLLABORATOR"] as const) for (const width 
     const me = { id: "fixture-account", firstName: "Mohamed", lastName: "Rami", role, bio: "" };
     const nadia = { id: "fixture-nadia", firstName: "Nadia", lastName: "Team", role: "USER", bio: "", profilePhotoId: "fixture-photo" };
     const group = { id: "fixture-group", name: "Team Chtaw", description: "", color: "#aabbcc", isGeneral: true, memberIds: [me.id, nadia.id] };
-    let consumed = false, opens = 0, sent = 0;
+    let consumed = false, dismissed = false, deleted = 0, opens = 0, sent = 0;
+    const deleteId = "a0000000-0000-4000-8000-000000000002";
+    const removable = { id: deleteId, groupId: group.id, groupName: group.name, title: "Notification à supprimer", body: "Ancienne information", type: "MESSAGE", entityId: "obsolete", readAt: width === 1440 ? "2026-11-18T09:05:00Z" : null, createdAt: "2026-11-18T09:00:00Z" };
     const messages = [{ id: "source-message", groupId: group.id, authorId: nadia.id, author: nadia, text: "@tous La séance commence", kind: "text", createdAt: "2026-11-18T09:00:00Z", mentionIds: [] as string[] }];
     await page.route("**/api/v1/groups", route => route.fulfill({ headers, json: [group] }));
     await page.route("**/api/v1/groups/fixture-group", route => route.fulfill({ headers, json: { ...group, members: [me, nadia] } }));
@@ -28,13 +30,24 @@ for (const role of ["USER", "ADMIN", "COLLABORATOR"] as const) for (const width 
       }
       return route.fulfill({ headers, json: { items: messages, nextCursor: null } });
     });
-    await page.route("**/api/v1/notifications?**", route => route.fulfill({ headers, json: { items: consumed ? [] : [{ id, groupId: group.id, groupName: group.name, title: "Nadia vous a mentionné", body: messages[0]!.text, type: "MENTION", entityId: "source-message", readAt: null, createdAt: "2026-11-18T09:00:00Z" }], unreadCount: consumed ? 0 : 1, nextCursor: null } }));
+    await page.route("**/api/v1/notifications?**", route => route.fulfill({ headers, json: { items: [...(dismissed ? [] : [removable]), ...(consumed ? [] : [{ id, groupId: group.id, groupName: group.name, title: "Nadia vous a mentionné", body: messages[0]!.text, type: "MENTION", entityId: "source-message", readAt: null, createdAt: "2026-11-18T09:00:00Z" }])], unreadCount: (consumed ? 0 : 1) + (!dismissed && !removable.readAt ? 1 : 0), nextCursor: null } }));
+    await page.route(`**/api/v1/notifications/${deleteId}`, route => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+      expect(route.request().method()).toBe("DELETE"); dismissed = true; deleted++;
+      return route.fulfill({ headers, json: { unreadCount: 1 } });
+    });
     await page.route(`**/api/v1/notifications/${id}/open`, route => {
       if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
       expect(route.request().method()).toBe("POST"); consumed = true; opens++;
       return route.fulfill({ headers, json: { href: `/app/groups/${group.id}?message=source-message`, unreadCount: 0 } });
     });
     await page.goto("/app/notifications");
+    const card = page.locator(".notification-list li").filter({ hasText: "Notification à supprimer" });
+    await expect(card).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("notifications-delete.png") });
+    await card.getByRole("button", { name: en ? "Delete this notification" : "Supprimer cette notification" }).click();
+    await expect(card).toHaveCount(0); expect(deleted).toBe(1); expect(opens).toBe(0);
+    await expect(page).toHaveURL(/\/app\/notifications$/);
     await page.getByRole("button", { name: /Nadia vous a mentionné/ }).click();
     await expect(page).toHaveURL(/message=source-message/); expect(opens).toBe(1);
     await expect(page.locator("#message-source-message")).toBeVisible();

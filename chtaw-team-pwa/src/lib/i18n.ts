@@ -6,6 +6,7 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "Supprimer cette notification": "Delete this notification",
   "Mentions": "Mentions",
   "Mentionner dans ce groupe": "Mention someone in this group",
   "Membres à mentionner": "Members to mention",

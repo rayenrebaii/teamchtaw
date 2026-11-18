@@ -32,6 +32,8 @@ export const notificationsService = {
     api.request<{ href: string }>(`/notifications/${encodeURIComponent(id)}/target`),
   open: (id: string) =>
     api.request<{ href: string; unreadCount: number }>(`/notifications/${encodeURIComponent(id)}/open`, { method: "POST" }),
+  remove: (id: string) =>
+    api.request<{ unreadCount: number }>(`/notifications/${encodeURIComponent(id)}`, { method: "DELETE" }),
   preferences: () => api.request<NotificationPreferences>("/notifications/preferences"),
   updatePreferences: (values: Partial<NotificationPreferences>) =>
     api.request<NotificationPreferences>("/notifications/preferences", {

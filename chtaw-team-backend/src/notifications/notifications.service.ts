@@ -146,6 +146,17 @@ export class NotificationsService {
       return { ...target, unreadCount };
     });
   }
+  async remove(actor: Actor, id: string) {
+    return this.db.$transaction(async (tx) => {
+      await this.access.actor(tx, actor);
+      // Ownership alone permits dismissing even an obsolete or inaccessible source.
+      const result = await tx.notification.deleteMany({ where: { id, userId: actor.id } });
+      if (!result.count) throw new NotFoundException("Notification introuvable.");
+      const unreadCount = await tx.notification.count({ where: { ...notificationWhere(actor), readAt: null } });
+      await tx.$queryRaw`SELECT pg_notify('chtaw_notifications', ${actor.id})::text AS notified`;
+      return { unreadCount };
+    });
+  }
   private async resolveTarget(tx: Prisma.TransactionClient, actor: Actor, id: string) {
       const item = await tx.notification.findFirst({ where: { ...notificationWhere(actor), id } });
       if (!item) throw new NotFoundException("Notification introuvable.");

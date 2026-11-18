@@ -413,6 +413,29 @@ describe("Persistent notifications, real PostgreSQL and Socket.IO", () => {
       await api().post(`/api/v1/groups/${groupId}/messages`).auth(outsider.token, { type: "bearer" }).send({ text: "@tous" }).expect(403);
     } finally { await db.user.update({ where: { id: another.id }, data: { role: "USER" } }); }
   });
+  it("lets every role dismiss only its own notifications, including read items with missing sources", async () => {
+    await db.user.update({ where: { id: another.id }, data: { role: "COLLABORATOR" } });
+    try {
+      for (const actor of [student, admin, another]) for (const read of [false, true]) {
+        const item = await db.notification.create({ data: { userId: actor.id, groupId, type: "MESSAGE", title: "Dismiss fixture", body: "",
+          entityId: randomUUID(), sourceKey: randomUUID(), readAt: read ? new Date() : null, expiresAt: new Date(Date.now() + 60000) } });
+        await api().delete(`/api/v1/notifications/${item.id}`).expect(401);
+        await api().delete(`/api/v1/notifications/${item.id}`).auth(outsider.token, { type: "bearer" }).expect(404);
+        const before = await db.notification.count({ where: { userId: actor.id } });
+        const result = await api().delete(`/api/v1/notifications/${item.id}`).auth(actor.token, { type: "bearer" }).expect(200);
+        expect(await db.notification.count({ where: { id: item.id } })).toBe(0);
+        expect(await db.notification.count({ where: { userId: actor.id } })).toBe(before - 1);
+        expect(result.body.unreadCount).toBe((await get(actor).expect(200)).body.unreadCount);
+        await api().delete(`/api/v1/notifications/${item.id}`).auth(actor.token, { type: "bearer" }).expect(404);
+      }
+      const privateItem = await db.notification.create({ data: { userId: student.id, groupId, type: "MENTION", title: "Own only", body: "",
+        entityId: randomUUID(), sourceKey: randomUUID(), expiresAt: new Date(Date.now() + 60000) } });
+      await api().delete(`/api/v1/notifications/${privateItem.id}`).auth(admin.token, { type: "bearer" }).expect(404);
+      await db.groupMember.delete({ where: { groupId_userId: { groupId, userId: student.id } } });
+      await api().delete(`/api/v1/notifications/${privateItem.id}`).auth(student.token, { type: "bearer" }).expect(200);
+      await db.groupMember.create({ data: { groupId, userId: student.id } });
+    } finally { await db.user.update({ where: { id: another.id }, data: { role: "USER" } }); }
+  });
   it("cleans this session's subscriptions on logout and retains preferences", async () => {
     await api().post("/api/v1/auth/logout").auth(student.token, { type: "bearer" }).expect(204);
     expect(await db.pushSubscription.count({ where: { userId: student.id } })).toBe(0);
