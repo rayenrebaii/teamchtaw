@@ -11,7 +11,7 @@ for (const width of [320, 390, 768, 1440]) for (const theme of ["light", "dark"]
     page.on("request", request => { if (/\/api\/v1\/(users|polls)(\?|$)/.test(request.url())) allRecordsRequested = true; });
     await page.route("**/api/v1/admin/analytics**", route => {
       const url = new URL(route.request().url()), isSessions = url.pathname.endsWith("/sessions"), isAlerts = url.pathname.endsWith("/alerts");
-      return route.fulfill({ headers: { "Access-Control-Allow-Origin": "http://127.0.0.1:3016", "Access-Control-Allow-Credentials": "true" }, json: isSessions ? analyticsSessionsFixture : isAlerts ? analyticsAlertsFixture : analyticsFixture });
+      return route.fulfill({ headers: { "Access-Control-Allow-Origin": new URL(test.info().project.use.baseURL!).origin, "Access-Control-Allow-Credentials": "true" }, json: isSessions ? analyticsSessionsFixture : isAlerts ? analyticsAlertsFixture : analyticsFixture });
     });
     await page.goto("/admin");
     await expect(page.getByRole("heading", { name: en ? "Dashboard" : "Tableau de bord", exact: true })).toBeVisible();
