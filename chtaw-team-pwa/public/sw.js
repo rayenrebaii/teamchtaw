@@ -1,5 +1,5 @@
-const CACHE = "chtaw-public-v9";
-const CORE = ["/branding/chtaw-logo.png", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png", "/images/team.svg"];
+const CACHE = "chtaw-public-v10";
+const CORE = ["/branding/chtaw-logo.png", "/offline.html", "/manifest.webmanifest", "/icons/app-v2-192.png", "/icons/app-v2-512.png", "/icons/maskable-v2-512.png", "/icons/apple-touch-v2.png", "/icons/notification-v2-192.png", "/icons/notification-badge-v2-96.png", "/images/team.svg"];
 const publicPath = (path) => CORE.includes(path) || path.startsWith("/_next/static/") || path.startsWith("/icons/");
 const cacheable = (response) => response.ok && !/(?:no-store|private)/i.test(response.headers.get("Cache-Control") || "");
 self.addEventListener("install", (event) => {
@@ -71,7 +71,7 @@ self.addEventListener("push", (event) => {
     if (!binding || binding.binding !== payload.binding) return;
     await self.registration.showNotification(typeof payload.title === "string" && payload.title.trim() ? payload.title.slice(0, 180) : "Team Chtaw", {
       body: typeof payload.body === "string" ? payload.body.slice(0, 480) : "Une nouvelle notification est disponible.",
-      icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: "chtaw-" + payload.id,
+      icon: "/icons/notification-v2-192.png", badge: "/icons/notification-badge-v2-96.png", tag: "chtaw-" + payload.id,
       data: { notificationId: payload.id, binding: payload.binding },
     });
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

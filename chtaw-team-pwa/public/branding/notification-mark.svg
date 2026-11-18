@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <title>Team Chtaw — mouvement</title>
+  <path d="M366 139C332 101 277 94 231 113C165 140 128 211 142 277C155 340 211 379 267 366C296 359 321 344 341 323" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="229" cy="285" r="18" fill="#fff"/>
+  <path d="M246 260L268 220L311 159L347 139M268 220L211 208L171 181M239 276L214 320L183 357M241 278L272 313L282 358" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

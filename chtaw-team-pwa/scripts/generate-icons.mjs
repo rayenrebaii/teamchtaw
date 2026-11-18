@@ -7,26 +7,30 @@ const publicLogo = new URL("../public/branding/chtaw-logo.png", import.meta.url)
 await mkdir(new URL("../public/branding/", import.meta.url), { recursive: true });
 await mkdir(new URL("../public/icons/", import.meta.url), { recursive: true });
 await copyFile(original, publicLogo);
-const logo = await readFile(original);
-const background = "#16062f";
+const mark = await readFile(new URL("../public/branding/notification-mark.svg", import.meta.url), "utf8");
+const foreground = mark.replace(/<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+const icon = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#7C3AED"/>${foreground}</svg>`);
 
-// Preserve the complete supplied logo; pad to square instead of cropping it.
+// A compact motion emblem stays legible at notification sizes. The full wordmark
+// remains unchanged inside the app. Every launcher/icon pixel is opaque purple.
 for (const [name, size] of [
   ["icon-192", 192],
   ["icon-512", 512],
   ["apple-touch-icon", 180],
+  ["app-v2-192", 192],
+  ["app-v2-512", 512],
+  ["apple-touch-v2", 180],
+  ["notification-v2-192", 192],
+  ["maskable-v2-512", 512],
+  ["maskable-512", 512],
 ]) {
-  await sharp(logo)
-    .resize(size, size, { fit: "contain", background })
+  await sharp(icon)
+    .resize(size, size)
+    .removeAlpha()
     .png()
     .toFile(fileURLToPath(new URL("../public/icons/" + name + ".png", import.meta.url)));
 }
-const inset = await sharp(logo).resize(344, 344, { fit: "contain", background }).png().toBuffer();
-await sharp({ create: { width: 512, height: 512, channels: 4, background } })
-  .composite([{ input: inset, left: 84, top: 84 }])
-  .png()
-  .toFile(fileURLToPath(new URL("../public/icons/maskable-512.png", import.meta.url)));
-await copyFile(
-  new URL("../public/icons/icon-192.png", import.meta.url),
-  new URL("../../public/team-chtaw-icon.png", import.meta.url),
-);
+// Android masks badges by alpha: a solid background would become a white disc.
+// Use a tighter viewBox than the launcher safe zone so the status-bar mark is legible.
+const badge = mark.replace('viewBox="0 0 512 512"', 'viewBox="110 76 288 328"');
+await sharp(Buffer.from(badge)).resize(96, 96).png().toFile(fileURLToPath(new URL("../public/icons/notification-badge-v2-96.png", import.meta.url)));
