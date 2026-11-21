@@ -22,7 +22,9 @@ it("reads only six records, applies filters in the database and returns counts w
   const result = await service.members(actor, query);
   expect(access.actor).toHaveBeenCalledWith(tx, actor, true, true);
   expect(tx.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 6, skip: 6, orderBy: [{ joinedAt: "asc" }, { id: "asc" }],
-    where: expect.objectContaining({ status: "PENDING", role: { not: "COLLABORATOR" }, memberships: { some: { groupId: query.groupId } }, AND: expect.any(Array), joinedAt: { gte: new Date(query.from!), lt: new Date(query.before!) } }) }));
+    where: expect.objectContaining({ status: "PENDING", role: "USER", memberships: { some: { groupId: query.groupId } }, AND: expect.any(Array), joinedAt: { gte: new Date(query.from!), lt: new Date(query.before!) } }) }));
+  expect(tx.user.count).toHaveBeenCalledWith({ where: expect.objectContaining({ role: "USER" }) });
+  expect(tx.user.groupBy).toHaveBeenCalledWith(expect.objectContaining({ where: { role: "USER" } }));
   expect(tx.user.findMany.mock.calls[0][0].where.AND).toHaveLength(2);
   expect(result).toMatchObject({ page: 2, pageSize: 6, total: 1000, counts: { ALL: 1000, APPROVED: 700, PENDING: 200, REJECTED: 100 } });
 });

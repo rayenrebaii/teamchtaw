@@ -68,6 +68,8 @@ export class AuthService {
   }
   async firebaseLogin(dto: FirebaseLoginDto) {
     const token = await this.firebase.verify(dto.idToken);
+    if (await this.db.firebaseAccountDeletion.findUnique({ where: { firebaseUid: token.uid }, select: { firebaseUid: true } }))
+      throw new UnauthorizedException("Compte supprimé.");
     const identity = await this.firebase.session(token.uid, token.auth_time);
     // The current Firebase record is authoritative; never trust a frontend verification flag.
     const email = identity.email?.trim().toLowerCase();
@@ -79,12 +81,17 @@ export class AuthService {
       if (existing) throw new UnauthorizedException("Connexion indisponible. Contactez l’administrateur.");
       if (!dto.firstName || !dto.lastName) throw new BadRequestException("Complétez votre inscription avec votre nom et prénom.");
       if (!dto.phone) throw new BadRequestException("Le téléphone est obligatoire à l’inscription.");
-      user = await this.db.$transaction(async tx => tx.user.create({
-        data: { ...await this.schools.enrollment(tx, dto), email, phone: dto.phone, firstName: dto.firstName!, lastName: dto.lastName!,
-          firebaseUid: token.uid, emailVerified: identity.emailVerified,
-          passwordHash: await argon2.hash(randomUUID(), passwordOptions), role: "USER", status: "PENDING" },
-        select: userSelect,
-      }));
+      user = await this.db.$transaction(async tx => {
+        // Recheck after the missing-user lookup to close a concurrent deletion/enrollment race.
+        if (await tx.firebaseAccountDeletion.findUnique({ where: { firebaseUid: token.uid }, select: { firebaseUid: true } }))
+          throw new UnauthorizedException("Compte supprimé.");
+        return tx.user.create({
+          data: { ...await this.schools.enrollment(tx, dto), email, phone: dto.phone, firstName: dto.firstName!, lastName: dto.lastName!,
+            firebaseUid: token.uid, emailVerified: identity.emailVerified,
+            passwordHash: await argon2.hash(randomUUID(), passwordOptions), role: "USER", status: "PENDING" },
+          select: userSelect,
+        });
+      });
     } else {
       if (user.email !== email) throw new UnauthorizedException("Adresse modifiée. Contactez l’administrateur.");
       user = await this.db.user.update({ where: { id: user.id }, data: { emailVerified: identity.emailVerified }, select: userSelect });

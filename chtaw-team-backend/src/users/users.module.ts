@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Injectabl
 import type { Response } from "express";
 import { StudentsExportQuery, StudentsExportService } from "./students-export.service";
 import { UserBansService } from "./user-bans.service";
+import { FirebaseAccountDeletionService } from "./firebase-account-deletion.service";
 import { ApiBearerAuth, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import { ValidateIf, IsString, MaxLength, MinLength } from "class-validator";
@@ -46,8 +47,7 @@ export class UsersService {
     return this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor, true, true);
       const base: Prisma.UserWhereInput = {
-        role: { not: "COLLABORATOR" },
-        NOT: { isInvitedAdmin: true, disabledAt: { not: null } },
+        role: "USER",
       };
       const terms = query.search?.trim().split(/\s+/).filter(Boolean) ?? [];
       const where: Prisma.UserWhereInput = {
@@ -175,7 +175,7 @@ export class AdminStatisticsController {
 }
 @Module({
   controllers: [UsersController, AdminStatisticsController],
-  providers: [UsersService, UserBansService, StudentsExportService],
+  providers: [UsersService, UserBansService, StudentsExportService, FirebaseAccountDeletionService],
   exports: [UsersService],
 })
 export class UsersModule {}

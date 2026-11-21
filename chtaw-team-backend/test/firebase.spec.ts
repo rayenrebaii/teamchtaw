@@ -10,9 +10,9 @@ import { PermissionsGuard } from "../src/auth/security";
 import { DomainEvents } from "../src/common/events";
 import { validateEnvironment } from "../src/config/environment";
 
-const verifyIdToken = jest.fn(), getUser = jest.fn();
+const verifyIdToken = jest.fn(), getUser = jest.fn(), deleteUser = jest.fn();
 jest.mock("firebase-admin/app", () => ({ getApps: () => [{ name: "chtaw-auth" }] }));
-jest.mock("firebase-admin/auth", () => ({ getAuth: () => ({ verifyIdToken, getUser }) }));
+jest.mock("firebase-admin/auth", () => ({ getAuth: () => ({ verifyIdToken, getUser, deleteUser }) }));
 
 describe("Firebase server identity", () => {
   it("refuse un émulateur en production ou sur un hôte non local", () => {
@@ -43,15 +43,31 @@ describe("Firebase server identity", () => {
   it("requires all server credentials before enabling Firebase", () => {
     expect(() => validateEnvironment({ DATABASE_URL: "postgresql://localhost/test", CORS_ORIGINS: "http://localhost:3001", JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64), AUTH_PROVIDER: "firebase" })).toThrow("FIREBASE_PROJECT_ID");
   });
+  it("deletes a Firebase identity using its linked UID", async () => {
+    deleteUser.mockReset().mockResolvedValue(undefined);
+    await identity.deleteAccount("linked-uid");
+    expect(deleteUser).toHaveBeenCalledTimes(1);
+    expect(deleteUser).toHaveBeenCalledWith("linked-uid");
+  });
+  it("treats an already missing Firebase identity as a completed deletion", async () => {
+    deleteUser.mockReset().mockRejectedValue({ code: "auth/user-not-found" });
+    await expect(identity.deleteAccount("linked-uid")).resolves.toBeUndefined();
+  });
+  it("propagates provider errors so durable deletion can retry", async () => {
+    deleteUser.mockReset().mockRejectedValue({ code: "auth/insufficient-permission" });
+    await expect(identity.deleteAccount("linked-uid")).rejects.toThrow("Suppression Firebase temporairement indisponible.");
+  });
 });
 
 describe("Firebase account linking", () => {
+  const deletedIdentity = jest.fn().mockResolvedValue(null);
   const findUnique = jest.fn(), create = jest.fn(), update = jest.fn(), sessionCreate = jest.fn();
   const firebase = { enabled: true, verify: jest.fn(), session: jest.fn(), passwordLogin: jest.fn().mockRejectedValue(new Error("Firebase credentials rejected")) };
   let auth: AuthService;
   beforeAll(() => {
-    auth = new AuthService({ user: { findUnique, create, update }, refreshSession: { create: sessionCreate },
+    auth = new AuthService({ firebaseAccountDeletion: { findUnique: deletedIdentity }, user: { findUnique, create, update }, refreshSession: { create: sessionCreate },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({
+        firebaseAccountDeletion: { findUnique: deletedIdentity },
         $queryRaw: jest.fn(), refreshSession: { create: sessionCreate }, user: { create, findUnique: async () =>
           await (update.mock.results.at(-1)?.value ?? create.mock.results.at(-1)?.value ?? findUnique.mock.results.at(-1)?.value) },
       }),
@@ -60,6 +76,7 @@ describe("Firebase account linking", () => {
       new ConfigService({ ACCESS_TTL_SECONDS: 900, REFRESH_TTL_SECONDS: 3600, JWT_ACCESS_SECRET: "a".repeat(64), JWT_REFRESH_SECRET: "b".repeat(64) }), new DomainEvents(), firebase as unknown as FirebaseIdentity, { enrollment: jest.fn().mockResolvedValue({}) } as never);
   });
   beforeEach(() => {
+    deletedIdentity.mockReset().mockResolvedValue(null);
     findUnique.mockReset(); create.mockReset(); update.mockReset(); sessionCreate.mockReset();
     firebase.passwordLogin.mockReset().mockRejectedValue(new Error("Firebase credentials rejected"));
     firebase.verify.mockResolvedValue({ uid: "new-uid", email: "new@example.test", auth_time: 200 });
@@ -73,6 +90,18 @@ describe("Firebase account linking", () => {
     findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "existing-admin" });
     await expect(auth.firebaseLogin({ idToken: "token", firstName: "New", lastName: "User" })).rejects.toThrow();
     expect(update).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  });
+  it("blocks deleted Firebase identities even while SDK deletion is being retried", async () => {
+    deletedIdentity.mockResolvedValue({ firebaseUid: "new-uid" });
+    await expect(auth.firebaseLogin({ idToken: "token", firstName: "New", lastName: "User", phone: "+21620123456" })).rejects.toThrow("Compte supprimé.");
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+  it("rechecks deletion intent before creating a missing business account", async () => {
+    deletedIdentity.mockResolvedValueOnce(null).mockResolvedValueOnce({ firebaseUid: "new-uid" });
+    findUnique.mockResolvedValue(null);
+    await expect(auth.firebaseLogin({ idToken: "token", firstName: "New", lastName: "User", phone: "+21620123456" })).rejects.toThrow("Compte supprimé.");
+    expect(create).not.toHaveBeenCalled();
   });
   it("keeps installed PWA login compatible by checking the Firebase password only", async () => {
     const user = { id: "id", email: "new@example.test", role: "ADMIN", status: "APPROVED", emailVerified: true };

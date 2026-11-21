@@ -7,6 +7,15 @@ import type { Auth, DecodedIdToken } from "firebase-admin/auth";
 export class FirebaseIdentity {
   constructor(private config: ConfigService) {}
   get enabled() { return this.config.get<string>("AUTH_PROVIDER") === "firebase"; }
+  async deleteAccount(uid: string) {
+    try {
+      await (await this.client()).deleteUser(uid);
+    } catch (error) {
+      // Retry after a crash or an independently removed identity is safe.
+      if (error && typeof error === "object" && "code" in error && error.code === "auth/user-not-found") return;
+      throw new ServiceUnavailableException("Suppression Firebase temporairement indisponible.");
+    }
+  }
   async createCollaborator(uid: string, email: string) {
     // Never adopt an existing Firebase identity by email.
     await (await this.client()).createUser({ uid, email, emailVerified: false });

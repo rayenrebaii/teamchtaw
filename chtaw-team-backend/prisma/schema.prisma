@@ -38,6 +38,17 @@ model ProfilePhotoCleanup {
   createdAt DateTime @default(now())
 }
 
+// Durable deletion intent, deliberately independent of User so it survives deletion.
+// Completed UIDs also prevent re-enrollment with a formerly deleted Firebase identity.
+model FirebaseAccountDeletion {
+  firebaseUid String @id @db.VarChar(128)
+  createdAt DateTime @default(now())
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([completedAt, nextAttemptAt])
+}
+
 model StoredMedia {
   key       String   @id @db.VarChar(41)
   content   Bytes

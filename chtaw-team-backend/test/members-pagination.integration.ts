@@ -21,7 +21,7 @@ describe("Members pagination over HTTP", () => {
     await app.init(); db = app.get(PrismaService);
     const passwordHash = await argon2.hash(password);
     for (const role of ["ADMIN", "USER"] as const) {
-      const user = await db.user.create({ data: { email: `${role}-${marker}@test.invalid`, firstName: "Pagination", lastName: role, passwordHash, role, status: "APPROVED" } });
+      const user = await db.user.create({ data: { email: `${role.toLowerCase()}-${marker}@test.invalid`, firstName: "Pagination", lastName: role, passwordHash, role, status: "APPROVED" } });
       const response = await api().post("/api/v1/auth/login").send({ email: user.email, password }).expect(200);
       if (role === "ADMIN") token = response.body.accessToken as string;
       else userToken = response.body.accessToken as string;
@@ -31,6 +31,7 @@ describe("Members pagination over HTTP", () => {
       status: index < 7 ? "PENDING" as const : "APPROVED" as const,
       joinedAt: new Date("2026-11-01T12:00:00Z"),
     })) });
+    await db.user.create({ data: { email: `collaborator-${marker}@test.invalid`, firstName: "Pagination", lastName: "Collaborator", passwordHash, role: "COLLABORATOR", status: "APPROVED", activatedAt: new Date() } });
   });
   afterAll(async () => { await app?.close(); });
   it("returns disjoint batches of six with stable ordering, totals and server search", async () => {
@@ -55,5 +56,15 @@ describe("Members pagination over HTTP", () => {
     await api().get("/api/v1/users/members?limit=1000").set(auth()).expect(400);
     await api().get("/api/v1/users/members").set({ Authorization: `Bearer ${userToken}` }).expect(403);
     await api().get("/api/v1/users/members").expect(401);
+  });
+  it("excludes administrators and collaborators from the directory and its counts", async () => {
+    const first = await api().get("/api/v1/users/members").set(auth()).expect(200);
+    const studentCount = await db.user.count({ where: { role: "USER" } });
+    expect(first.body.total).toBe(studentCount);
+    expect(first.body.counts.ALL).toBe(studentCount);
+    expect(first.body.items.every((user: { role: string }) => user.role === "USER")).toBe(true);
+    const adminSearch = await api().get("/api/v1/users/members").set(auth()).query({ search: `admin-${marker}@test.invalid` }).expect(200);
+    expect(adminSearch.body.items).toHaveLength(0);
+    expect(adminSearch.body.total).toBe(0);
   });
 });

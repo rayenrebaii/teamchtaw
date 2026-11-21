@@ -1,5 +1,7 @@
-.table.table th:first-child { width: 38%; }
-.table.table th:nth-child(2) { width: 24%; }
+.stats { margin-bottom: 24px; }
+.table.table th:first-child { width: 32%; }
+.table.table th:nth-child(2) { width: 14%; }
+.table.table th:nth-child(3) { width: 16%; }
 .table.table th:last-child { width: 38%; text-align: end; }
 .actions { flex-wrap: wrap; }
 .protected { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
@@ -11,14 +13,14 @@
 :global([data-theme="dark"]) .pending { color: #ebc278; }
 
 @container (max-width: 960px) {
-  .table .row { grid-template-areas: "identity status" "actions actions"; }
+  .table .row { grid-template-areas: "identity status" "date date" "actions actions"; }
   .table .row .actionsCell { grid-row: auto; }
 }
 
 @media (max-width: 640px) {
-  .table .row { grid-template-areas: "identity identity" "status status" "actions actions"; }
+  .table .row { grid-template-areas: "identity identity" "status status" "date date" "actions actions"; }
 }
 
 @container (max-width: 340px) {
-  .table .row { grid-template-areas: "identity identity" "status status" "actions actions"; }
+  .table .row { grid-template-areas: "identity identity" "status status" "date date" "actions actions"; }
 }

@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "../src/prisma/prisma.module";
 import { configureApp } from "../src/bootstrap";
 import { ThrottlerStorage, ThrottlerStorageService } from "@nestjs/throttler";
+import { FirebaseIdentity } from "../src/auth/firebase.service";
+import { FirebaseAccountDeletionService } from "../src/users/firebase-account-deletion.service";
 
 describe("Invitation native Firebase sans Resend : HTTP, codes réels et PostgreSQL isolé", () => {
   let app: INestApplication, db: PrismaService, firebase: App;
@@ -49,6 +51,8 @@ describe("Invitation native Firebase sans Resend : HTTP, codes réels et Postgre
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ThrottlerStorage).useValue({ increment: (...args: Parameters<ThrottlerStorageService["increment"]>) => limiter.increment(...args) }).compile();
     app = configureApp(module.createNestApplication({ bodyParser: false, logger: false })); await app.init(); db = app.get(PrismaService);
+    if (!await db.group.findFirst({ where: { isGeneral: true } }))
+      await db.group.create({ data: { name: "Disposable emulator general group", isGeneral: true } });
     const adminEmail = `admin-${randomUUID()}@emulator.invalid`;
     const identity = await getAuth(firebase).createUser({ email: adminEmail, password, emailVerified: true });
     await db.user.create({ data: { firebaseUid: identity.uid, email: adminEmail, passwordHash: "unused-emulator-password", firstName: "Admin", lastName: "Emulator", role: "ADMIN", status: "APPROVED", emailVerified: true } });
@@ -111,9 +115,51 @@ describe("Invitation native Firebase sans Resend : HTTP, codes réels et Postgre
     expect(login.user).toMatchObject({ role: "ADMIN", isInvitedAdmin: true, principalAdminId: created.user.principalAdminId, status: "APPROVED" });
     await api().get("/api/v1/admin/analytics").set(headers(login.accessToken)).expect(200);
     await api().delete(`/api/v1/users/${created.user.principalAdminId}`).set(headers(login.accessToken)).expect(403);
+    const linkedAgent = await db.user.findUniqueOrThrow({ where: { id: created.user.id }, select: { firebaseUid: true } });
     await api().delete(`/api/v1/users/${created.user.id}`).set(headers()).expect(204);
     await api().get("/api/v1/auth/me").set(headers(login.accessToken)).expect(401);
-    await api().post("/api/v1/auth/firebase").send({ idToken: await signIn(address) }).expect(401);
+    await expect(getAuth(firebase).getUser(linkedAgent.firebaseUid!)).rejects.toMatchObject({ code: "auth/user-not-found" });
+    await api().post("/api/v1/auth/firebase").send({ idToken: identityToken }).expect(401);
+    expect((await rpc("signInWithPassword", { email: address, password, returnSecureToken: true })).ok).toBe(false);
+    expect(await db.user.findUnique({ where: { id: created.user.id } })).toMatchObject({ disabledAt: expect.any(Date) });
+  });
+  it("supprime aussi le compte Firebase d’un étudiant et d’un collaborateur", async () => {
+    const address = `deleted-student-${randomUUID()}@emulator.invalid`;
+    const identity = await getAuth(firebase).createUser({ email: address, password, emailVerified: true });
+    const token = await signIn(address);
+    const registered = await api().post("/api/v1/auth/firebase").send({ idToken: token, firstName: "Deleted", lastName: "Student", phone: "+21620123456", proposedEstablishmentName: "Disposable emulator school" }).expect(200);
+    await api().patch(`/api/v1/approvals/${registered.body.user.id}`).set(headers()).send({ status: "APPROVED" }).expect(200);
+    await api().delete(`/api/v1/users/${registered.body.user.id}`).set(headers()).expect(204);
+    expect(await db.user.findUnique({ where: { id: registered.body.user.id } })).toBeNull();
+    await expect(getAuth(firebase).getUser(identity.uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
+    expect(await db.firebaseAccountDeletion.findUnique({ where: { firebaseUid: identity.uid } })).toMatchObject({ completedAt: expect.any(Date) });
+    await api().post("/api/v1/auth/firebase").send({ idToken: token, firstName: "Deleted", lastName: "Student", phone: "+21620123456", proposedEstablishmentName: "Disposable emulator school" }).expect(401);
+    const collaborator = await api().post("/api/v1/admin/collaborators").set(headers()).send({ email: `deleted-coach-${randomUUID()}@emulator.invalid`, firstName: "Deleted", lastName: "Coach" }).expect(201);
+    const linkedCollaborator = await db.user.findUniqueOrThrow({ where: { id: collaborator.body.user.id }, select: { firebaseUid: true } });
+    await api().delete(`/api/v1/users/${collaborator.body.user.id}`).set(headers()).expect(204);
+    expect(await db.user.findUnique({ where: { id: collaborator.body.user.id } })).toBeNull();
+    await expect(getAuth(firebase).getUser(linkedCollaborator.firebaseUid!)).rejects.toMatchObject({ code: "auth/user-not-found" });
+  });
+  it("reprend une suppression Firebase après une panne avec un nouveau worker et bloque la réinscription entre-temps", async () => {
+    const address = `retry-student-${randomUUID()}@emulator.invalid`;
+    const identity = await getAuth(firebase).createUser({ email: address, password, emailVerified: true });
+    const token = await signIn(address);
+    const registration = { idToken: token, firstName: "Retry", lastName: "Student", phone: "+21620123456", proposedEstablishmentName: "Disposable emulator school" };
+    const registered = await api().post("/api/v1/auth/firebase").send(registration).expect(200);
+    await api().patch(`/api/v1/approvals/${registered.body.user.id}`).set(headers()).send({ status: "APPROVED" }).expect(200);
+    const provider = app.get(FirebaseIdentity);
+    const unavailable = jest.spyOn(provider, "deleteAccount").mockRejectedValueOnce(new Error("Simulated emulator outage"));
+    try { await api().delete(`/api/v1/users/${registered.body.user.id}`).set(headers()).expect(204); }
+    finally { unavailable.mockRestore(); }
+    expect(await db.user.findUnique({ where: { id: registered.body.user.id } })).toBeNull();
+    expect(await getAuth(firebase).getUser(identity.uid)).toMatchObject({ uid: identity.uid });
+    expect(await db.firebaseAccountDeletion.findUnique({ where: { firebaseUid: identity.uid } })).toMatchObject({ completedAt: null });
+    await api().post("/api/v1/auth/firebase").send(registration).expect(401);
+    // Advance only this disposable job's retry date; a fresh worker has no in-memory history.
+    await db.firebaseAccountDeletion.update({ where: { firebaseUid: identity.uid }, data: { nextAttemptAt: new Date(0) } });
+    await new FirebaseAccountDeletionService(db, provider).drain();
+    await expect(getAuth(firebase).getUser(identity.uid)).rejects.toMatchObject({ code: "auth/user-not-found" });
+    expect(await db.firebaseAccountDeletion.findUnique({ where: { firebaseUid: identity.uid } })).toMatchObject({ completedAt: expect.any(Date), attempts: 2 });
   });
   it("refuse une invitation expirée et un compte désactivé, sans ouvrir de session", async () => {
     const address = `expired-${randomUUID()}@emulator.invalid`;

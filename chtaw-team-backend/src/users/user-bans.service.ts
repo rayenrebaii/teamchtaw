@@ -5,6 +5,7 @@ import { DomainEvents } from "../common/events";
 import { groupInclude, presentGroup } from "../common/presenters";
 import { Storage, MediaStorage } from "../uploads/storage.module";
 import { reconcileAbsences } from "../polls/attendance.reconcile";
+import { FirebaseAccountDeletionService } from "./firebase-account-deletion.service";
 
 @Injectable()
 export class UserBansService {
@@ -14,6 +15,7 @@ export class UserBansService {
     private access: AccessService,
     private events: DomainEvents,
     @Storage() private storage: MediaStorage,
+    private firebaseDeletion: FirebaseAccountDeletionService,
   ) {}
 
   async remove(actor: Actor, userId: string) {
@@ -35,6 +37,13 @@ export class UserBansService {
       if (!user) throw new NotFoundException("Compte introuvable.");
       if (user.id === actor.id || (user.role === "ADMIN" && !user.isInvitedAdmin))
         throw new ForbiddenException("Un compte administrateur ne peut pas être supprimé.");
+      if (user.status !== "APPROVED" && user.role !== "COLLABORATOR" && !user.isInvitedAdmin)
+        throw new ConflictException("Seul un membre approuvé peut être banni.");
+      // Commit the identity cleanup intent with the business deletion/revocation.
+      // Never resolve an identity by email; only the account's established UID is eligible.
+      if (user.firebaseUid) await tx.firebaseAccountDeletion.upsert({
+        where: { firebaseUid: user.firebaseUid }, create: { firebaseUid: user.firebaseUid }, update: {},
+      });
       // Removing an agent revokes access while preserving attendance audit authors.
       // Shared content is owned by the principal and must survive the agent's departure.
       if (user.isInvitedAdmin) {
@@ -46,10 +55,8 @@ export class UserBansService {
         const memberships = await tx.groupMember.findMany({ where: { userId }, select: { groupId: true } });
         await tx.groupMember.deleteMany({ where: { userId } });
         const groups = await tx.group.findMany({ where: { id: { in: memberships.map((membership) => membership.groupId) } }, include: groupInclude });
-        return { sessions, media: [], groups: groups.map(presentGroup) };
+        return { sessions, media: [], groups: groups.map(presentGroup), firebaseUid: user.firebaseUid };
       }
-      if (user.status !== "APPROVED" && user.role !== "COLLABORATOR" && !user.isInvitedAdmin)
-        throw new ConflictException("Seul un membre approuvé peut être banni.");
       const affectedStudents = await tx.user.findMany({
         where: { id: { not: userId }, role: "USER", OR: [
           { sessionParticipants: { some: { poll: { authorId: userId } } } },
@@ -96,9 +103,11 @@ export class UserBansService {
       const groups = await tx.group.findMany({
         where: { id: { in: memberships.map((membership) => membership.groupId) } }, include: groupInclude,
       });
-      return { sessions, media, groups: groups.map(presentGroup) };
+      return { sessions, media, groups: groups.map(presentGroup), firebaseUid: user.firebaseUid };
     }, { timeout: 15000 });
 
+    // Immediate best effort; startup/periodic workers resume if Firebase or this process fails.
+    if (result.firebaseUid) await this.firebaseDeletion.process(result.firebaseUid);
     for (const session of result.sessions)
       await this.events.publish({ name: "session:revoked", sessionId: session.id, payload: {} });
     for (const group of result.groups)

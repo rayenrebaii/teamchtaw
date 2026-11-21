@@ -11,6 +11,7 @@ import { configureApp } from "../src/bootstrap";
 describe("Administrator analytics on disposable PostgreSQL", () => {
   let app: INestApplication, db: PrismaService, groupA: string, groupB: string, sharedId: string;
   const ids: Record<string, string> = {}, tokens: Record<string, string> = {};
+  let baseline = { users: 0, approved: 0, pendingUsers: 0 };
   let limiter = new ThrottlerStorageService();
   const api = () => request(app.getHttpServer());
   const auth = (role = "admin") => ({ Authorization: `Bearer ${tokens[role]}` });
@@ -36,6 +37,11 @@ describe("Administrator analytics on disposable PostgreSQL", () => {
       .overrideProvider(ThrottlerStorage).useValue({ increment: (...args: Parameters<ThrottlerStorageService["increment"]>) => limiter.increment(...args) }).compile();
     app = configureApp(module.createNestApplication({ bodyParser: false, logger: false })); await app.init(); db = app.get(PrismaService);
     const password = "Disposable-Analytics-2026!", passwordHash = await argon2.hash(password);
+    // Other suites retain their owned fixtures in the same disposable database.
+    const retained = { NOT: { isInvitedAdmin: true, disabledAt: { not: null } } };
+    baseline = { users: await db.user.count({ where: retained }),
+      approved: await db.user.count({ where: { ...retained, status: "APPROVED" } }),
+      pendingUsers: await db.user.count({ where: { ...retained, status: "PENDING" } }) };
     for (const [name, joinedAt] of [["admin", "2020-09-01T10:00:00Z"], ["a", "2020-09-20T10:00:00Z"], ["b", "2020-09-30T23:00:00Z"], ["c", "2020-10-15T10:00:00Z"], ["pending", "2020-10-15T12:00:00Z"], ["collaborator", "2020-10-20T10:00:00Z"]]) {
       const user = await db.user.create({ data: { email: `analytics-${name}-${randomUUID()}@test.invalid`, firstName: name!, lastName: "Analytics", passwordHash,
         role: name === "admin" ? "ADMIN" : name === "collaborator" ? "COLLABORATOR" : "USER", status: name === "pending" ? "PENDING" : "APPROVED", joinedAt: new Date(joinedAt!),
@@ -101,7 +107,7 @@ describe("Administrator analytics on disposable PostgreSQL", () => {
     expect(body.registrations[0]).toMatchObject({ from: "2020-10-01", count: 1, cumulative: 3 });
     expect(body.registrations[1]).toMatchObject({ count: 0, cumulative: 3 });
     expect(body.registrations.at(-1).cumulative).toBe(6);
-    expect(body.kpis).toMatchObject({ users: 6, approved: 5, pendingUsers: 1 });
+    expect(body.kpis).toMatchObject({ users: baseline.users + 6, approved: baseline.approved + 5, pendingUsers: baseline.pendingUsers + 1 });
     for (const interval of ["week", "month"]) {
       const result = (await api().get(`${endpoint}?${range}&interval=${interval}`).set(auth()).expect(200)).body;
       expect(result.registrations.reduce((n: number, row: { count: number }) => n + row.count, 0)).toBe(4);

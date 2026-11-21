@@ -241,7 +241,7 @@ export function MembersPanel({
   const pages = Math.max(1, Math.ceil(resultCount / TABLE_PAGE_SIZE));
   const currentPage = members.data?.page ?? page;
   const pageMembers = (members.data?.items ?? []).map(user => store.users.find(cached => cached.id === user.id) ?? user);
-  const selectable = (user: User) => user.role !== "ADMIN" && (user.status === "APPROVED" || (user.role === "USER" && user.status === "PENDING"));
+  const selectable = (user: User) => user.role === "USER" && (user.status === "APPROVED" || user.status === "PENDING");
   const pageIds = pageMembers.filter(selectable).map((user) => user.id);
   const selected = store.users.filter((user) => selectedIds.includes(user.id) && selectable(user));
   const pageSelected = pageIds.filter((id) => selectedIds.includes(id)).length;

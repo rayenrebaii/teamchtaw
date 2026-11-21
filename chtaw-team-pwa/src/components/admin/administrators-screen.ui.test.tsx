@@ -49,3 +49,39 @@ it("requires confirmation and retains the dialog when deletion fails", async () 
   await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Suppression impossible"));
   expect(screen.getByRole("dialog")).toBeTruthy();
 });
+it("uses membership-style status tabs, search and account type filters while protecting the principal", async () => {
+  const pending = { ...friend, id: "invited", firstName: "Invited", email: "invited@test.invalid", activatedAt: undefined };
+  vi.spyOn(api, "request").mockResolvedValue([principal, friend, pending]);
+  render(<AdministratorsScreen />);
+  await screen.findByText("Principal Admin");
+  expect(screen.getByText("Total des administrateurs").parentElement?.textContent).toContain("3");
+  fireEvent.click(screen.getByRole("tab", { name: /Invitations en attente/ }));
+  expect(screen.getByText("invited@test.invalid")).toBeTruthy();
+  expect(screen.queryByText("principal@test.invalid")).toBeNull();
+  expect(screen.queryByText("friend@test.invalid")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Friend Admin" } });
+  expect(screen.getByText("friend@test.invalid")).toBeTruthy();
+  expect(screen.queryByText("principal@test.invalid")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
+  fireEvent.change(screen.getByLabelText("Type de compte"), { target: { value: "PRINCIPAL" } });
+  expect(screen.getByText("principal@test.invalid")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Supprimer" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
+  expect(screen.getByText("friend@test.invalid")).toBeTruthy();
+});
+
+it("resets pagination when searching and offers a reset for empty results", async () => {
+  vi.spyOn(api, "request").mockResolvedValue([principal, ...Array.from({ length: 7 }, (_, index) => ({ ...friend, id: `agent-${index}`, firstName: `Agent${index}`, email: `agent${index}@test.invalid` }))]);
+  render(<AdministratorsScreen />);
+  await screen.findByRole("button", { name: "Suivant" });
+  fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
+  expect(screen.getByRole("button", { name: "Précédent" }).hasAttribute("disabled")).toBe(false);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "agent6@test.invalid" } });
+  expect(screen.getByText("agent6@test.invalid")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Suivant" })).toBeNull();
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "no matching account" } });
+  expect(screen.getByText("Aucun administrateur ne correspond")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
+  expect(screen.getByRole("button", { name: "Précédent" }).hasAttribute("disabled")).toBe(true);
+});

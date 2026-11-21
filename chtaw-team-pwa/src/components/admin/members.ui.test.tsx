@@ -57,7 +57,8 @@ describe("Gestion unique des membres", () => {
   it("affiche tous les comptes et filtre sans changer de page", () => {
     render(<MembersPanel />);
     expect(screen.getByRole("heading", { name: "Gestion des membres" })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(3);
+    expect(screen.queryByText("admin@test.invalid")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /En attente/ }));
     expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(1);
     expect(screen.getByText("nadia@test.invalid")).toBeTruthy();
@@ -65,7 +66,7 @@ describe("Gestion unique des membres", () => {
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "amine" } });
     expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Réinitialiser" }));
-    expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: "Consulter" })).toHaveLength(3);
   });
   it("demande une confirmation et actualise le statut après la réponse", async () => {
     const review = vi.spyOn(useCommunity.getState(), "review").mockImplementation(async (id, status) => {

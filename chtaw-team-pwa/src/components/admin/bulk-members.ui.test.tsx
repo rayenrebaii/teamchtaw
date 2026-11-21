@@ -24,8 +24,8 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); useCom
 it("accepts only selected pending clients and preserves the collaborator invitation flow", async () => {
   const review = vi.spyOn(usersService, "review").mockResolvedValue(make("Pending", "APPROVED"));
   render(<MembersPanel />);
-  expect(screen.getByRole("checkbox", { name: "Sélectionner Admin Team" }).hasAttribute("disabled")).toBe(true);
-  expect(screen.getByRole("checkbox", { name: "Sélectionner Invite Team" }).hasAttribute("disabled")).toBe(true);
+  expect(screen.queryByRole("checkbox", { name: "Sélectionner Admin Team" })).toBeNull();
+  expect(screen.queryByRole("checkbox", { name: "Sélectionner Invite Team" })).toBeNull();
   fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner Pending Team" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner A Team" }));
   fireEvent.click(screen.getByRole("button", { name: "Accepter (1)" }));

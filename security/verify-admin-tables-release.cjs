@@ -8,6 +8,7 @@ const base = process.argv[2] || 'https://teamchtaw-pwa.vercel.app';
 if (!['https://teamchtaw-pwa.vercel.app', 'http://127.0.0.1:3001'].includes(base)) throw Error('Approved release URL required');
 const admin = { id: 'release-admin', firstName: 'Admin', lastName: 'Preview', email: 'admin@example.invalid', role: 'ADMIN', status: 'APPROVED', emailVerified: true, isInvitedAdmin: false, bio: '', joinedAt: '2026-01-01T00:00:00Z' };
 const members = [admin, ...Array.from({ length: 12 }, (_, i) => ({ ...admin, id: `release-member-${i}`, firstName: `Member ${i}`, email: `member${i}@example.invalid`, role: 'USER' }))];
+const students = members.filter(user => user.role === 'USER');
 const group = { id: 'release-group', name: 'Preview group', description: '', color: '#be9af5', isGeneral: true, memberIds: members.map(u => u.id) };
 const school = { id: 'release-school', name: 'Preview high school' };
 const suggestion = { id: 'release-suggestion', name: 'Proposed high school', status: 'PENDING', students: [{ id: members[1].id, firstName: 'Nadia', lastName: 'Preview', establishment: null }] };
@@ -33,7 +34,7 @@ async function main() {
         let data;
         if (p === '/auth/refresh') data = { accessToken: 'ui-fixture-only', expiresIn: 900, userId: admin.id, sessionId: 'ui-fixture' };
         else if (p === '/auth/me' || p === '/users/me') data = admin;
-        else if (p === '/users/members') { const n = Number(url.searchParams.get('page') || '1'); memberPages.push(n); data = { items: members.slice((n - 1) * 6, n * 6), total: members.length, page: n, pageSize: 6, counts: { ALL: members.length, PENDING: 0, APPROVED: members.length, REJECTED: 0 } }; }
+        else if (p === '/users/members') { const n = Number(url.searchParams.get('page') || '1'); memberPages.push(n); data = { items: students.slice((n - 1) * 6, n * 6), total: students.length, page: n, pageSize: 6, counts: { ALL: students.length, PENDING: 0, APPROVED: students.length, REJECTED: 0 } }; }
         else if (p === '/users') { directoryReads++; data = { items: members, nextCursor: null }; }
         else if (p === '/groups') data = [group];
         else if (p === '/polls') data = { items: [poll], nextCursor: null };
@@ -56,14 +57,19 @@ async function main() {
       await page.goto(base + '/admin/users', { waitUntil: 'domcontentloaded' });
       await expect(page.getByText('member0@example.invalid', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'View profile', exact: true })).toHaveCount(6);
+      await expect(page.getByRole('table').getByText(admin.email, { exact: true })).toHaveCount(0);
+      if (width === 1440) await expect(page.locator('.rail a[href="/admin/collaborators"] .lucide-handshake')).toBeVisible();
       if (directoryReads || memberPages.some(n => n !== 1)) throw Error('Members directory was preloaded');
       await page.getByRole('button', { name: 'Next', exact: true }).click();
-      await expect(page.getByText('member5@example.invalid', { exact: true })).toBeVisible();
+      await expect(page.getByText('member6@example.invalid', { exact: true })).toBeVisible();
       if (!memberPages.includes(2) || directoryReads) throw Error('Remote pagination failed');
       await expect(page.getByRole('button', { name: 'Export all users', exact: true })).toHaveClass(/btn-primary/);
       await capture('members');
       await page.goto(base + '/admin/administrators');
       await expect(page.getByRole('table', { name: 'Administrators', exact: true })).toBeVisible();
+      await expect(page.getByText('Total administrators', { exact: true })).toBeVisible();
+      await expect(page.getByRole('tab', { name: /All administrators/ })).toBeVisible();
+      await expect(page.getByRole('searchbox')).toBeVisible();
       await expect(page.getByText('agent@example.invalid', { exact: true })).toBeVisible();
       await capture('administrators');
       await page.goto(base + '/admin/polls');

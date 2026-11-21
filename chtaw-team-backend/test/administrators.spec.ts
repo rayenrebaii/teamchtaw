@@ -47,7 +47,7 @@ describe("Shared administration agents", () => {
   it.each([principal, agent])("rejects deleting the principal or oneself (%j)", async (target) => {
     const tx = { $queryRaw: jest.fn(), user: { findUnique: jest.fn().mockResolvedValue(target), delete: jest.fn() } };
     const service = new UserBansService({ $transaction: (fn: (tx: unknown) => unknown) => fn(tx) } as never,
-      { actor: jest.fn() } as never, {} as never, {} as never);
+      { actor: jest.fn() } as never, {} as never, {} as never, { process: jest.fn() } as never);
     await expect(service.remove(agent as Actor, target.id)).rejects.toBeInstanceOf(ForbiddenException);
     expect(tx.user.delete).not.toHaveBeenCalled();
   });
@@ -62,7 +62,7 @@ describe("Shared administration agents", () => {
     };
     const events = { publish: jest.fn() };
     const service = new UserBansService({ $transaction: (fn: (tx: unknown) => unknown) => fn(tx) } as never,
-      { actor: jest.fn() } as never, events as never, {} as never);
+      { actor: jest.fn() } as never, events as never, {} as never, { process: jest.fn() } as never);
     await service.remove(principal as Actor, agent.id);
     expect(tx.user.update).toHaveBeenCalledWith({ where: { id: agent.id }, data: { disabledAt: expect.any(Date) } });
     expect(tx.user.delete).not.toHaveBeenCalled();

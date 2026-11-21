@@ -8,6 +8,22 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "ESPACE ADMIN · ADMINISTRATEURS": "ADMIN AREA · ADMINISTRATORS",
+  "Statistiques des administrateurs": "Administrator statistics",
+  "Total des administrateurs": "Total administrators",
+  "Administrateurs actifs": "Active administrators",
+  "Administrateurs principaux": "Principal administrators",
+  "Invitations en attente": "Pending invitations",
+  "Tous les administrateurs": "All administrators",
+  "Statut des administrateurs": "Administrator status",
+  "Actifs": "Active",
+  "Rechercher un administrateur": "Search administrators",
+  "Type de compte": "Account type",
+  "Tous les types": "All types",
+  "Administrateur invité": "Invited administrator",
+  "Actualisation des administrateurs…": "Refreshing administrators…",
+  "Aucun administrateur ne correspond": "No matching administrators",
+  "Modifiez la recherche, le statut ou le type de compte.": "Adjust the search, status or account type.",
   "Demandes d’établissement": "School requests",
   "Choisir un horaire": "Choose a time slot",
   "Rechercher un horaire à pointer": "Find a time slot for attendance",
