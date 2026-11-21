@@ -63,7 +63,7 @@ export function AnalyticsDashboard() {
         <Button type="submit" variant="secondary" disabled={!draft.from || !draft.to || draft.from > draft.to}>{t("Appliquer")}</Button>
       </form>}
     </section>
-    <p className={styles.scope}>{summary.data ? `${dashboardDate(summary.data.period.from, locale)} – ${dashboardDate(summary.data.period.to, locale)} · ${summary.data.period.timeZone}` : t("Chargement de la période…")}<br />{t("La période filtre les inscriptions et les séances terminées, selon leur premier créneau. Les effectifs et les groupes sont actuels. Les signalements portent sur tout l’historique.")}</p>
+    <p className={styles.scope}>{summary.data ? `${dashboardDate(summary.data.period.from, locale)} – ${dashboardDate(summary.data.period.to, locale)} · ${summary.data.period.timeZone}` : t("Chargement de la période…")}</p>
     <LoadState {...summary} retry={summary.refresh} />
     <section className={styles.kpis} aria-label={t("Indicateurs clés")} aria-busy={summary.loading}>
       {cards.map(({ name, value, Icon, scope, detail }) => <article className={styles.kpi} key={name}><div className={styles.kpiTop}><span>{t(scope)}</span><Icon size={18} aria-hidden="true" /></div><h2>{t(name)}</h2><strong>{value}</strong><p>{detail || t("En attente des données")}</p></article>)}
@@ -95,7 +95,6 @@ export function AnalyticsDashboard() {
         <AnalyticsPagination page={sessionPage} total={sessions.data?.total ?? 0} limit={TABLE_PAGE_SIZE} change={setSessionPage} busy={sessions.loading} />
       </section>
     </div>
-    <p className={styles.method}>{t("Le taux = présences ÷ (présences + absences confirmées). Un vote ne vaut pas présence. Les pointages incomplets sont exclus du taux.")} {counts ? t("{count} pointage(s) incomplet(s) sur la période.", { count: counts.pending }) : ""}</p>
     <section className={styles.panel} aria-labelledby="active-alerts-heading">
       <div className={styles.panelHeading}><div><span className={styles.sectionIcon}><ShieldAlert size={18} aria-hidden="true" /></span><h2 id="active-alerts-heading">{t("Signalements actifs")}</h2></div><span className={styles.pill}>{alerts.data?.total ?? "—"}</span></div>
       <p className={styles.note}>{t("Seuil existant de trois absences par organisateur, sur tout l’historique. Seul le filtre de groupe s’applique à cette liste.")}</p>

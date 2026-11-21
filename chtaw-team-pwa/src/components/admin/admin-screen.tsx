@@ -59,7 +59,7 @@ function AdminWorkspace({
                   : copy("Des liens plus forts, une communauté bien accompagnée.")}
             </p>
           </div>
-          {page === "polls" ? <Button variant="secondary" asChild><Link href="/admin/calendar"><CalendarDays size={16} aria-hidden="true" />{copy("Calendrier")}</Link></Button> : <span className="demo-label"> {copy("ESPACE ADMIN")} </span>}
+          {page === "polls" ? <Button asChild><Link href="/admin/calendar"><CalendarDays size={16} aria-hidden="true" />{copy("Calendrier")}</Link></Button> : <span className="demo-label"> {copy("ESPACE ADMIN")} </span>}
         </header>
       )}
       {(page === "approvals" || page === "users") && <MembersPanel />}

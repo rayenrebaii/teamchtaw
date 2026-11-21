@@ -1,4 +1,5 @@
 ﻿"use client";
+import { useCopy } from "@/lib/i18n";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,7 @@ const loginSchema = z.object({
 type Values = z.infer<typeof loginSchema>;
 
 export function AuthScreen({ register = false }: { register?: boolean }) {
+  const { t } = useCopy();
   const [registrationBusy, setRegistrationBusy] = useState(false);
   const [remember, setRemember] = useState(false);
   const router = useRouter();
@@ -41,48 +43,48 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
   return (
     <div className="auth-layout">
       <aside className="auth-story">
-        <Link href="/login" className="brand" aria-label="Team Chtaw - Accueil"><BrandLogo /></Link>
+        <Link href="/login" className="brand" aria-label={t("Team Chtaw - Accueil")}><BrandLogo /></Link>
         <div className="story-main">
-          <span className="eyebrow"><span className="live-dot" /> UNE TEAM. UNE ÉNERGIE.</span>
-          <h1>Plus qu’une équipe.<br />Un <em>mouvement.</em></h1>
-          <p>Les conversations qui motivent.<br />Les moments qui rassemblent.<br />Votre communauté, toujours avec vous.</p>
+          <span className="eyebrow"><span className="live-dot" />{t("UNE TEAM. UNE ÉNERGIE.")}</span>
+          <h1>{t("Plus qu’une équipe.")}<br />{t("Un ")}<em>{t("mouvement.")}</em></h1>
+          <p>{t("Les conversations qui motivent.")}<br />{t("Les moments qui rassemblent.")}<br />{t("Votre communauté, toujours avec vous.")}</p>
           <div className="story-art">
             <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-            <span className="art-number">TC.</span><div className="floating-note">↗ Ensemble, on va plus loin.</div>
+            <span className="art-number">TC.</span><div className="floating-note">{t("↗ Ensemble, on va plus loin.")}</div>
           </div>
-          <span className="small">Une communauté. Des liens pour de vrai.</span>
+          <span className="small">{t("Une communauté. Des liens pour de vrai.")}</span>
         </div>
-        <span className="small muted">TEAM CHTAW © 2026 · L’ESPRIT D’ÉQUIPE, PARTOUT.</span>
+        <span className="small muted">{t("TEAM CHTAW © 2026 · L’ESPRIT D’ÉQUIPE, PARTOUT.")}</span>
       </aside>
       <main className={"auth-main " + backgroundStyles.panel}>
         <AuthBackground />
-        <Link href="/login" className="mobile-auth-brand" aria-label="Team Chtaw - Accueil"><BrandLogo /></Link>
-        <span className="demo-label">ESPACE COMMUNAUTAIRE · CONNEXION SÉCURISÉE</span>
+        <Link href="/login" className="mobile-auth-brand" aria-label={t("Team Chtaw - Accueil")}><BrandLogo /></Link>
+        <span className="demo-label">{t("ESPACE COMMUNAUTAIRE · CONNEXION SÉCURISÉE")}</span>
         <div className={"auth-form" + (register ? " " + registrationStyles.registrationForm : "")}>
-          <span className="eyebrow">BIENVENUE DANS LA TEAM</span>
-          <h2>{register ? "L’aventure commence ici." : "Heureux de vous retrouver."}</h2>
+          <span className="eyebrow">{t("BIENVENUE DANS LA TEAM")}</span>
+          <h2>{register ? t("L’aventure commence ici.") : t("Heureux de vous retrouver.")}</h2>
           {register ? <RegistrationWizard onBusyChange={setRegistrationBusy} /> : <>
-            <p className="muted">Connectez-vous pour retrouver votre communauté.</p>
+            <p className="muted">{t("Connectez-vous pour retrouver votre communauté.")}</p>
             <form className="form-stack" onSubmit={handleSubmit(v => attempt(async () => {
               try {
                 const user = await store.login(v.email, v.password, remember);
                 router.push(notificationLoginDestination(user, window.location.search));
               } finally { resetField("password"); resetField("confirm"); }
             }))}>
-              <label>Adresse email<input type="email" autoComplete="email" placeholder="vous@exemple.com" {...field("email")} /><small className="error">{errors.email?.message}</small></label>
+              <label>{t("Adresse email")}<input type="email" autoComplete="email" placeholder={t("vous@exemple.com")} {...field("email")} /><small className="error">{errors.email?.message && t(errors.email.message)}</small></label>
               <div>
-                <label htmlFor="auth-password">Mot de passe</label>
-                <PasswordInput id="auth-password" autoComplete="current-password" placeholder="Au moins 12 caractères" {...field("password")} />
-                <small className="error">{errors.password?.message}</small>
+                <label htmlFor="auth-password">{t("Mot de passe")}</label>
+                <PasswordInput id="auth-password" autoComplete="current-password" placeholder={t("Au moins 12 caractères")} {...field("password")} />
+                <small className="error">{errors.password?.message && t(errors.password.message)}</small>
               </div>
-              <label className="check-label"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />Rester connecté</label>
-              <Button disabled={isSubmitting} type="submit">{isSubmitting ? "Connexion en cours…" : "Se connecter"}<ArrowRight size={17} /></Button>
+              <label className="check-label"><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />{t("Rester connecté")}</label>
+              <Button disabled={isSubmitting} type="submit">{isSubmitting ? t("Connexion en cours…") : t("Se connecter")}<ArrowRight size={17} /></Button>
             </form>
-            {firebaseEnabled && <p><Link href="/forgot-password">Mot de passe oublié ?</Link></p>}
-            <p className="small muted">Pas encore dans la team ?{" "}<Link href="/register">Créer un compte</Link></p>
+            {firebaseEnabled && <p><Link href="/forgot-password">{t("Mot de passe oublié ?")}</Link></p>}
+            <p className="small muted">{t("Pas encore dans la team ?")}{" "}<Link href="/register">{t("Créer un compte")}</Link></p>
             <div className="demo-panel">
-              <div className="row"><ShieldCheck size={20} /><strong>Un espace réservé à votre communauté</strong></div>
-              <p className="small muted">Les nouveaux comptes sont validés par l’administrateur avant d’accéder aux conversations.</p>
+              <div className="row"><ShieldCheck size={20} /><strong>{t("Un espace réservé à votre communauté")}</strong></div>
+              <p className="small muted">{t("Les nouveaux comptes sont validés par l’administrateur avant d’accéder aux conversations.")}</p>
             </div>
           </>}
         </div>

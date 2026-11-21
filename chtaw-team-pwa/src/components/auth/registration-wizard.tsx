@@ -1,4 +1,5 @@
 "use client";
+import { useCopy } from "@/lib/i18n";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ const steps = ["Identité", "Lycée", "Compte"];
 type FocusTarget = keyof RegistrationValues | "school" | "proposed";
 
 export function RegistrationWizard({ onBusyChange }: { onBusyChange: (busy: boolean) => void }) {
+  const { t, error: failure } = useCopy();
   const router = useRouter();
   const store = useCommunity();
   const [step, setStep] = useState(0);
@@ -104,22 +106,22 @@ export function RegistrationWizard({ onBusyChange }: { onBusyChange: (busy: bool
     })(event);
   }
   function error(name: keyof RegistrationValues) {
-    return errors[name] ? <small id={`register-${name}-error`} className="error" role="alert">{errors[name]?.message}</small> : null;
+    return errors[name] ? <small id={`register-${name}-error`} className="error" role="alert">{errors[name]?.message && t(errors[name].message)}</small> : null;
   }
   return <div className={styles.wizard}>
-    <ol className={styles.steps} aria-label="Étapes de l’inscription">
+    <ol className={styles.steps} aria-label={t("Étapes de l’inscription")}>
       {steps.map((label, index) => <li key={label} aria-current={index === step ? "step" : undefined} data-complete={index < step || undefined}>
-        <span className={styles.number}>{index < step ? <Check size={13} aria-hidden="true" /> : index + 1}</span><span>{label}{index < step && <span className={styles.srOnly}> — terminée</span>}</span>
+        <span className={styles.number}>{index < step ? <Check size={13} aria-hidden="true" /> : index + 1}</span><span>{t(label)}{index < step && <span className={styles.srOnly}>{t(" — terminée")}</span>}</span>
       </li>)}
     </ol>
     <form noValidate aria-busy={busy} onSubmit={event => { if (step < 2) { event.preventDefault(); void next(); } else void submit(event); }}>
       <div className={styles.viewport}>
         <section key={step} className={styles.stage} data-direction={direction} aria-labelledby="registration-step-heading" data-registration-step={step + 1}>
-          <h3 id="registration-step-heading" ref={heading} tabIndex={-1}>{["Votre identité", "Votre lycée", "Votre compte"][step]}</h3>
+          <h3 id="registration-step-heading" ref={heading} tabIndex={-1}>{t(["Votre identité", "Votre lycée", "Votre compte"][step])}</h3>
           {step === 0 && <>
             <div className="form-grid">
               {(["firstName", "lastName"] as const).map(name => <div key={name}><label>
-                {name === "firstName" ? "Prénom" : "Nom"}
+                {name === "firstName" ? t("Prénom") : t("Nom")}
                 <input autoComplete={name === "firstName" ? "given-name" : "family-name"} required maxLength={60} disabled={busy} aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `register-${name}-error` : undefined} {...field(name)} />
               </label>{error(name)}</div>)}
             </div>
@@ -129,31 +131,31 @@ export function RegistrationWizard({ onBusyChange }: { onBusyChange: (busy: bool
             <SchoolPicker variant="registration" value={school} onChange={value => { setSchool(value); setSchoolError(""); }} proposed={proposed} onPropose={value => { setProposed(value); setSchoolError(""); }} allowOther disabled={busy} validationError={schoolError} />
           </div>}
           {step === 2 && <>
-            <div><label>Adresse email<input type="email" autoComplete="email" placeholder="vous@exemple.com" required disabled={busy} aria-invalid={!!errors.email} aria-describedby={errors.email ? "register-email-error" : undefined} {...field("email")} /></label>{error("email")}</div>
+            <div><label>{t("Adresse email")}<input type="email" autoComplete="email" placeholder={t("vous@exemple.com")} required disabled={busy} aria-invalid={!!errors.email} aria-describedby={errors.email ? "register-email-error" : undefined} {...field("email")} /></label>{error("email")}</div>
             <div>
-              <label htmlFor="auth-phone">Numéro de téléphone</label>
+              <label htmlFor="auth-phone">{t("Numéro de téléphone")}</label>
               <div className="phone-input"><span>+216</span><input id="auth-phone" type="tel" inputMode="numeric" autoComplete="tel-national" required pattern="[0-9]{8}" maxLength={8} placeholder="20 123 456" disabled={busy} aria-invalid={!!errors.phone} aria-describedby={`register-phone-help${errors.phone ? " register-phone-error" : ""}`} {...phoneField} onChange={event => { event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8); void phoneField.onChange(event); }} /></div>
-              <small id="register-phone-help" className="muted">8 chiffres, après l’indicatif +216.</small>{error("phone")}
+              <small id="register-phone-help" className="muted">{t("8 chiffres, après l’indicatif +216.")}</small>{error("phone")}
             </div>
             <div>
-              <label htmlFor="auth-password">Mot de passe</label>
+              <label htmlFor="auth-password">{t("Mot de passe")}</label>
               <PasswordInput id="auth-password" autoComplete="new-password" required disabled={busy} aria-invalid={!!errors.password} aria-describedby={errors.password ? "register-password-error" : "register-password-help"} {...field("password")} />
-              {!errors.password && <small id="register-password-help" className="muted">Au moins 12 caractères.</small>}{error("password")}
+              {!errors.password && <small id="register-password-help" className="muted">{t("Au moins 12 caractères.")}</small>}{error("password")}
             </div>
             <div>
-              <label htmlFor="auth-confirm">Confirmer le mot de passe</label>
+              <label htmlFor="auth-confirm">{t("Confirmer le mot de passe")}</label>
               <PasswordInput id="auth-confirm" autoComplete="new-password" required disabled={busy} aria-invalid={!!errors.confirm} aria-describedby={errors.confirm ? "register-confirm-error" : undefined} {...field("confirm")} />{error("confirm")}
             </div>
-            {serverError && <p className="error" role="alert">{serverError}</p>}
-            <p className={styles.note}><ShieldCheck size={15} aria-hidden="true" />{firebaseEnabled ? "Confirmez votre e-mail, puis attendez la validation de votre compte par l’administrateur." : "Votre compte sera validé par l’administrateur avant l’accès à la communauté."}</p>
+            {serverError && <p className="error" role="alert">{failure(serverError)}</p>}
+            <p className={styles.note}><ShieldCheck size={15} aria-hidden="true" />{firebaseEnabled ? t("Confirmez votre e-mail, puis attendez la validation de votre compte par l’administrateur.") : t("Votre compte sera validé par l’administrateur avant l’accès à la communauté.")}</p>
           </>}
         </section>
       </div>
       <div className={styles.actions}>
-        {step > 0 && <Button type="button" variant="secondary" disabled={busy} onClick={() => move(step - 1)}><ArrowLeft size={16} aria-hidden="true" />Retour</Button>}
-        {step < 2 ? <Button key="next" type="button" disabled={busy} onClick={event => { event.preventDefault(); void next(); }}>Suivant<ArrowRight size={16} aria-hidden="true" /></Button> : <Button key="create" type="submit" disabled={busy}>{busy ? "Création en cours…" : "Créer mon compte"}<ArrowRight size={16} aria-hidden="true" /></Button>}
+        {step > 0 && <Button type="button" variant="secondary" disabled={busy} onClick={() => move(step - 1)}><ArrowLeft size={16} aria-hidden="true" />{t("Retour")}</Button>}
+        {step < 2 ? <Button key="next" type="button" disabled={busy} onClick={event => { event.preventDefault(); void next(); }}>{t("Suivant")}<ArrowRight size={16} aria-hidden="true" /></Button> : <Button key="create" type="submit" disabled={busy}>{busy ? t("Création en cours…") : t("Créer mon compte")}<ArrowRight size={16} aria-hidden="true" /></Button>}
       </div>
     </form>
-    <p className={styles.signin}>Déjà membre ? <Link href="/login">Se connecter</Link></p>
+    <p className={styles.signin}>{t("Déjà membre ?")}{" "}<Link href="/login">{t("Se connecter")}</Link></p>
   </div>;
 }

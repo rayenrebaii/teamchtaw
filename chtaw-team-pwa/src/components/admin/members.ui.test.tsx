@@ -7,6 +7,7 @@ import { UserMenu } from "@/components/user-menu";
 import { useCommunity } from "@/stores/community";
 import { usersService } from "@/services/users.service";
 import type { User } from "@/types";
+vi.mock("./use-members-page", async () => ({ useMembersPage: (await import("../../../test/fixtures/members-page")).useMembersPageFixture }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 const originalBan = useCommunity.getState().ban;
 const members: User[] = [

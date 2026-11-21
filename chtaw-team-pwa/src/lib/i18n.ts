@@ -1,4 +1,5 @@
 "use client";
+import { authEnglish } from "./auth-copy";
 import { adminEnglish } from "./admin-copy";
 import { analyticsEnglish } from "./analytics-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
@@ -7,6 +8,13 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "Demandes d’établissement": "School requests",
+  "Choisir un horaire": "Choose a time slot",
+  "Rechercher un horaire à pointer": "Find a time slot for attendance",
+  "Date de séance": "Session date",
+  "Horaire": "Time slot",
+  "Choisissez une date et un groupe, puis ouvrez un horaire pour pointer les étudiants inscrits.": "Choose a date and group, then open a time slot to record attendance for registered students.",
+  ...authEnglish,
   ...analyticsEnglish,
   "Invitez un agent à aider l’administrateur principal dans la saisie et le suivi des présences.": "Invite an agent to help the principal administrator with data entry and attendance.",
   "L’agent dispose des accès de gestion. Ses séances, sondages et publications appartiennent à l’administrateur principal, qui reste protégé.": "The agent has management access. Their sessions, polls and posts belong to the principal administrator, who remains protected.",
@@ -329,7 +337,7 @@ export const english = {
   "Vous avez déjà participé.": "You have already voted.",
   "Ce sondage est clôturé.": "This poll is closed.",
   "Sélection invalide.": "Invalid selection.",
-  "Restauration de votre session…": "Restoring your session…",
+  "On prépare tout pour vous…": "Getting everything ready for you…",
   "Déconnexion locale effectuée. La révocation serveur sera retentée à la reconnexion ; sur un appareil partagé, fermez aussi le navigateur.":
     "Signed out locally. Server revocation will be retried when you reconnect; on a shared device, also close the browser.",
   "Une mise à jour est disponible.": "An update is available.",

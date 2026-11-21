@@ -111,6 +111,7 @@ let syncAgain = false;
 let revision = 0;
 let restoreFlight: Promise<void> | null = null;
 export const isAnalyticsRoute = () => typeof window !== "undefined" && window.location.pathname.replace(/\/$/, "") === "/admin";
+export const isMembersRoute = () => typeof window !== "undefined" && /^\/admin\/(users|approvals)\/?$/.test(window.location.pathname);
 function announce() {
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("chtaw-auth");
@@ -228,7 +229,7 @@ export const useCommunity = create<Store>((set, get) => ({
           const responses = await Promise.allSettled([
             groupsService.list(),
             pollsService.all(),
-            user.role === "ADMIN" ? usersService.all() : user.role === "COLLABORATOR" ? api.request<User[]>("/organizer/participants") : Promise.resolve([user]),
+            user.role === "ADMIN" ? (isMembersRoute() ? Promise.resolve(get().users) : usersService.all()) : user.role === "COLLABORATOR" ? api.request<User[]>("/organizer/participants") : Promise.resolve([user]),
             user.role === "ADMIN" ? usersService.stats() : Promise.resolve(null),
           ]);
           if (owner !== get().session?.userId) return;

@@ -1,0 +1,31 @@
+.table.table th:first-child { width: 24%; }
+.table.table th:nth-child(2) { width: 14%; }
+.table.table th:nth-child(3) { width: 22%; }
+.table.table th:nth-child(4) { width: 11%; }
+.table.table th:last-child { width: 29%; text-align: end; }
+.icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; background: var(--surface-alt); color: var(--primary); border-radius: 10px; }
+.identityText strong { display: block; overflow-wrap: anywhere; }
+.kind, .participants { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 4px; }
+.participants svg, .slots svg, .deadline svg { flex-shrink: 0; }
+.group { color: var(--muted); line-height: 1.5; }
+.slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.slots li, .deadline { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; line-height: 1.5; }
+.slots svg, .deadline svg { color: var(--primary); margin-top: 2px; }
+.slots time { color: var(--muted); }
+.deadline { color: var(--muted); margin-top: 8px; }
+.actions { min-width: 0; }
+
+@container (max-width: 960px) {
+  .table .row { grid-template-areas: "identity status" "group schedule" "actions actions"; }
+  .table .row .group { grid-area: group; }
+  .table .row .schedule { grid-area: schedule; }
+  .table .row .actionsCell { grid-area: actions; grid-row: auto; }
+}
+
+@media (max-width: 640px) {
+  .table .row { grid-template-areas: "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
+}
+
+@container (max-width: 340px) {
+  .table .row { grid-template-areas: "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
+}

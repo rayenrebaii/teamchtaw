@@ -28,6 +28,9 @@ it("keeps both poll types and their results without attendance controls", () => 
   expect(screen.getByRole("button", { name: "Créer un sondage simple" })).toBeTruthy();
   expect(screen.getByRole("tab", { name: /Sondages de séance/ })).toBeTruthy();
   expect(screen.getByRole("tab", { name: /Sondages simples/ })).toBeTruthy();
+  const table = within(screen.getByRole("table", { name: "Tous les sondages" }));
+  for (const name of ["Sondage", "Groupe", "Date et horaire", "Statut", "Actions"])
+    expect(table.getByRole("columnheader", { name })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Présences et alertes" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Voir les résultats : Quel créneau ?" }));
   const dialog = within(screen.getByRole("dialog", { name: "Résultats du sondage" }));
@@ -72,4 +75,14 @@ it("shows an explicit warning instead of claiming everyone has voted when group 
   const dialog = within(screen.getByRole("dialog"));
   expect(dialog.getByRole("alert")).toBeTruthy();
   expect(dialog.queryByText("Tous les membres du groupe ont voté.")).toBeNull();
+});
+it("shows six poll rows and allows the seventh poll to be reached", () => {
+  useCommunity.setState({ polls: Array.from({ length: 7 }, (_, index) => ({ ...poll, id: `poll-${index}`, question: `Poll ${index}` })) });
+  render(<AdminScreen page="polls" />);
+  const table = within(screen.getByRole("table", { name: "Tous les sondages" }));
+  expect(table.getAllByRole("row")).toHaveLength(7);
+  expect(screen.queryByText("Poll 6")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
+  expect(table.getAllByRole("row")).toHaveLength(2);
+  expect(table.getByText("Poll 6")).toBeTruthy();
 });

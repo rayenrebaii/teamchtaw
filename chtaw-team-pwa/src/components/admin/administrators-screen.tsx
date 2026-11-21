@@ -10,6 +10,9 @@ import { LoadState, useRemote } from "./attendance-panel";
 import type { User } from "@/types";
 import { tablePage } from "@/lib/pagination";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { Avatar } from "@/components/shared";
+import memberStyles from "./members-panel.module.css";
+import styles from "./administrators-screen.module.css";
 
 export function AdministratorsScreen() {
   const { t, error: failure } = useCopy();
@@ -37,16 +40,18 @@ export function AdministratorsScreen() {
     </header>
     {message && <p role="status">{t(message)}</p>}
     {error && !invite && !target && <p className="error" role="alert">{failure(error)}</p>}
-    <section className="panel">
+    <section className={`panel ${memberStyles.panel}`}>
       <LoadState {...remote} retry={remote.refresh} />
-      <div className="table-wrap request-table"><table>
+      <div className={`table-wrap request-table ${memberStyles.table} ${styles.table}`} role="region" aria-label={t("Administrateurs")} tabIndex={0}><table>
         <caption className="sr-only">{t("Administrateurs")}</caption>
-        <thead><tr>{["Nom", "E-mail", "Statut", "Actions"].map((label) => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
-        <tbody>{visiblePage.items.map((user) => <tr key={user.id}>
-          <td data-label={t("Nom")}>{user.firstName} {user.lastName}</td><td data-label={t("E-mail")}>{user.email}</td>
-          <td data-label={t("Statut")}>{t(!user.isInvitedAdmin ? "Administrateur principal" : user.activatedAt ? "Actif" : "Invitation en attente")}</td>
-          <td data-label={t("Actions")}><div className="row wrap">
-            {!user.isInvitedAdmin ? <span className="muted"><ShieldCheck size={16} aria-hidden="true" /> {t("Compte protégé")}</span> : <>
+        <thead><tr>{["Membre", "Statut", "Actions"].map((label) => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
+        <tbody>{visiblePage.items.map((user) => <tr key={user.id} className={`${memberStyles.memberRow} ${styles.row}`}>
+          <td data-label={t("Membre")} className={memberStyles.identity}><div className={memberStyles.member}>
+            <Avatar user={user} /><div className={memberStyles.memberText}><strong>{user.firstName} {user.lastName}</strong><span className="table-email" title={user.email}>{user.email}</span></div>
+          </div></td>
+          <td data-label={t("Statut")} className={memberStyles.status}><div className={memberStyles.statusStack}><span className={`badge ${!user.isInvitedAdmin ? styles.principal : user.activatedAt ? styles.active : styles.pending}`}>{t(!user.isInvitedAdmin ? "Administrateur principal" : user.activatedAt ? "Actif" : "Invitation en attente")}</span></div></td>
+          <td data-label={t("Actions")} className={`${memberStyles.actionsCell} ${styles.actionsCell}`}><div className={`${memberStyles.actions} ${styles.actions}`}>
+            {!user.isInvitedAdmin ? <span className={styles.protected}><ShieldCheck size={16} aria-hidden="true" /> {t("Compte protégé")}</span> : <>
               {!user.disabledAt && <Button size="sm" variant="secondary" disabled={busy} onClick={() => void act(async () => {
                 await api.request(`/admin/administrators/${user.id}/${user.activatedAt ? "reset-password" : "invitation"}`, { method: "POST" });
               }, "E-mail accepté par le service d’envoi.")}><Mail size={15} aria-hidden="true" />{t(user.activatedAt ? "Réinitialiser le mot de passe" : "Renvoyer l’invitation")}</Button>}

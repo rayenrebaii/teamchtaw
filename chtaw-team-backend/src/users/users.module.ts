@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, ParseUUIDPipe, Patch, Query, Res, StreamableFile } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Injectable, Module, Param, ParseUUIDPipe, Patch, Query, Res, StreamableFile } from "@nestjs/common";
 import type { Response } from "express";
 import { StudentsExportQuery, StudentsExportService } from "./students-export.service";
 import { UserBansService } from "./user-bans.service";
@@ -11,6 +11,8 @@ import { Admin, AllowUnapproved, CurrentUser } from "../auth/security";
 import { AccessService, Actor } from "../common/access";
 import { accountSelect as userSelect } from "../common/presenters";
 import { UsersQueryDto } from "../common/query.dto";
+import { MembersQueryDto } from "./members-query.dto";
+import { TABLE_PAGE_SIZE } from "../common/pagination";
 export class ProfileDto {
   @ApiPropertyOptional()
   @ValidateIf((_object, value: unknown) => value !== undefined)
@@ -38,6 +40,43 @@ export class UsersService {
     private db: PrismaService,
     private access: AccessService,
   ) {}
+  members(actor: Actor, query: MembersQueryDto) {
+    if (query.from && query.before && new Date(query.from) >= new Date(query.before))
+      throw new BadRequestException("Période invalide.");
+    return this.db.$transaction(async (tx) => {
+      await this.access.actor(tx, actor, true, true);
+      const base: Prisma.UserWhereInput = {
+        role: { not: "COLLABORATOR" },
+        NOT: { isInvitedAdmin: true, disabledAt: { not: null } },
+      };
+      const terms = query.search?.trim().split(/\s+/).filter(Boolean) ?? [];
+      const where: Prisma.UserWhereInput = {
+        ...base,
+        status: query.status,
+        ...(query.groupId ? { memberships: { some: { groupId: query.groupId } } } : {}),
+        ...(query.from || query.before ? { joinedAt: {
+          ...(query.from ? { gte: new Date(query.from) } : {}),
+          ...(query.before ? { lt: new Date(query.before) } : {}),
+        } } : {}),
+        AND: terms.map(term => ({ OR: [
+          { firstName: { contains: term, mode: "insensitive" } },
+          { lastName: { contains: term, mode: "insensitive" } },
+          { email: { contains: term, mode: "insensitive" } },
+        ] })),
+      };
+      const total = await tx.user.count({ where });
+      const page = Math.min(query.page, Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE)));
+      const direction = query.order === "oldest" ? "asc" : "desc";
+      const [items, statuses] = await Promise.all([
+        tx.user.findMany({ where, select: userSelect, orderBy: [{ joinedAt: direction }, { id: direction }],
+          skip: (page - 1) * TABLE_PAGE_SIZE, take: TABLE_PAGE_SIZE }),
+        tx.user.groupBy({ by: ["status"], where: base, _count: { _all: true } }),
+      ]);
+      const counts = { ALL: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 };
+      for (const entry of statuses) { counts[entry.status] = entry._count._all; counts.ALL += entry._count._all; }
+      return { items, total, page, pageSize: TABLE_PAGE_SIZE, counts };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+  }
   list(actor: Actor, query: UsersQueryDto) {
     return this.db.$transaction(async (tx) => {
       await this.access.actor(tx, actor, true, true);
@@ -103,6 +142,9 @@ export class UsersController {
   }
   @Admin() @Get() list(@CurrentUser() actor: Actor, @Query() query: UsersQueryDto) {
     return this.users.list(actor, query);
+  }
+  @Admin() @Get("members") members(@CurrentUser() actor: Actor, @Query() query: MembersQueryDto) {
+    return this.users.members(actor, query);
   }
   @AllowUnapproved() @Get("me") me(@CurrentUser() actor: Actor) {
     const { sessionId: _, ...user } = actor;

@@ -33,14 +33,14 @@ export function PhotoSelection({ file, onChange, user, disabled = false, optiona
   }
   if (compact) return <div className={styles.compact}>
     <div className={styles.compactRow}>
-      <button className={styles.photoAction} type="button" disabled={disabled} onClick={() => input.current?.click()} aria-label={file ? "Remplacer la photo" : "Ajouter une photo"} aria-describedby={`${id}-help`}>
-        <span className={styles.compactPreview}>{file ? <img ref={preview} alt="Aperçu de la photo" /> : <Avatar user={user} />}<span className={styles.camera}><Camera size={12} aria-hidden="true" /></span></span>
-        <span><strong>{file ? "Remplacer la photo" : "Ajouter une photo"}</strong><small id={`${id}-help`}>Facultatif · 5 Mo maximum</small></span>
+      <button className={styles.photoAction} type="button" disabled={disabled} onClick={() => input.current?.click()} aria-label={t(file ? "Remplacer la photo" : "Ajouter une photo")} aria-describedby={`${id}-help`}>
+        <span className={styles.compactPreview}>{file ? <img ref={preview} alt={t("Aperçu de la photo")} /> : <Avatar user={user} />}<span className={styles.camera}><Camera size={12} aria-hidden="true" /></span></span>
+        <span><strong>{t(file ? "Remplacer la photo" : "Ajouter une photo")}</strong><small id={`${id}-help`}>{t("Facultatif · 5 Mo maximum")}</small></span>
       </button>
-      {file && <button type="button" className={styles.remove} disabled={disabled} onClick={() => { onChange(null); setError(""); }} aria-label="Retirer la photo sélectionnée">Retirer</button>}
+      {file && <button type="button" className={styles.remove} disabled={disabled} onClick={() => { onChange(null); setError(""); }} aria-label={t("Retirer la photo sélectionnée")}>{t("Retirer")}</button>}
     </div>
-    <input ref={input} id={id} hidden tabIndex={-1} type="file" aria-label="Photo de profil facultative" accept="image/jpeg,image/png,image/webp,image/gif" disabled={disabled} onChange={select} />
-    {error && <p role="alert" className="error">{error}</p>}
+    <input ref={input} id={id} hidden tabIndex={-1} type="file" aria-label={t("Photo de profil facultative")} accept="image/jpeg,image/png,image/webp,image/gif" disabled={disabled} onChange={select} />
+    {error && <p role="alert" className="error">{failure(error)}</p>}
   </div>;
   return <div className={styles.selection}>
     <label htmlFor={id}>{t(optional ? "Photo de profil (facultative)" : "Photo de profil")}</label>

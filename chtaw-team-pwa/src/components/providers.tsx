@@ -25,10 +25,12 @@ function SessionProviders({ children }: { children: React.ReactNode }) {
   const groupIds = JSON.stringify(store.groups.map((g) => g.id));
   const previousPath = useRef(pathname);
   useEffect(() => {
-    // Leaving the analytical dashboard loads the data needed by the destination page.
-    const leftDashboard = ["/admin", "/login"].includes(previousPath.current) && pathname !== "/admin" && pathname !== "/login";
+    // These views load their own data; other destinations may need the shared directory.
+    const independent = (path: string) => ["/admin", "/login", "/admin/users", "/admin/approvals"].includes(path);
+    const leftDashboard = independent(previousPath.current) && !independent(pathname);
+    const enteredMembers = ["/admin/users", "/admin/approvals"].includes(pathname) && previousPath.current !== pathname;
     previousPath.current = pathname;
-    if (leftDashboard && useCommunity.getState().session) void useCommunity.getState().sync();
+    if ((leftDashboard || enteredMembers) && useCommunity.getState().session) void useCommunity.getState().sync();
   }, [pathname]);
   useEffect(() => {
     const unsubscribe = api.onExpired(() => useCommunity.getState().clear());
@@ -108,7 +110,7 @@ function SessionProviders({ children }: { children: React.ReactNode }) {
           <BrandLogo />
           <p>Team Chtaw</p>
           <div className="skeleton" />
-          <span>{t("Restauration de votre session…")}</span>
+          <span>{t("On prépare tout pour vous…")}</span>
         </div>
       )}
       {store.error && (

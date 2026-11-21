@@ -1,4 +1,5 @@
 import React from "react";
+vi.mock("./use-members-page", async () => ({ useMembersPage: (await import("../../../test/fixtures/members-page")).useMembersPageFixture }));
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MembersPanel } from "./requests-panel";

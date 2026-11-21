@@ -1,5 +1,6 @@
 export const studentProfileEnglish: Record<string, string> = {
   "Exporter": "Export",
+  "Exporter tous les utilisateurs": "Export all users",
   "Exporter tous les étudiants au format Excel": "Export all students to Excel",
   "Export en cours…": "Exporting…",
   "Export téléchargé.": "Export downloaded.",

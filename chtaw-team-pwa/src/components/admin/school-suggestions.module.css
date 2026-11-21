@@ -1,7 +1,19 @@
-.panel { margin-top: 24px; display: grid; gap: 18px; min-width: 0; }
+.modal:global(.modal-content) { width: min(1100px, calc(100vw - 24px)); }
+.panel { margin-top: 16px; display: grid; gap: 18px; min-width: 0; }
 .panel > label { display: grid; gap: 8px; max-width: 300px; }
-.list { list-style: none; margin: 0; padding: 0; }
-.list > li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 20px 0; border-top: 1px solid var(--line); }
-.list > li > div { min-width: 0; }
-.list h3, .list li { overflow-wrap: anywhere; }
-.list ul { padding-left: 18px; margin-top: 8px; }
+.table.table th:first-child { width: 28%; }
+.table.table th:nth-child(2) { width: 27%; }
+.table.table th:nth-child(3) { width: 15%; }
+.table.table th:last-child { width: 30%; text-align: end; }
+.students ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; overflow-wrap: anywhere; }
+@container (max-width: 960px) {
+  .table .row { grid-template-areas: "identity status" "students students" "actions actions"; }
+  .table .row .students { grid-area: students; }
+  .table .row .actionsCell { grid-row: auto; }
+}
+@media (max-width: 640px) {
+  .table .row { grid-template-areas: "identity identity" "status status" "students students" "actions actions"; }
+}
+@container (max-width: 340px) {
+  .table .row { grid-template-areas: "identity identity" "status status" "students students" "actions actions"; }
+}

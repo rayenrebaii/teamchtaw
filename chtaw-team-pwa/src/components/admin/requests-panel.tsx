@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/dialog";
 import {
   defaultRequestFilters,
-  filterRequests,
   isValidRequestPeriod,
   type RequestFilters,
 } from "@/features/requests";
@@ -21,6 +20,7 @@ import { MemberBulkActions } from "./member-bulk-actions";
 import bulkStyles from "./bulk-actions.module.css";
 import { StudentSchool } from "@/components/student-school";
 import { StudentsExport } from "./students-export";
+import { useMembersPage } from "./use-members-page";
 
 function MemberStatus({ user }: { user: User }) {
   const { text: copy } = useCopy();
@@ -191,6 +191,9 @@ export function MembersPanel({
   const [advanced, setAdvanced] = useState(false);
   const [period, setPeriod] = useState({ start: "", end: "" });
   const [page, setPage] = useState(1);
+  const members = useMembersPage(filters, page);
+  const counts = members.data?.counts;
+  const totalMembers = counts?.ALL ?? 0;
   const [detailId, setDetailId] = useState<string | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -213,7 +216,7 @@ export function MembersPanel({
       observer.disconnect();
       tabs.removeEventListener("scroll", measure);
     };
-  }, [store.users.length]);
+  }, [totalMembers]);
   const update = (patch: Partial<RequestFilters>) => {
     if (bulkBusy) return;
     setSelectedIds([]);
@@ -221,7 +224,7 @@ export function MembersPanel({
     setPage(1);
   };
   const invalidRange = !isValidRequestPeriod(period.start, period.end);
-  const results = filterRequests(store.users, filters, store.groups);
+  const resultCount = members.data?.total ?? 0;
   const reset = () => {
     update({ ...defaultRequestFilters, status: "ALL" });
     setPeriod({ start: "", end: "" });
@@ -235,9 +238,9 @@ export function MembersPanel({
   ] as const;
   const periodApplied = !!(filters.start || filters.end);
   const periodChanged = period.start !== filters.start || period.end !== filters.end;
-  const pages = Math.max(1, Math.ceil(results.length / TABLE_PAGE_SIZE));
-  const currentPage = Math.min(page, pages);
-  const pageMembers = results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE);
+  const pages = Math.max(1, Math.ceil(resultCount / TABLE_PAGE_SIZE));
+  const currentPage = members.data?.page ?? page;
+  const pageMembers = (members.data?.items ?? []).map(user => store.users.find(cached => cached.id === user.id) ?? user);
   const selectable = (user: User) => user.role !== "ADMIN" && (user.status === "APPROVED" || (user.role === "USER" && user.status === "PENDING"));
   const pageIds = pageMembers.filter(selectable).map((user) => user.id);
   const selected = store.users.filter((user) => selectedIds.includes(user.id) && selectable(user));
@@ -260,6 +263,7 @@ export function MembersPanel({
     );
     setBusy(null);
     if (saved) {
+      members.refresh();
       setDecision(null);
       if (status === "APPROVED") setAssignmentId(user.id);
     }
@@ -278,23 +282,23 @@ export function MembersPanel({
       </header>
       <div className="stats-grid members-stats" aria-label={copy("Statistiques des comptes")}>
         {[
-          { label: "Total des membres", value: store.users.length },
+          { label: "Total des membres", value: totalMembers },
           {
             label: "Demandes en attente",
-            value: store.users.filter((user) => user.status === "PENDING").length,
+            value: counts?.PENDING ?? 0,
           },
           {
             label: "Membres approuvés",
-            value: store.users.filter((user) => user.status === "APPROVED").length,
+            value: counts?.APPROVED ?? 0,
           },
           {
             label: "Demandes refusées",
-            value: store.users.filter((user) => user.status === "REJECTED").length,
+            value: counts?.REJECTED ?? 0,
           },
         ].map((stat) => (
           <div className="stat-card" key={copy(stat.label)}>
             <span>{copy(stat.label)}</span>
-            <strong>{store.loading && !store.users.length ? "…" : stat.value}</strong>
+            <strong>{members.loading ? "…" : stat.value}</strong>
           </div>
         ))}
       </div>
@@ -336,9 +340,7 @@ export function MembersPanel({
             >
               {copy(tab.label)}
               <span>
-                {tab.value === "ALL"
-                  ? store.users.length
-                  : store.users.filter((u) => u.status === tab.value).length}
+                {members.loading ? "…" : counts?.[tab.value] ?? 0}
               </span>
             </button>
           ))}
@@ -459,27 +461,27 @@ export function MembersPanel({
           role="tabpanel"
           aria-labelledby={`${id}-${filters.status}`}
           tabIndex={0}
-          aria-busy={store.loading}
+          aria-busy={members.loading}
         >
-          {store.syncErrors.users && (
+          {members.error && (
             <div className="request-error" role="alert">
-              <p className="error">{copy(store.syncErrors.users)}</p>
+              <p className="error">{copy(members.error)}</p>
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={store.loading}
-                onClick={() => void store.sync()}
+                disabled={members.loading}
+                onClick={members.refresh}
               >
                 {copy("Réessayer")}{" "}
               </Button>
             </div>
           )}
           <p className="request-results-count" role="status" aria-live="polite">
-            {store.loading
+            {members.loading
               ? copy("Actualisation des membres…")
               : copy("{count} résultat(s) sur {total} compte(s)", {
-                  count: results.length,
-                  total: store.users.length,
+                  count: resultCount,
+                  total: totalMembers,
                 })}
           </p>
           {isAdmin && <>
@@ -489,7 +491,7 @@ export function MembersPanel({
               ref={(input) => { if (input) input.indeterminate = pageSelected > 0 && pageSelected < pageIds.length; }}
               disabled={bulkBusy || !!busy || !pageIds.length} onChange={(event) => setSelectedIds((previous) => event.target.checked ? [...new Set([...previous, ...pageIds])] : previous.filter((id) => !pageIds.includes(id)))} />{copy("Sélectionner les membres de cette page")}</label>
             <MemberBulkActions selected={selected} clear={() => setSelectedIds([])} onBusy={setBulkBusy}
-              onDone={(ids) => setSelectedIds((previous) => previous.filter((id) => !ids.includes(id)))} />
+              onDone={(ids) => { setSelectedIds((previous) => previous.filter((id) => !ids.includes(id))); members.refresh(); }} />
           </>}
           <div
             className={`table-wrap request-table ${styles.table} ${isAdmin ? styles.selectionTable : ""}`}
@@ -513,7 +515,7 @@ export function MembersPanel({
                 </tr>
               </thead>
               <tbody>
-                {store.loading && !store.users.length && (
+                {members.loading && !totalMembers && (
                   <tr>
                     <td colSpan={isAdmin ? 6 : 5}>
                       <div className="request-loading" role="status">
@@ -613,39 +615,39 @@ export function MembersPanel({
               </tbody>
             </table>
           </div>
-          {!results.length && !store.loading && !store.syncErrors.users && (
+          {!resultCount && !members.loading && !members.error && (
             <Empty
               title={
-                store.users.length
+                totalMembers
                   ? copy("Aucun membre ne correspond")
                   : copy("Aucun membre pour le moment")
               }
             >
-              {store.users.length
+              {totalMembers
                 ? copy("Essayez un autre statut ou ajustez vos filtres pour retrouver une demande.")
                 : copy(
                     "Les nouvelles demandes d’adhésion apparaîtront ici dès l’inscription d’un membre.",
                   )}
             </Empty>
           )}
-          {!results.length &&
-            !store.loading &&
-            !store.syncErrors.users &&
-            store.users.length > 0 && (
+          {!resultCount &&
+            !members.loading &&
+            !members.error &&
+            totalMembers > 0 && (
               <div className="request-empty-action">
                 <Button variant="secondary" onClick={reset}>
                   {copy("Réinitialiser les filtres")}{" "}
                 </Button>
               </div>
             )}
-          {results.length > 0 && (
+          {resultCount > 0 && (
             <nav
               className="row wrap between request-pagination"
               aria-label={copy("Pagination des demandes")}
             >
               <Button
                 variant="secondary"
-                disabled={currentPage === 1 || store.loading || bulkBusy}
+                disabled={currentPage === 1 || members.loading || bulkBusy}
                 onClick={() => setPage(currentPage - 1)}
               >
                 {copy("Précédent")}{" "}
@@ -655,7 +657,7 @@ export function MembersPanel({
               </span>
               <Button
                 variant="secondary"
-                disabled={currentPage === pages || store.loading || bulkBusy}
+                disabled={currentPage === pages || members.loading || bulkBusy}
                 onClick={() => setPage(currentPage + 1)}
               >
                 {copy("Suivant")}{" "}
@@ -674,7 +676,7 @@ export function MembersPanel({
                 setBusy(banTarget.id);
                 const saved = await attempt(() => store.ban(banTarget.id), copy("Compte supprimé et membre retiré de tous les groupes."));
                 setBusy(null);
-                if (saved) setBanTarget(null);
+                if (saved) { setBanTarget(null); members.refresh(); }
               }}>
                 <Ban size={16} aria-hidden="true" />{busy ? copy("Suppression…") : copy("Bannir et supprimer")}
               </Button>

@@ -10,8 +10,8 @@ export function SchoolPicker({ value, onChange, proposed = "", onPropose, allowO
 }) {
   const { t: translated, error: translatedFailure } = useCopy();
   const registration = variant === "registration";
-  const t = registration ? (text: string) => text : translated;
-  const failure = registration ? (text: string) => text : translatedFailure;
+  const t = translated;
+  const failure = translatedFailure;
   const id = useId();
   const fields = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -47,6 +47,6 @@ export function SchoolPicker({ value, onChange, proposed = "", onPropose, allowO
       <input id={`${id}-proposed`} required maxLength={120} value={proposed} disabled={disabled} aria-invalid={validationError ? true : undefined} aria-describedby={validationError ? `${id}-error` : undefined} onChange={event => onPropose?.(event.target.value)} />
       <p className="small muted">{t("Votre proposition sera examinée séparément par l’administrateur.")}</p>
     </>}
-    {validationError && <p id={`${id}-error`} role="alert" className="error">{validationError}</p>}
+    {validationError && <p id={`${id}-error`} role="alert" className="error">{t(validationError)}</p>}
   </div>;
 }

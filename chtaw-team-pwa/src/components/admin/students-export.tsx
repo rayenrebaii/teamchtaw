@@ -25,8 +25,8 @@ export function StudentsExport() {
     finally { setBusy(false); }
   }
   return <div className="form-stack">
-    <Button disabled={busy} variant="secondary" title={t("Exporter tous les étudiants au format Excel")} onClick={() => void download()}>
-      <Download size={16} aria-hidden="true" />{t(busy ? "Export en cours…" : "Exporter")}
+    <Button disabled={busy} title={t("Exporter tous les utilisateurs")} onClick={() => void download()}>
+      <Download size={16} aria-hidden="true" />{t(busy ? "Export en cours…" : "Exporter tous les utilisateurs")}
     </Button>
     {error && <p role="alert" className="small error">{failure(error)}</p>}
     {done && <p role="status" className="small muted">{t("Export téléchargé.")}</p>}

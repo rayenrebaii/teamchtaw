@@ -57,7 +57,7 @@ export function EstablishmentsScreen() {
   return <div className={`admin-page ${styles.page}`}>
     <header className={`page-heading ${styles.heading}`}>
       <div><span className="eyebrow">{t("ESPACE ADMIN · ÉTABLISSEMENTS")}</span><h1>{t("Établissements")}</h1><p className="muted">{t("Gérez la liste des lycées.")}</p></div>
-      <Button onClick={() => openEditor()}><Plus size={17} aria-hidden="true" />{t("Ajouter un établissement")}</Button>
+      <div className={`row wrap ${styles.headingActions}`}><SchoolSuggestions onReviewed={remote.refresh} /><Button onClick={() => openEditor()}><Plus size={17} aria-hidden="true" />{t("Ajouter un établissement")}</Button></div>
     </header>
     <div className={styles.stats}>
       <div className="stat-card"><span>{t("Total des établissements")}</span><strong>{remote.loading ? "…" : remote.error && !remote.data ? "—" : remote.data?.length ?? 0}</strong></div>
@@ -67,11 +67,12 @@ export function EstablishmentsScreen() {
       <div className={styles.listHeading}><h2>{t("Tous les établissements")}</h2><span>{remote.data?.length ?? "—"}</span></div>
       <LoadState {...remote} retry={remote.refresh} />
       {!remote.loading && !remote.error && !remote.data?.length && <Empty title={t("Aucun établissement")}>{t("Ajoutez votre premier lycée.")}</Empty>}
-      {!!remote.data?.length && <div className={styles.table}><table>
+      {!!remote.data?.length && <div className={`table-wrap request-table ${memberStyles.table} ${styles.table}`} role="region" aria-label={t("Liste des établissements")} tabIndex={0}><table>
+        <caption className="sr-only">{t("Liste des établissements")}</caption>
         <thead><tr><th scope="col">{t("Nom du lycée")}</th><th scope="col">{t("Actions")}</th></tr></thead>
-        <tbody>{visiblePage.items.map(item => <tr key={item.id} className={styles.row}>
-          <td><div className={`${memberStyles.member} ${styles.identity}`}><span className="avatar"><School size={19} aria-hidden="true" /></span><h2>{item.name}</h2></div></td>
-          <td><div className={`${memberStyles.actions} ${styles.rowActions}`}>
+        <tbody>{visiblePage.items.map(item => <tr key={item.id} className={`${memberStyles.memberRow} ${styles.row}`}>
+          <td data-label={t("Nom du lycée")} className={memberStyles.identity}><div className={memberStyles.member}><span className="avatar"><School size={19} aria-hidden="true" /></span><div className={memberStyles.memberText}><strong>{item.name}</strong></div></div></td>
+          <td data-label={t("Actions")} className={`${memberStyles.actionsCell} ${styles.actionsCell}`}><div className={`${memberStyles.actions} ${styles.rowActions}`}>
             <Button variant="secondary" size="sm" disabled={busy || remote.loading} aria-label={t("Modifier {name}", { name: item.name })} onClick={() => openEditor(item)}><Pencil size={15} aria-hidden="true" />{t("Modifier")}</Button>
             <Button variant="destructive" size="sm" disabled={busy || remote.loading} aria-label={t("Supprimer {name}", { name: item.name })} onClick={() => { setError(""); setMessage(""); setTarget(item); }}><Trash2 size={15} aria-hidden="true" />{t("Supprimer")}</Button>
           </div></td>
@@ -79,7 +80,6 @@ export function EstablishmentsScreen() {
       </table></div>}
       <TablePagination page={visiblePage.page} total={remote.data?.length ?? 0} onChange={setPage} disabled={busy || remote.loading} />
     </section>
-    <SchoolSuggestions onReviewed={remote.refresh} />
     <Modal open={!!editor} onClose={() => { if (!busy) setEditor(null); }} title={t(editor?.item ? "Modifier l’établissement" : "Ajouter un établissement")}>
       <form className="form-stack" onSubmit={event => { event.preventDefault(); void save(); }}>
         <label htmlFor="establishment-name">{t("Nom du lycée")}</label>

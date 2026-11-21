@@ -24,4 +24,8 @@ it("keeps the analytical route light and restores full page data when leaving it
   window.history.replaceState(null, "", "/admin/polls");
   await useCommunity.getState().sync();
   expect(users).toHaveBeenCalledOnce(); expect(polls).toHaveBeenCalledOnce(); expect(groups).toHaveBeenCalledOnce();
+  users.mockClear();
+  window.history.replaceState(null, "", "/admin/users");
+  await useCommunity.getState().sync();
+  expect(users).not.toHaveBeenCalled();
 });

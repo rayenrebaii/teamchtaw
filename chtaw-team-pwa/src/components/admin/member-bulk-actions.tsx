@@ -37,7 +37,6 @@ export function MemberBulkActions({ selected, onDone, clear, onBusy }: {
         <Button size="sm" variant="destructive" disabled={busy || !approved.length} onClick={() => { setReport(undefined); setAction("ban"); }}><Ban size={15} />{t("Bannir")} ({approved.length})</Button>
         <Button size="sm" variant="ghost" disabled={busy || !selected.length} onClick={clear}>{t("Effacer la sélection")}</Button>
       </div>
-      <p className="tiny muted">{t("Les actions concernent uniquement les membres éligibles de la sélection. La sélection est conservée entre les pages et effacée lors d’un changement de filtre.")}</p>
     </div>
     {report && <div className={styles.report}>
       <p role="status">{t("{count} opération(s) réussie(s)", { count: report.count })}</p>

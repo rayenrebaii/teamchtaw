@@ -35,6 +35,7 @@ import {
 import type { Poll } from "@/types";
 import { PollVoteResults } from "./poll-vote-results";
 import { SessionManagement } from "./session-management";
+import { PollsTable } from "./polls-table";
 
 export function useRemote<T>(load: () => Promise<T>) {
   const [result, setResult] = useState<{
@@ -795,7 +796,12 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                     {copy(pollsOnly ? "Chargement des sondages…" : "Chargement des activités…")}{" "}
                   </div>
                 )}
-                <div className="activity-list">
+                {pollsOnly ? <PollsTable
+                  polls={results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE)}
+                  groups={store.groups} canManage={canManage} badge={badge} dateTime={dateTime}
+                  onResults={poll => { setDetailId(poll.id); void store.sync(); }}
+                  onEdit={setEditing} onManage={poll => setManageId(poll.id)}
+                /> : <div className="activity-list">
                   {results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE).map((poll) => {
                     const session = poll.type === "SESSION";
                     return (
@@ -892,7 +898,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                       </article>
                     );
                   })}
-                </div>
+                </div>}
                 {!results.length && !store.loading && !store.error && (
                   <Empty
                     title={
@@ -910,7 +916,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                         )}
                   </Empty>
                 )}
-                {results.length > 10 && (
+                {results.length > TABLE_PAGE_SIZE && (
                   <nav
                     className="row wrap between request-pagination"
                     aria-label={copy(pollsOnly ? "Pagination des sondages" : "Pagination des activités")}

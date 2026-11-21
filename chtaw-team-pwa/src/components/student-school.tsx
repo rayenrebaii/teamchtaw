@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Pencil } from "lucide-react";
 import type { User } from "@/types";
 import { useCopy } from "@/lib/i18n";
 import { SchoolPicker } from "./school-picker";
@@ -20,7 +21,7 @@ export function StudentSchool({ user, editable = false }: { user: User; editable
   return <div className="student-school">
     <p className="small"><strong>{t("Établissement / Lycée")} : </strong>{user.establishment?.name ?? proposal?.name ?? t("Non renseigné")}</p>
     {!user.establishment && proposal && <p className="tiny muted">{t(proposal.status === "PENDING" ? "Établissement proposé · En attente de validation" : proposal.status === "REJECTED" ? "Établissement déclaré non validé" : "Établissement à réaffecter")}</p>}
-    {editable && <Button size="sm" variant="secondary" onClick={() => { setValue(user.establishmentId ?? ""); setError(""); setSaved(false); setOpen(true); }}>{t("Modifier l’établissement")}</Button>}
+    {editable && <Button size="sm" variant="secondary" onClick={() => { setValue(user.establishmentId ?? ""); setError(""); setSaved(false); setOpen(true); }}><Pencil size={14} aria-hidden="true" />{t("Modifier l’établissement")}</Button>}
     {saved && <p role="status" className="small">{t("Établissement affecté.")}</p>}
     <Modal open={open} onClose={() => { if (!busy) setOpen(false); }} title={t("Modifier l’établissement")}>
       <p>{user.firstName} {user.lastName}</p>
