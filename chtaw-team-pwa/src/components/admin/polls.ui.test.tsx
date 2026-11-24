@@ -6,6 +6,7 @@ import { useCommunity } from "@/stores/community";
 import { usePreferences } from "@/stores/preferences";
 import type { User, Poll } from "@/types";
 import { attendanceService } from "@/services/attendance.service";
+import { pollsService } from "@/services/polls.service";
 const actions = { sync: useCommunity.getState().sync, publishPoll: useCommunity.getState().publishPoll };
 const admin: User = { id: "admin", firstName: "Admin", lastName: "Team", email: "admin@test.invalid", role: "ADMIN", status: "APPROVED", joinedAt: "2026-01-01T00:00:00Z", bio: "" };
 const voter: User = { ...admin, id: "voter", firstName: "Nadia", role: "USER", email: "nadia@test.invalid" };
@@ -85,4 +86,48 @@ it("shows six poll rows and allows the seventh poll to be reached", () => {
   fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
   expect(table.getAllByRole("row")).toHaveLength(2);
   expect(table.getByText("Poll 6")).toBeTruthy();
+});
+
+it("selects polls across pages, clears filters and supports partial page selection", () => {
+  useCommunity.setState({ polls: Array.from({ length: 7 }, (_, index) => ({ ...poll, id: `poll-${index}`, question: `Poll ${index}` })) });
+  render(<AdminScreen page="polls" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner Poll 0" }));
+  const pageSelection = screen.getByRole("checkbox", { name: "Sélectionner les sondages de cette page" });
+  expect(pageSelection).toHaveProperty("indeterminate", true);
+  fireEvent.click(pageSelection);
+  expect(screen.getByText("6 sélectionné(s)")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
+  expect(screen.getByText("6 sélectionné(s)")).toBeTruthy();
+  expect(screen.getByRole("checkbox", { name: "Sélectionner les sondages de cette page" })).toHaveProperty("checked", false);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner Poll 6" }));
+  expect(screen.getByText("7 sélectionné(s)")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Précédent" }));
+  expect(screen.getByRole("checkbox", { name: "Sélectionner les sondages de cette page" })).toHaveProperty("checked", true);
+  fireEvent.click(screen.getByRole("button", { name: "Effacer la sélection" }));
+  expect(screen.getByText("0 sélectionné(s)")).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner Poll 0" }));
+  fireEvent.click(screen.getByRole("tab", { name: /Sondages simples/ }));
+  fireEvent.click(screen.getByRole("tab", { name: /Sondages de séance/ }));
+  expect(screen.getByRole("checkbox", { name: "Sélectionner Poll 0" })).toHaveProperty("checked", false);
+});
+
+it("confirms bulk deletion, prevents duplicate submission and keeps failed polls selected", async () => {
+  useCommunity.setState({ polls: [{ ...poll, id: "a", question: "Session A" }, { ...poll, id: "b", question: "Session B" }] });
+  let finish!: () => void;
+  const remove = vi.spyOn(pollsService, "remove").mockImplementation(id => id === "a" ? new Promise<void>(resolve => { finish = resolve; }) : Promise.reject(Error("Refus serveur")));
+  render(<AdminScreen page="polls" />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Sélectionner les sondages de cette page" }));
+  fireEvent.click(screen.getByRole("button", { name: "Supprimer la sélection (2)" }));
+  const dialog = within(screen.getByRole("dialog", { name: "Supprimer les sondages sélectionnés" }));
+  expect(dialog.getByText(/irréversible/)).toBeTruthy();
+  expect(remove).not.toHaveBeenCalled();
+  const confirm = dialog.getByRole("button", { name: "Confirmer la suppression (2)" });
+  fireEvent.click(confirm); fireEvent.click(confirm);
+  expect(remove).toHaveBeenCalledTimes(1);
+  finish();
+  await waitFor(() => expect(screen.getByText("1 opération(s) réussie(s)")).toBeTruthy());
+  expect(remove.mock.calls).toEqual([["a"], ["b"]]);
+  expect(screen.queryByRole("checkbox", { name: "Sélectionner Session A" })).toBeNull();
+  expect(screen.getByRole("checkbox", { name: "Sélectionner Session B" })).toHaveProperty("checked", true);
+  expect(screen.getByRole("alert").textContent).toContain("Refus serveur");
 });

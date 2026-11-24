@@ -1,4 +1,13 @@
 export const bulkEnglish: Record<string, string> = {
+  "Supprimer la sélection": "Delete selection",
+  "Supprimer les sondages sélectionnés": "Delete selected polls",
+  "Les sondages sélectionnés et leurs votes seront définitivement supprimés. Pour les séances, tous les créneaux, présences, absences et historiques associés seront supprimés et les compteurs recalculés. Cette action est irréversible.": "Selected polls and their votes will be permanently deleted. For session polls, all time slots, attendance, absences and associated history will be deleted and totals recalculated. This action is irreversible.",
+  "Exporter les listes sélectionnées": "Export selected attendance lists",
+  "Un horaire sélectionné n’est plus disponible. Actualisez la liste.": "A selected time slot is no longer available. Refresh the list.",
+  "Pointage": "Attendance mark",
+  "Aucun inscrit": "No registered students",
+  "Sélectionner les sondages de cette page": "Select polls on this page",
+  "Sélectionner les horaires de cette page": "Select time slots on this page",
   "Actions sur les membres sélectionnés": "Selected member actions",
   "Actions sur les demandes sélectionnées": "Selected request actions",
   "{count} sélectionné(s)": "{count} selected",

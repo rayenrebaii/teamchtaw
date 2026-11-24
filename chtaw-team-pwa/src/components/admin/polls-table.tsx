@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { CalendarDays, ChartNoAxesColumn, ClipboardCheck, Clock3, Eye, Pencil, Users } from "lucide-react";
 import { useCopy } from "@/lib/i18n";
 import { pollGroupNames } from "@/features/poll-groups";
@@ -8,23 +8,42 @@ import { Button } from "@/components/ui/button";
 import { DeleteContent } from "@/components/delete-content";
 import memberStyles from "./members-panel.module.css";
 import styles from "./polls-table.module.css";
+import bulkStyles from "./bulk-actions.module.css";
+import { PageSelection, SelectionToolbar, useTableSelection } from "./table-selection";
+import { PollBulkDelete } from "./poll-bulk-delete";
+import { useCommunity } from "@/stores/community";
 
-export function PollsTable({ polls, groups, canManage, badge, dateTime, onResults, onEdit, onManage }: {
+export function PollsTable({ polls, groups, canManage, badge, dateTime, onResults, onEdit, onManage, selectionScope = "" }: {
   polls: Poll[]; groups: Group[]; canManage: boolean;
   badge: (poll: Poll) => ReactNode; dateTime: (date: string) => string;
   onResults: (poll: Poll) => void; onEdit: (poll: Poll) => void; onManage: (poll: Poll) => void;
+  selectionScope?: string;
 }) {
   const { t } = useCopy();
+  const selection = useTableSelection(selectionScope);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const store = useCommunity();
+  const actor = store.users.find(user => user.id === store.session?.userId);
+  const selectable = (poll: Poll) => actor?.role === "ADMIN" || (actor?.role === "COLLABORATOR" && poll.authorId === actor.id);
+  const selected = store.polls.filter(poll => selection.ids.includes(poll.id) && selectable(poll));
   if (!polls.length) return null;
   return <div className={memberStyles.panel}>
-    <div className={`table-wrap request-table ${memberStyles.table} ${styles.table}`} role="region" aria-label={t("Tous les sondages")} tabIndex={0}>
+    {canManage && <>
+      <PageSelection ids={polls.filter(selectable).map(poll => poll.id)} selected={selection.ids} disabled={bulkBusy} label={t("Sélectionner les sondages de cette page")} onChange={selection.toggle} />
+      <SelectionToolbar count={selected.length} clear={selection.clear} busy={bulkBusy}>
+        <PollBulkDelete selected={selected} onDone={ids => selection.toggle(ids, false)} onBusy={setBulkBusy} />
+      </SelectionToolbar>
+    </>}
+    <div className={`table-wrap request-table ${memberStyles.table} ${styles.table} ${canManage ? styles.selectionTable : ""}`} role="region" aria-label={t("Tous les sondages")} tabIndex={0}>
       <table>
         <caption className="sr-only">{t("Tous les sondages")}</caption>
-        <thead><tr>{["Sondage", "Groupe", "Date et horaire", "Statut", "Actions"].map(label => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
-        <tbody>{polls.map(poll => {
+        <thead><tr>{canManage && <th scope="col" className={bulkStyles.selectionCell}><span className="sr-only">{t("Sélection")}</span></th>}{["Sondage", "Groupe", "Date et horaire", "Statut", "Actions"].map(label => <th scope="col" key={label}>{t(label)}</th>)}</tr></thead>
+        <tbody inert={bulkBusy}>{polls.map(poll => {
           const session = poll.type === "SESSION";
           const Icon = session ? CalendarDays : ChartNoAxesColumn;
-          return <tr key={poll.id} className={`${memberStyles.memberRow} ${styles.row}`}>
+          return <tr key={poll.id} className={`${memberStyles.memberRow} ${styles.row}`} data-selected={selection.ids.includes(poll.id) || undefined}>
+            {canManage && <td data-label={t("Sélection")} className={`${bulkStyles.selectionCell} ${styles.selectionCell}`}><input type="checkbox" className={bulkStyles.selection}
+              aria-label={t("Sélectionner {name}", { name: poll.question })} disabled={bulkBusy || !selectable(poll)} checked={selection.ids.includes(poll.id)} onChange={event => selection.toggle([poll.id], event.target.checked)} /></td>}
             <td data-label={t("Sondage")} className={memberStyles.identity}>
               <div className={memberStyles.member}>
                 <span className={styles.icon}><Icon size={18} aria-hidden="true" /></span>

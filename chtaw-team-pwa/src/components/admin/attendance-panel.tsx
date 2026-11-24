@@ -797,6 +797,7 @@ export function SessionPollsScreen({ pollsOnly = false, createSession = false }:
                   </div>
                 )}
                 {pollsOnly ? <PollsTable
+                  selectionScope={JSON.stringify([filters, store.session?.userId])}
                   polls={results.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE)}
                   groups={store.groups} canManage={canManage} badge={badge} dateTime={dateTime}
                   onResults={poll => { setDetailId(poll.id); void store.sync(); }}

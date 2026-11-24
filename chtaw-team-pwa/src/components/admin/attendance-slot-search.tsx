@@ -13,6 +13,9 @@ import { Empty } from "@/components/shared";
 import { LoadState, useRemote } from "./attendance-panel";
 import memberStyles from "./members-panel.module.css";
 import styles from "./attendance-slot-search.module.css";
+import bulkStyles from "./bulk-actions.module.css";
+import { PageSelection, SelectionToolbar, useTableSelection } from "./table-selection";
+import { AttendanceBulkExport } from "./attendance-bulk-export";
 
 export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: string }) {
   const { text: copy, locale } = useCopy();
@@ -22,6 +25,8 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
   const [groupId, setGroupId] = useState("");
   const [pollId, setPollId] = useState(initialPollId);
   const [page, setPage] = useState(1);
+  const selection = useTableSelection(JSON.stringify([day, groupId, pollId, store.session?.userId]));
+  const [exportBusy, setExportBusy] = useState(false);
   const load = useCallback(() => attendanceService.sessions({
     page: String(page), ...(groupId ? { groupId } : {}), ...(pollId ? { pollId } : {}),
     ...(day ? { from: day, to: day } : {}),
@@ -51,11 +56,19 @@ export function AttendanceSlotSearch({ initialPollId = "" }: { initialPollId?: s
     </div>
     <p className="tiny muted">{copy("Dates et heures de Tunis. Les créneaux se valident automatiquement à leur début.")}</p>
     <LoadState {...remote} retry={remote.refresh} />
-    {slots.length > 0 && <div className={`table-wrap request-table ${memberStyles.table} ${styles.table}`} role="region" aria-label={copy("Choisir un horaire")} tabIndex={0} aria-busy={remote.loading}>
+    <PageSelection ids={slots.map(({ session, option }) => `${session.id}:${option.id}`)} selected={selection.ids}
+      label={copy("Sélectionner les horaires de cette page")} disabled={remote.loading || exportBusy} onChange={selection.toggle} />
+    <SelectionToolbar count={selection.ids.length} clear={selection.clear} busy={exportBusy}>
+      <AttendanceBulkExport selected={selection.ids} onBusy={setExportBusy} />
+    </SelectionToolbar>
+    {slots.length > 0 && <div className={`table-wrap request-table ${memberStyles.table} ${styles.table} ${styles.selectionTable}`} role="region" aria-label={copy("Choisir un horaire")} tabIndex={0} aria-busy={remote.loading}>
       <table>
         <caption className="sr-only">{copy("Choisir un horaire")}</caption>
-        <thead><tr>{["Séance", "Groupe", "Horaire", "Date et horaire", "Actions"].map(label => <th key={label} scope="col">{copy(label)}</th>)}</tr></thead>
+        <thead><tr><th scope="col" className={bulkStyles.selectionCell}><span className="sr-only">{copy("Sélection")}</span></th>{["Séance", "Groupe", "Horaire", "Date et horaire", "Actions"].map(label => <th key={label} scope="col">{copy(label)}</th>)}</tr></thead>
         <tbody>{slots.map(({ session, option }) => <tr className={`${memberStyles.memberRow} ${styles.row}`} key={`${session.id}:${option.id}`}>
+          <td data-label={copy("Sélection")} className={`${bulkStyles.selectionCell} ${styles.selectionCell}`}><input type="checkbox" className={bulkStyles.selection}
+            aria-label={copy("Sélectionner {name}", { name: `${session.question} · ${option.label}` })} disabled={remote.loading || exportBusy}
+            checked={selection.ids.includes(`${session.id}:${option.id}`)} onChange={event => selection.toggle([`${session.id}:${option.id}`], event.target.checked)} /></td>
           <td data-label={copy("Séance")} className={memberStyles.identity}><div className={memberStyles.member}>
             <span className={styles.icon}><CalendarDays size={18} aria-hidden="true" /></span>
             <div className={memberStyles.memberText}><strong>{session.question}</strong></div>

@@ -14,8 +14,18 @@
 .slots time { color: var(--muted); }
 .deadline { color: var(--muted); margin-top: 8px; }
 .actions { min-width: 0; }
+.table.selectionTable th:first-child { width: 42px; }
+.table.selectionTable th:nth-child(2) { width: 24%; }
+.table.selectionTable th:nth-child(3) { width: 14%; }
+.table.selectionTable th:nth-child(4) { width: 22%; }
+.table.selectionTable th:nth-child(5) { width: 11%; }
+.table.selectionTable .selectionCell { vertical-align: middle; }
+.table .row[data-selected] { background: var(--surface-alt); }
 
 @container (max-width: 960px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity status" "group schedule" "actions actions"; }
+  .table.selectionTable .row .selectionCell { grid-area: selection; display: flex; align-items: center; gap: 10px; width: auto; }
+  .table.selectionTable .row .selectionCell::before { margin: 0; }
   .table .row { grid-template-areas: "identity status" "group schedule" "actions actions"; }
   .table .row .group { grid-area: group; }
   .table .row .schedule { grid-area: schedule; }
@@ -23,9 +33,11 @@
 }
 
 @media (max-width: 640px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
   .table .row { grid-template-areas: "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
 }
 
 @container (max-width: 340px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
   .table .row { grid-template-areas: "identity identity" "status status" "group group" "schedule schedule" "actions actions"; }
 }

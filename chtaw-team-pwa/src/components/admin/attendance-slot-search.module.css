@@ -8,8 +8,17 @@
 .slot { font-weight: 600; }
 .dateTime { display: flex; align-items: flex-start; gap: 6px; }
 .dateTime svg { flex-shrink: 0; color: var(--primary); margin-top: 2px; }
+.table.selectionTable th:first-child { width: 42px; }
+.table.selectionTable th:nth-child(2) { width: 24%; }
+.table.selectionTable th:nth-child(3) { width: 18%; }
+.table.selectionTable th:nth-child(4) { width: 14%; }
+.table.selectionTable th:nth-child(5) { width: 22%; }
+.table.selectionTable .selectionCell { vertical-align: middle; }
 
 @container (max-width: 960px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity slot" "group date" "actions actions"; }
+  .table.selectionTable .row .selectionCell { grid-area: selection; display: flex; align-items: center; gap: 10px; width: auto; }
+  .table.selectionTable .row .selectionCell::before { margin: 0; }
   .table .row { grid-template-areas: "identity slot" "group date" "actions actions"; }
   .table .row .slot { grid-area: slot; }
   .table .row .group { grid-area: group; }
@@ -18,9 +27,11 @@
 }
 
 @media (max-width: 640px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity identity" "group group" "slot slot" "date date" "actions actions"; }
   .table .row { grid-template-areas: "identity identity" "group group" "slot slot" "date date" "actions actions"; }
 }
 
 @container (max-width: 340px) {
+  .table.selectionTable .row { grid-template-areas: "selection selection" "identity identity" "group group" "slot slot" "date date" "actions actions"; }
   .table .row { grid-template-areas: "identity identity" "group group" "slot slot" "date date" "actions actions"; }
 }

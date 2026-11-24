@@ -16,6 +16,7 @@ const commands = {
   'pwa:analytics:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.analytics.config.ts']],
   'pwa:release:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.release.config.ts']],
   'pwa:tables:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.tables.config.ts']],
+  'pwa:bulk:browser': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.bulk-selection.config.ts']],
   'pwa:tables:production': [frontend, ['node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.tables.production.config.ts']],
   'pwa:ui': [frontend, ['node_modules/vitest/vitest.mjs', 'run', '--config', 'vitest.ui.config.ts']],
   'pwa:build': [frontend, ['node_modules/next/dist/bin/next', 'build']],
