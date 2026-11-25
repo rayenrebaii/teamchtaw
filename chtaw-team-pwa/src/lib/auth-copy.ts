@@ -1,4 +1,6 @@
 export const authEnglish: Record<string, string> = {
+  "Mettre le logo en pause": "Pause logo animation",
+  "Animer le logo": "Play logo animation",
   "Team Chtaw - Accueil": "Team Chtaw - Home",
   "UNE TEAM. UNE ÉNERGIE.": "ONE TEAM. ONE ENERGY.",
   "Plus qu’une équipe.": "More than a team.",
