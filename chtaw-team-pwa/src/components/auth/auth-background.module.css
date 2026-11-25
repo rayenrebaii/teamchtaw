@@ -1,107 +1,66 @@
-﻿/* Clip only the decoration, preserving the original form layout and page scroll. */
-.panel { position: relative; isolation: isolate; min-width: 0; }
+/* Only the background is clipped: form scrolling, focus rings and layout stay intact. */
+.panel { --muted: #5b466a; position: relative; isolation: isolate; min-width: 0; }
+:global([data-theme="dark"]) .panel { --muted: #e3d5ef; }
 .panel > :not(.background) { position: relative; z-index: 1; }
 .background {
-  --outline: #7942ad;
-  --particle: #8646b9;
-  --gymnast-opacity: .25;
-  --gymnast-filter: brightness(.68) saturate(1.4);
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  contain: strict;
-  pointer-events: none;
-  user-select: none;
-  background: radial-gradient(ellipse at 75% 28%, #bd94e629, transparent 65%);
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden; contain: strict;
+  pointer-events: none; user-select: none;
+  background: #10071f;
 }
-.background * { pointer-events: none; }
-:global([data-theme="dark"]) .background {
-  --outline: #cfabff;
-  --particle: #e3caff;
-  --gymnast-opacity: .28;
-  --gymnast-filter: brightness(1.05) saturate(.85);
-  background: radial-gradient(ellipse at 75% 28%, #7740a526, transparent 65%);
-}
-.halo {
-  position: absolute;
-  width: 110%; height: 680px; left: -5%; top: 0;
-  background: radial-gradient(ellipse, #a578df30, transparent 65%);
-  animation: breathe 13s ease-in-out infinite alternate;
-}
-.gymnast {
-  position: absolute;
-  width: min(100%, 720px); left: 0; top: clamp(125px, 21%, 220px);
-  opacity: var(--gymnast-opacity);
-  filter: var(--gymnast-filter);
-  animation: float 11s ease-in-out infinite alternate;
-}
-.gymnast img { display: block; width: 100%; height: auto; }
-.ringPlane {
-  --angle: -28deg; --tilt: 58deg;
-  position: absolute;
-  width: 105%; aspect-ratio: 1; left: -4%; top: 6%;
-  transform: rotate(var(--angle)) rotateX(var(--tilt));
-  animation: tilt 19s ease-in-out -7s infinite alternate;
-}
-.ring {
+.media {
   position: absolute; inset: 0;
-  border: 1px solid var(--outline);
-  border-right-color: transparent;
-  border-bottom-color: color-mix(in srgb, var(--outline) 40%, transparent);
-  border-radius: 50%; opacity: .28;
-  animation: orbit 58s linear infinite;
-}
-.second {
-  --angle: 38deg; --tilt: 40deg;
-  left: 26%; top: 26%; width: 85%;
-  animation-duration: 27s; animation-delay: -18s;
-}
-.second .ring { animation-duration: 79s; animation-direction: reverse; }
-.third {
-  --angle: -62deg; --tilt: 65deg;
-  left: -24%; top: 42%; width: 95%;
-  animation-duration: 31s; animation-delay: -4s;
-}
-.third .ring { animation-duration: 97s; }
-.shape {
-  --turn: 0deg;
-  position: absolute; border: 1px solid var(--outline); opacity: .26;
-  transform: rotate(var(--turn));
-  animation: wander 23s ease-in-out -9s infinite alternate;
-}
-.circle { width: 76px; height: 76px; border-radius: 50%; right: 6%; top: 13%; }
-.square { --turn: 22deg; width: 45px; height: 45px; left: 5%; top: 49%; animation-duration: 29s; animation-delay: -19s; }
-.diamond { --turn: 45deg; width: 64px; height: 64px; right: 7%; top: 73%; animation-duration: 33s; animation-delay: -3s; animation-direction: alternate-reverse; }
-.smallCircle { width: 32px; height: 32px; border-radius: 50%; left: 16%; top: 84%; animation-duration: 17s; }
-.particle {
-  position: absolute; width: 3px; height: 3px; border-radius: 50%;
-  background: var(--particle); opacity: .45;
-  animation: drift ease-in-out infinite alternate;
+  width: 100%; height: 100%; max-width: none;
+  object-fit: cover; object-position: 50% 45%;
 }
 .veil {
   position: absolute; inset: 0;
-  background: linear-gradient(110deg, #64328204, transparent 50%, #64328208);
+  background: linear-gradient(110deg, #faf7ffcc, #f7f0ffd0 48%, #f2e7ffc7);
 }
-:global([data-theme="dark"]) .veil { background: linear-gradient(110deg, #16062f24, #16062f10 50%, #16062f30); }
-:global([data-theme="dark"]) .halo { background: radial-gradient(ellipse, #a578df18, transparent 65%); }
-@keyframes float { to { transform: translate3d(0, -14px, 0); } }
-@keyframes orbit { to { transform: rotate(360deg); } }
-@keyframes tilt { to { transform: rotate(calc(var(--angle) + 12deg)) rotateX(calc(var(--tilt) - 18deg)); } }
-@keyframes wander { to { transform: translate3d(12px, -20px, 0) rotate(calc(var(--turn) + 28deg)); } }
-@keyframes drift { to { transform: translate3d(10px, -16px, 0); opacity: .2; } }
-@keyframes breathe { from { opacity: .45; } to { opacity: .7; } }
-@media (max-width: 800px) {
-  .gymnast { width: 110%; left: -5%; top: 145px; }
-  .ringPlane { width: 125%; left: -15%; top: 11%; }
-  .second { width: 110%; left: 16%; top: 35%; }
-  .third, .background [data-mobile-hidden] { display: none; }
-  .circle { width: 52px; height: 52px; right: 3%; }
-  .diamond { width: 40px; height: 40px; right: 4%; }
+.halo {
+  position: absolute; inset: -12%;
+  background: radial-gradient(ellipse at 75% 25%, #ad6ce432, transparent 58%);
+  animation: breathe 12s ease-in-out infinite alternate;
 }
-@media (max-width: 800px) and (max-height: 500px) {
-  .gymnast { top: 100px; opacity: calc(var(--gymnast-opacity) * .8); }
+:global([data-theme="dark"]) .veil {
+  background: linear-gradient(110deg, #140922a6, #16082ba3 48%, #16082bb0);
 }
+:global([data-theme="dark"]) .halo {
+  background: radial-gradient(ellipse at 75% 25%, #b177ef26, transparent 58%);
+}
+.panel :global(.auth-form) { animation: appear 560ms ease-out; }
+.panel :global(.auth-form) > h2 { animation: enter 560ms ease-out; }
+.panel :global(.auth-form) :global([data-registration-step]) { animation-name: appear; }
+.panel :global(.auth-form) > :global(.eyebrow) { color: #684084; }
+:global([data-theme="dark"]) .panel :global(.auth-form) > :global(.eyebrow) { color: #d5b0f4; }
+.panel :global(.auth-form) :is(input, select, button, a) {
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+.panel :global(.auth-form) :is(input, select):hover:not(:disabled) { border-color: #a16ec7; }
+.panel :global(.auth-form) :is(input, select):focus {
+  border-color: #a477e7; box-shadow: 0 0 0 3px #a477e733;
+}
+.panel :global(.auth-form) :global(.btn-primary) { color: #fff; }
+.panel :global(.auth-form) :global(.btn-primary):hover:not(:disabled) {
+  background: #6a2fd0; box-shadow: 0 5px 20px #8b45dc30; transform: none;
+}
+:global([data-theme="dark"]) .panel :global(.auth-form) :global(.btn-primary) { color: #20102f; }
+:global([data-theme="dark"]) .panel :global(.auth-form) :global(.btn-primary):hover:not(:disabled) { background: #d4baff; }
+.panel :global(.auth-form) a:hover { color: #7334b7; }
+:global([data-theme="dark"]) .panel :global(.auth-form) a:hover { color: #e1c3ff; }
+.panel > .motionToggle {
+  position: absolute; z-index: 2; right: 16px; bottom: 12px;
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: var(--surface); color: var(--ink);
+}
+.background[data-paused] .halo { animation-play-state: paused; }
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes breathe { from { opacity: .45; transform: translate3d(-2%, 0, 0); } to { opacity: 1; transform: translate3d(2%, 2%, 0); } }
+@media (max-width: 800px) { .media { object-position: 50% 42%; } }
 @media (prefers-reduced-motion: reduce) {
-  .background *, .background *::before, .background *::after { animation: none; }
+  .halo, .panel :global(.auth-form), .panel :global(.auth-form) > h2,
+  .panel :global(.auth-form) :global([data-registration-step]) { animation: none; }
+  .panel :global(.auth-form) :is(input, select, button, a) { transition: none; }
 }

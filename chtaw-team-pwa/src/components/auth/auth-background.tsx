@@ -1,34 +1,57 @@
-import Image from "next/image";
-import type { CSSProperties } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Pause, Play } from "lucide-react";
+import { useCopy } from "@/lib/i18n";
 import styles from "./auth-background.module.css";
 
-// Stable positions avoid hydration differences and any work on each animation frame.
-const particles = [
-  [8, 18, 0, 17], [19, 73, -5, 23], [31, 34, -9, 19], [44, 86, -3, 26],
-  [55, 12, -12, 21], [66, 64, -7, 25], [79, 26, -2, 18], [92, 79, -11, 24],
-];
+const poster = "/images/auth-motion-poster.webp";
 
 export function AuthBackground() {
-  return (
-    <div className={styles.background} aria-hidden="true" data-auth-background>
-      <div className={styles.halo} />
-      <div className={styles.gymnast} data-auth-gymnast>
-        <Image src="/images/auth-gymnast.webp" alt="" width={1400} height={700}
-          sizes="(max-width: 800px) 110vw, 52vw" loading="eager" />
-      </div>
-      <div className={styles.ringPlane} data-auth-ring><span className={styles.ring} /></div>
-      <div className={`${styles.ringPlane} ${styles.second}`}><span className={styles.ring} /></div>
-      <div className={`${styles.ringPlane} ${styles.third}`}><span className={styles.ring} /></div>
-      <span className={`${styles.shape} ${styles.circle}`} data-auth-shape />
-      <span className={`${styles.shape} ${styles.square}`} data-auth-shape />
-      <span className={`${styles.shape} ${styles.diamond}`} data-auth-shape />
-      <span className={`${styles.shape} ${styles.smallCircle}`} data-auth-shape data-mobile-hidden />
-      {particles.map(([x, y, delay, duration], index) => (
-        <span key={index} className={styles.particle} data-mobile-hidden={index >= 4 ? "" : undefined} style={{
-          left: `${x}%`, top: `${y}%`, animationDelay: `${delay}s`, animationDuration: `${duration}s`,
-        } as CSSProperties} />
-      ))}
+  const { t } = useCopy();
+  const video = useRef<HTMLVideoElement>(null);
+  const [motionAllowed, setMotionAllowed] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMotionAllowed(!preference.matches);
+    update();
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
+
+  const animated = motionAllowed && !failed;
+  useEffect(() => {
+    const element = video.current;
+    if (!element || !animated) return;
+    const update = () => {
+      if (paused || document.hidden) element.pause();
+      else void element.play().catch(() => setFailed(true));
+    };
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, [animated, paused]);
+
+  return <>
+    <div className={styles.background} aria-hidden="true" data-auth-background data-paused={paused || undefined}>
+      {/* This remains visible when playback is blocked or motion is reduced. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className={styles.media} src={poster} alt="" width={768} height={1280} fetchPriority="high" />
+      {animated && <video ref={video} className={styles.media} autoPlay muted loop playsInline
+        preload="metadata" poster={poster} tabIndex={-1} onError={() => setFailed(true)} data-auth-video>
+        <source src="/videos/auth-motion.mp4" type="video/mp4" onError={() => setFailed(true)} />
+      </video>}
       <div className={styles.veil} />
+      <div className={styles.halo} />
     </div>
-  );
+    {animated && <button type="button" className={styles.motionToggle}
+      aria-label={paused ? t("Animer le fond") : t("Mettre le fond en pause")}
+      onClick={() => setPaused(value => !value)}>
+      {paused ? <Play size={14} /> : <Pause size={14} />}
+    </button>}
+  </>;
 }
