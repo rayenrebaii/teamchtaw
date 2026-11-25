@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { AuthLogo } from "./auth-logo";
+import { BrandLogo } from "@/components/brand-logo";
 import { useCommunity } from "@/stores/community";
 import { Button } from "@/components/ui/button";
 import { attempt } from "@/components/shared";
@@ -17,7 +17,7 @@ import { PasswordInput } from "./password-input";
 import { AuthBackground } from "./auth-background";
 import { RegistrationWizard } from "./registration-wizard";
 import backgroundStyles from "./auth-background.module.css";
-import frameStyles from "./auth-frame.module.css";
+import registrationStyles from "./registration-wizard.module.css";
 
 const loginSchema = z.object({
   email: z.email("Adresse email invalide."),
@@ -43,7 +43,7 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
   return (
     <div className="auth-layout">
       <aside className="auth-story">
-        <div className={frameStyles.desktopBrand}><AuthLogo /></div>
+        <Link href="/login" className="brand" aria-label={t("Team Chtaw - Accueil")}><BrandLogo /></Link>
         <div className="story-main">
           <span className="eyebrow"><span className="live-dot" />{t("UNE TEAM. UNE ÉNERGIE.")}</span>
           <h1>{t("Plus qu’une équipe.")}<br />{t("Un ")}<em>{t("mouvement.")}</em></h1>
@@ -58,9 +58,9 @@ export function AuthScreen({ register = false }: { register?: boolean }) {
       </aside>
       <main className={"auth-main " + backgroundStyles.panel}>
         <AuthBackground />
-        <div className={frameStyles.mobileBrand}><AuthLogo /></div>
+        <Link href="/login" className="mobile-auth-brand" aria-label={t("Team Chtaw - Accueil")}><BrandLogo /></Link>
         <span className="demo-label">{t("ESPACE COMMUNAUTAIRE · CONNEXION SÉCURISÉE")}</span>
-        <div className={"auth-form " + frameStyles.frame}>
+        <div className={"auth-form" + (register ? " " + registrationStyles.registrationForm : "")}>
           <span className="eyebrow">{t("BIENVENUE DANS LA TEAM")}</span>
           <h2>{register ? t("L’aventure commence ici.") : t("Heureux de vous retrouver.")}</h2>
           {register ? <RegistrationWizard onBusyChange={setRegistrationBusy} /> : <>
