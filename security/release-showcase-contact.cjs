@@ -38,6 +38,7 @@ async function main() {
     const endpoint = 'https://teamchtaw-api.onrender.com/api/v1/contact';
     await vercel(scope(`/v10/projects/${projects.site}/env?upsert=true`), { method: 'POST', body: JSON.stringify([
       { key: 'VITE_CONTACT_API_URL', value: endpoint, type: 'plain', target: ['production'] },
+      { key: 'NITRO_PRESET', value: 'vercel', type: 'plain', target: ['production'] },
     ]) });
     const req = createRequire(path.join(root, 'chtaw-team-backend/package.json'));
     const credentials = req('js-yaml').load(fs.readFileSync(path.join(process.env.USERPROFILE, '.render/cli.yaml'), 'utf8'));
