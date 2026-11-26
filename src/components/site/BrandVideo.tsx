@@ -25,14 +25,14 @@ export function BrandVideo() {
   return (
     <div
       aria-hidden="true"
-      className="relative mb-10 h-64 overflow-hidden rounded-3xl border bg-[#10071f] sm:h-80"
+      className="relative mb-10 aspect-video overflow-hidden rounded-3xl border bg-[#10071f] sm:aspect-[4/1]"
     >
       <img
-        src="/images/chtaw-motion-poster.webp"
+        src="/images/chtaw-motion-wide-v1.webp"
         alt=""
-        className="h-full w-full object-contain"
-        width={768}
-        height={1280}
+        className="h-full w-full object-cover"
+        width={1920}
+        height={480}
       />
       {!reduced && !failed && (
         <video
@@ -44,12 +44,16 @@ export function BrandVideo() {
           controls={false}
           tabIndex={-1}
           preload="metadata"
-          poster="/images/chtaw-motion-poster.webp"
+          poster="/images/chtaw-motion-wide-v1.webp"
           onError={() => setFailed(true)}
-          className="absolute inset-0 h-full w-full object-contain"
+          className="absolute inset-0 h-full w-full object-cover"
           data-brand-video
         >
-          <source src="/videos/chtaw-motion.mp4" type="video/mp4" onError={() => setFailed(true)} />
+          <source
+            src="/videos/chtaw-motion-wide-v1.mp4"
+            type="video/mp4"
+            onError={() => setFailed(true)}
+          />
         </video>
       )}
     </div>
