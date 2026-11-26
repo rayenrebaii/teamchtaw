@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Reveal, SectionTitle } from "./Reveal";
 import { OWNER_EMAIL, PWA_URL } from "@/lib/site";
 import logo from "@/assets/chtaw-logo.png";
+import { useSiteCopy } from "@/lib/site-language";
+import { localizedInstallUrl } from "@/lib/site-copy";
 
 const STEPS = [
   {
@@ -70,17 +72,18 @@ const FEATURES = [
 ];
 
 export function GuideSection() {
+  const {t} = useSiteCopy();
   return (
     <section id="guide" className="track-lines relative py-28 md:py-36">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionTitle
-          kicker="Guide"
+          kicker={t("Guide")}
           title={
             <>
-              Comment ça <span className="text-primary">marche</span>
+              {t("Comment ça")} <span className="text-primary">{t("marche")}</span>
             </>
           }
-          sub="Tout ce qu'il faut savoir pour commencer à vous entraîner avec le coach."
+          sub={t("Tout ce qu'il faut savoir pour commencer à vous entraîner avec le coach.")}
         />
 
         <Reveal>
@@ -89,17 +92,16 @@ export function GuideSection() {
               <GraduationCap className="h-7 w-7" />
             </div>
             <div>
-              <h3 className="font-display text-3xl">Réservée aux élèves du coach</h3>
+              <h3 className="font-display text-3xl">{t("Réservée aux élèves du coach")}</h3>
               <p className="mt-1 text-muted-foreground">
-                L'application est destinée aux étudiants qui souhaitent s'entraîner avec ce coach.
-                Lors de l'inscription dans l'application, vous devez obligatoirement{" "}
-                <strong className="text-foreground">indiquer votre école</strong>.
+                {t("L'application est destinée aux étudiants qui souhaitent s'entraîner avec ce coach. Lors de l'inscription dans l'application, vous devez obligatoirement")}{" "}
+                <strong className="text-foreground">{t("indiquer votre école")}</strong>.
               </p>
             </div>
           </div>
         </Reveal>
 
-        <h3 className="mb-8 font-display text-4xl">Télécharger l'application en 4 étapes</h3>
+        <h3 className="mb-8 font-display text-4xl">{t("Télécharger l'application en 4 étapes")}</h3>
         <div className="mb-24 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, k) => (
             <Reveal key={s.title} delay={k * 0.1}>
@@ -111,14 +113,14 @@ export function GuideSection() {
                   {k + 1}
                 </span>
                 <s.icon className="relative h-8 w-8 text-primary" />
-                <h4 className="relative mt-6 text-xl font-bold">{s.title}</h4>
-                <p className="relative mt-2 text-muted-foreground">{s.text}</p>
+                <h4 className="relative mt-6 text-xl font-bold">{t(s.title)}</h4>
+                <p className="relative mt-2 text-muted-foreground">{t(s.text)}</p>
               </motion.div>
             </Reveal>
           ))}
         </div>
 
-        <h3 className="mb-8 font-display text-4xl">Ce que contient l'application</h3>
+        <h3 className="mb-8 font-display text-4xl">{t("Ce que contient l'application")}</h3>
         <div className="mb-24 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, k) => (
             <Reveal key={f.title} delay={k * 0.08}>
@@ -127,15 +129,15 @@ export function GuideSection() {
                   <f.icon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold">{f.title}</h4>
-                  <p className="mt-1 text-muted-foreground">{f.text}</p>
+                  <h4 className="text-lg font-bold">{t(f.title)}</h4>
+                  <p className="mt-1 text-muted-foreground">{t(f.text)}</p>
                 </div>
               </div>
             </Reveal>
           ))}
         </div>
 
-        <h3 className="mb-8 font-display text-4xl">Utiliser l'application au quotidien</h3>
+        <h3 className="mb-8 font-display text-4xl">{t("Utiliser l'application au quotidien")}</h3>
         <div className="grid gap-4 md:grid-cols-3">
           {[
             [
@@ -150,12 +152,12 @@ export function GuideSection() {
               "Notez vos résultats",
               "À la fin, saisissez vos performances : l'application calcule votre progression.",
             ],
-          ].map(([t, d], k) => (
-            <Reveal key={t} delay={k * 0.1}>
+          ].map(([title, d], k) => (
+            <Reveal key={title} delay={k * 0.1}>
               <div className="h-full border-l-2 border-primary pl-5">
                 <p className="font-display text-2xl text-primary">0{k + 1}</p>
-                <h4 className="mt-1 text-lg font-bold">{t}</h4>
-                <p className="mt-1 text-muted-foreground">{d}</p>
+                <h4 className="mt-1 text-lg font-bold">{t(title!)}</h4>
+                <p className="mt-1 text-muted-foreground">{t(d!)}</p>
               </div>
             </Reveal>
           ))}
@@ -164,8 +166,8 @@ export function GuideSection() {
         <Reveal className="mt-20">
           <div className="flex flex-col items-start justify-between gap-4 rounded-3xl bg-secondary p-8 md:flex-row md:items-center">
             <p className="text-xl font-semibold">
-              Un souci ou une question ?{" "}
-              <span className="text-muted-foreground">N'hésitez pas à nous contacter.</span>
+              {t("Un souci ou une question ?")}{" "}
+              <span className="text-muted-foreground">{t("N'hésitez pas à nous contacter.")}</span>
             </p>
             <Button
               variant="sport"
@@ -173,7 +175,7 @@ export function GuideSection() {
                 document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
               }
             >
-              Nous contacter <ArrowRight />
+              {t("Nous contacter")} <ArrowRight />
             </Button>
           </div>
         </Reveal>
@@ -217,33 +219,34 @@ function Card({
 }
 
 export function ContactSection() {
+  const {t} = useSiteCopy();
   return (
     <section id="contact" className="py-28 md:py-36">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionTitle
-          kicker="Contact"
+          kicker={t("Contact")}
           title={
             <>
-              Parlons <span className="text-primary">entraînement</span>
+              {t("Parlons")} <span className="text-primary">{t("entraînement")}</span>
             </>
           }
         />
         <Card
           icon={Mail}
-          title="Écrivez au coach"
-          text="Une question sur l'application ou votre préparation ? Cliquez ci-dessous : votre messagerie s'ouvrira avec l'adresse du coach déjà remplie."
+          title={t("Écrivez au coach")}
+          text={t("Une question sur l'application ou votre préparation ? Cliquez ci-dessous : votre messagerie s'ouvrira avec l'adresse du coach déjà remplie.")}
         >
           {OWNER_EMAIL ? (
             <Button variant="sport" size="lg" asChild>
               <a
-                href={`mailto:${OWNER_EMAIL}?subject=${encodeURIComponent("Question — Application Team Chtaw")}`}
+                href={`mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(t("Question — Application Team Chtaw"))}`}
               >
-                <Mail /> Envoyer un e-mail
+                <Mail /> {t("Envoyer un e-mail")}
               </a>
             </Button>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Le contact du coach sera disponible prochainement.
+              {t("Le contact du coach sera disponible prochainement.")}
             </p>
           )}
         </Card>
@@ -253,7 +256,8 @@ export function ContactSection() {
 }
 
 export function DownloadSection() {
-  const pwaUrl = PWA_URL.trim();
+  const {t, language} = useSiteCopy();
+  const pwaUrl = localizedInstallUrl(PWA_URL.trim(), language);
   let isConfigured = false;
   try {
     isConfigured = new URL(pwaUrl).protocol === "https:";
@@ -265,17 +269,17 @@ export function DownloadSection() {
     <section id="telechargement" className="track-lines py-28 md:py-36">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionTitle
-          kicker="Téléchargement"
+          kicker={t("Téléchargement")}
           title={
             <>
-              Obtenez <span className="text-primary">l'application</span>
+              {t("Obtenez")} <span className="text-primary">{t("l'application")}</span>
             </>
           }
         />
         <Card
           icon={Download}
-          title="Installez l'application Team Chtaw"
-          text="Cliquez sur Installer l’application, puis confirmez sur la page d’installation. Sur iPhone, utilisez Safari : Partager, puis Sur l’écran d’accueil."
+          title={t("Installez l'application Team Chtaw")}
+          text={t("Cliquez sur Installer l’application, puis confirmez sur la page d’installation. Sur iPhone, utilisez Safari : Partager, puis Sur l’écran d’accueil.")}
         >
           <div className="flex w-full flex-col items-center gap-4">
             {isConfigured ? (
@@ -286,7 +290,7 @@ export function DownloadSection() {
                 asChild
               >
                 <a href={pwaUrl}>
-                  <Download aria-hidden="true" /> Installer l'application
+                  <Download aria-hidden="true" /> {t("Installer l'application")}
                 </a>
               </Button>
             ) : (
@@ -297,16 +301,15 @@ export function DownloadSection() {
                 disabled
                 aria-describedby="pwa-unavailable"
               >
-                <Download aria-hidden="true" /> Installer l'application
+                <Download aria-hidden="true" /> {t("Installer l'application")}
               </Button>
             )}
             <p className="text-sm text-muted-foreground">
-              Disponible sur Android et iPhone. Installation depuis votre navigateur.
+              {t("Disponible sur Android et iPhone. Installation depuis votre navigateur.")}
             </p>
             {!isConfigured && (
               <p id="pwa-unavailable" className="text-sm font-medium text-muted-foreground">
-                Installation indisponible : le lien public de l'application n'est pas encore
-                configuré.
+                {t("Installation indisponible : le lien public de l'application n'est pas encore configuré.")}
               </p>
             )}
           </div>
@@ -317,6 +320,7 @@ export function DownloadSection() {
 }
 
 export function Footer() {
+  const {t} = useSiteCopy();
   return (
     <footer className="border-t py-10">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 text-sm text-muted-foreground md:flex-row md:px-8">
@@ -327,7 +331,7 @@ export function Footer() {
           height={99}
           className="h-auto w-32 object-contain"
         />
-        <p>© {new Date().getFullYear()} Team Chtaw — Préparation aux examens physiques</p>
+        <p>© {new Date().getFullYear()} Team Chtaw — {t("Préparation aux examens physiques")}</p>
       </div>
     </footer>
   );

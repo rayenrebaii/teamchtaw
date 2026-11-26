@@ -40,7 +40,7 @@ describe("DownloadSection", () => {
 
     expect(section.querySelectorAll("a")).toHaveLength(1);
     expect(link).toHaveAccessibleName("Installer l'application");
-    expect(link).toHaveAttribute("href", url);
+    expect(link).toHaveAttribute("href", `${url}?lang=fr`);
     expect(section.querySelector("button")).toBeNull();
     expect(section).toHaveTextContent(
       "Disponible sur Android et iPhone. Installation depuis votre navigateur.",

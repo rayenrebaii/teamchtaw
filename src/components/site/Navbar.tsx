@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { Menu, X } from "lucide-react";
 import logo from "@/assets/chtaw-logo.png";
 import { PWA_URL } from "@/lib/site";
+import { useSiteCopy } from "@/lib/site-language";
+import { localizedInstallUrl } from "@/lib/site-copy";
+import { LanguageSelect } from "./LanguageSelect";
 
 const LINKS = [
   { id: "accueil", label: "Accueil" },
@@ -12,6 +15,7 @@ const LINKS = [
 ];
 
 export function Navbar() {
+  const {t, language} = useSiteCopy();
   const [active, setActive] = useState("accueil");
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -36,8 +40,9 @@ export function Navbar() {
 
   const go = (id: string) => {
     setOpen(false);
-    if (id === "telechargement" && PWA_URL.startsWith("https://")) {
-      window.location.assign(PWA_URL);
+    const destination = localizedInstallUrl(PWA_URL, language);
+    if (id === "telechargement" && destination) {
+      window.location.assign(destination);
       return;
     }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -55,7 +60,7 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <button
             onClick={() => go("accueil")}
-            aria-label="Team Chtaw — Accueil"
+            aria-label={t("Team Chtaw — Accueil")}
             className="shrink-0 transition-transform hover:scale-105"
           >
             <img
@@ -66,7 +71,7 @@ export function Navbar() {
               className="block h-auto w-24 max-w-none object-contain md:w-32"
             />
           </button>
-          <ul className="hidden items-center gap-1 md:flex">
+          <ul className="hidden items-center gap-1 lg:flex">
             {LINKS.map((l) => (
               <li key={l.id}>
                 <button
@@ -84,16 +89,19 @@ export function Navbar() {
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
-                  {l.label}
+                  {t(l.label)}
                 </button>
               </li>
             ))}
           </ul>
         </div>
 
-        <button className="md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu">
+        <div className="flex items-center gap-3">
+          <LanguageSelect />
+        <button className="lg:hidden" onClick={() => setOpen((o) => !o)} aria-label={t(open ? "Fermer le menu" : "Menu")} aria-expanded={open}>
           {open ? <X /> : <Menu />}
         </button>
+        </div>
       </nav>
 
       <AnimatePresence>
@@ -102,7 +110,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="glass overflow-hidden border-b md:hidden"
+            className="glass overflow-hidden border-b lg:hidden"
           >
             <div className="flex flex-col gap-1 px-4 py-4">
               {LINKS.map((l) => (
@@ -111,7 +119,7 @@ export function Navbar() {
                   onClick={() => go(l.id)}
                   className="py-2 text-left font-semibold uppercase"
                 >
-                  {l.label}
+                  {t(l.label)}
                 </button>
               ))}
             </div>

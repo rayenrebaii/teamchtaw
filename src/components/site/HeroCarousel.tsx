@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import coachImage from "@/assets/coach-hero.png";
 import app from "@/assets/slide-app-purple.jpg";
 import training from "@/assets/slide-training.jpg";
+import { useSiteCopy } from "@/lib/site-language";
 
 const SLIDES = [
   {
@@ -28,6 +29,7 @@ const SLIDES = [
 ];
 
 export function HeroCarousel() {
+  const {t} = useSiteCopy();
   const [i, setI] = useState(0);
   const n = SLIDES.length;
 
@@ -52,7 +54,7 @@ export function HeroCarousel() {
         >
           <img
             src={s.img}
-            alt={s.kicker}
+            alt={t(s.kicker)}
             width={1600}
             height={912}
             className={`animate-ken-burns h-full w-full object-cover ${i === 0 ? "object-right" : "object-center"}`}
@@ -71,9 +73,9 @@ export function HeroCarousel() {
               transition={{ duration: 0.6 }}
               className="mb-4 inline-block rounded-full bg-primary px-4 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary-foreground"
             >
-              {s.kicker}
+              {t(s.kicker)}
             </motion.p>
-            <h1 className="font-display text-6xl leading-[0.88] sm:text-8xl md:text-9xl">
+            <h1 className="font-display text-[clamp(2.5rem,13vw,3.75rem)] leading-[0.88] sm:text-7xl md:text-8xl lg:text-9xl">
               {s.title.map((line, k) => (
                 <span key={k} className="block overflow-hidden">
                   <motion.span
@@ -82,7 +84,7 @@ export function HeroCarousel() {
                     animate={{ y: 0 }}
                     transition={{ duration: 0.8, delay: 0.1 + k * 0.1, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    {line}
+                    {t(line)}
                   </motion.span>
                 </span>
               ))}
@@ -93,7 +95,7 @@ export function HeroCarousel() {
               transition={{ duration: 0.7, delay: 0.5 }}
               className="mt-6 max-w-xl text-lg text-muted-foreground md:text-xl"
             >
-              {s.text}
+              {t(s.text)}
             </motion.p>
           </motion.div>
         </AnimatePresence>
@@ -106,14 +108,14 @@ export function HeroCarousel() {
               document.getElementById("telechargement")?.scrollIntoView({ behavior: "smooth" })
             }
           >
-            Obtenir l'application
+            {t("Obtenir l'application")}
           </Button>
           <Button
             variant="outline"
             size="lg"
             onClick={() => document.getElementById("guide")?.scrollIntoView({ behavior: "smooth" })}
           >
-            Lire le guide <ArrowDown />
+            {t("Lire le guide")} <ArrowDown />
           </Button>
         </div>
 
@@ -123,7 +125,7 @@ export function HeroCarousel() {
               <button
                 key={k}
                 onClick={() => setI(k)}
-                aria-label={`Diapositive ${k + 1}`}
+                aria-label={t("Diapositive {number}", {number: k + 1})}
                 className="relative h-1 w-12 overflow-hidden rounded-full bg-secondary"
               >
                 {k === i && (
@@ -142,7 +144,7 @@ export function HeroCarousel() {
             variant="outline"
             size="icon"
             onClick={() => setI((i - 1 + n) % n)}
-            aria-label="Précédent"
+            aria-label={t("Précédent")}
           >
             <ChevronLeft />
           </Button>
@@ -150,7 +152,7 @@ export function HeroCarousel() {
             variant="outline"
             size="icon"
             onClick={() => setI((i + 1) % n)}
-            aria-label="Suivant"
+            aria-label={t("Suivant")}
           >
             <ChevronRight />
           </Button>

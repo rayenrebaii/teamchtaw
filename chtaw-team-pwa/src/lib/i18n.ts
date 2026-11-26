@@ -1,5 +1,6 @@
 "use client";
 import { authEnglish } from "./auth-copy";
+import { installEnglish } from "./install-copy";
 import { adminEnglish } from "./admin-copy";
 import { analyticsEnglish } from "./analytics-copy";
 import { collaboratorEnglish } from "./collaborator-copy";
@@ -31,6 +32,7 @@ export const english = {
   "Horaire": "Time slot",
   "Choisissez une date et un groupe, puis ouvrez un horaire pour pointer les étudiants inscrits.": "Choose a date and group, then open a time slot to record attendance for registered students.",
   ...authEnglish,
+  ...installEnglish,
   ...analyticsEnglish,
   "Invitez un agent à aider l’administrateur principal dans la saisie et le suivi des présences.": "Invite an agent to help the principal administrator with data entry and attendance.",
   "L’agent dispose des accès de gestion. Ses séances, sondages et publications appartiennent à l’administrateur principal, qui reste protégé.": "The agent has management access. Their sessions, polls and posts belong to the principal administrator, who remains protected.",

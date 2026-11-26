@@ -11,18 +11,25 @@ interface InstallEvent extends Event {
 type Platform = "windows" | "mac" | "ios" | "android" | "other";
 const subscribePlatform = () => () => {};
 const serverPlatform = (): Platform => "other";
-function detectPlatform(): Platform {
+export function detectInstallPlatform(): Platform {
   if (typeof navigator === "undefined") return "other";
   const ua = navigator.userAgent;
   const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   return ios ? "ios" : /Android/.test(ua) ? "android" : /Windows/.test(ua) ? "windows" : /Macintosh|Mac OS/.test(ua) ? "mac" : "other";
 }
-export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean }) {
+export function InstallPWAButton({ showStatus = false, compact = false, label, className, onInstructions }: {
+  showStatus?: boolean;
+  compact?: boolean;
+  label?: string;
+  className?: string;
+  onInstructions?: () => void;
+}) {
   const { t } = useCopy();
   const [prompt, setPrompt] = useState<InstallEvent | null>(null);
   const [help, setHelp] = useState(false);
   const [installed, setInstalled] = useState(false);
-  const platform = useSyncExternalStore(subscribePlatform, detectPlatform, serverPlatform);
+  const [busy, setBusy] = useState(false);
+  const platform = useSyncExternalStore(subscribePlatform, detectInstallPlatform, serverPlatform);
   useEffect(() => {
     const handler = (event: Event) => {
       event.preventDefault();
@@ -59,32 +66,39 @@ export function InstallPWAButton({ showStatus = false }: { showStatus?: boolean 
   return (
     <>
       <Button
-        variant="secondary"
+        variant={compact ? "default" : "secondary"}
+        className={className}
+        disabled={busy}
         onClick={async () => {
           if (!prompt) {
             setHelp(true);
+            onInstructions?.();
             return;
           }
           try {
+            setBusy(true);
             await prompt.prompt();
-            await prompt.userChoice;
+            const choice = await prompt.userChoice;
+            if (choice.outcome !== "accepted") { setHelp(true); onInstructions?.(); }
           } catch {
             toast.error(t("Installation non terminée. Utilisez le menu de votre navigateur."));
             setHelp(true);
+            onInstructions?.();
           } finally {
             setPrompt(null);
+            setBusy(false);
           }
         }}
       >
         <Download size={16} />
-        {showStatus ? t("Installer l’application") : t("Installer l’app")}
+        {busy ? t("Confirmez dans le navigateur…") : label ?? (showStatus ? t("Installer l’application") : t("Installer l’app"))}
       </Button>
-      {(platform === "windows" || platform === "mac") && (
+      {!compact && (platform === "windows" || platform === "mac") && (
         <p className="small muted">
           {t("Confirmez l’installation dans Chrome ou Edge. Si le navigateur propose « Créer un raccourci sur le Bureau », activez cette option pour retrouver l’icône Team Chtaw sur votre Bureau.")}
         </p>
       )}
-      {help && (
+      {help && !compact && (
         <div className="install-help" role="status">
           {platform === "ios" ? <p>{t("Dans Safari, touchez Partager, puis « Sur l’écran d’accueil ». Activez « Ouvrir comme app web » si cette option apparaît, puis touchez Ajouter : l’icône Team Chtaw apparaîtra sur votre écran d’accueil.")}</p> :
             <p>{t("Ouvrez cette page dans Chrome ou Edge, hors navigation privée, puis choisissez « Installer l’application » dans le menu. Si Team Chtaw est déjà installée, retrouvez son icône dans vos applications.")}</p>}
