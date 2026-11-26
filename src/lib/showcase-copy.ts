@@ -1,4 +1,7 @@
 export const showcaseEnglish: Record<string, string> = {
+  "Réseaux sociaux": "Social media",
+  "Suivez-nous": "Follow us",
+  "nouvel onglet": "new tab",
   "Vos premiers pas avec Chtaw Team": "Getting started with Chtaw Team",
   "De votre inscription à vos séances : suivez le parcours, à votre rythme.":
     "From registration to sessions: follow the steps at your own pace.",

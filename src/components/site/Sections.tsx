@@ -10,11 +10,16 @@ import {
   Smartphone,
   Monitor,
   Globe,
+  Instagram,
+  Facebook,
+  Youtube,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal, SectionTitle } from "./Reveal";
 import { BrandVideo } from "./BrandVideo";
-import { PWA_URL } from "@/lib/site";
+import { PWA_URL, FOOTER_CONTACT, SOCIAL_LINKS } from "@/lib/site";
+import { TikTokLogo } from "./icons";
 import logo from "@/assets/team-chtaw-logo.png";
 import { useSiteCopy } from "@/lib/site-language";
 import { localizedInstallUrl } from "@/lib/site-copy";
@@ -247,18 +252,67 @@ export function DownloadSection() {
 
 export function Footer() {
   const { t } = useSiteCopy();
+  const socialIcons = { Instagram, Facebook, TikTok: TikTokLogo, YouTube: Youtube };
   return (
-    <footer className="border-t py-10">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 text-sm text-muted-foreground md:flex-row md:px-8">
-        <img
-          src={logo}
-          alt="Team Chtaw"
-          width={176}
-          height={99}
-          className="h-auto w-32 object-contain"
-        />
-        <p>
-          © {new Date().getFullYear()} Team Chtaw — {t("Préparation aux examens physiques")}
+    <footer className="border-t bg-card/40 py-10">
+      <div className="mx-auto max-w-7xl px-4 md:px-8">
+        <div className="grid gap-8 md:grid-cols-[1fr_auto_auto] md:gap-12">
+          <div>
+            <img
+              src={logo}
+              alt="Team Chtaw"
+              width={176}
+              height={99}
+              className="h-auto w-32 object-contain"
+            />
+            <p className="mt-3 text-sm text-muted-foreground">
+              {t("Préparation aux examens physiques")}
+            </p>
+          </div>
+          <nav aria-label={t("Réseaux sociaux")}>
+            <p className="mb-4 font-semibold">{t("Suivez-nous")}</p>
+            <ul className="flex flex-wrap gap-3">
+              {SOCIAL_LINKS.map((link) => {
+                const Icon = socialIcons[link.name];
+                return (
+                  <li key={link.name}>
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${link.name} (${t("nouvel onglet")})`}
+                      title={link.name}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border bg-secondary text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="min-w-0">
+            <p className="mb-4 font-semibold">{t("Contact")}</p>
+            <address className="flex flex-col items-start gap-3 not-italic">
+              <a
+                href={`mailto:${FOOTER_CONTACT.email}`}
+                className="inline-flex min-h-11 max-w-full items-center gap-3 rounded-md text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Mail className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <span className="break-all">{FOOTER_CONTACT.email}</span>
+              </a>
+              <a
+                href={FOOTER_CONTACT.phoneHref}
+                className="inline-flex min-h-11 items-center gap-3 rounded-md text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Phone className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                {FOOTER_CONTACT.phone}
+              </a>
+            </address>
+          </div>
+        </div>
+        <p className="mt-8 border-t pt-6 text-sm text-muted-foreground">
+          © {new Date().getFullYear()} Team Chtaw
         </p>
       </div>
     </footer>

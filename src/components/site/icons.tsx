@@ -1,3 +1,11 @@
+export function TikTokLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M16.6 2h-3.2v13.1a2.9 2.9 0 1 1-2.5-2.9V8.9a6.2 6.2 0 1 0 5.7 6.2V8.5A8.1 8.1 0 0 0 21 9.8V6.5A4.5 4.5 0 0 1 16.6 2Z" />
+    </svg>
+  );
+}
+
 // Le logo Android officiel (petit robot), dessiné en SVG pour rester net à toutes les tailles.
 export function AndroidLogo({ className }: { className?: string }) {
   return (
