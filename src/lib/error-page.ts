@@ -4,8 +4,8 @@ export function renderErrorPage(): string {
   <head>
     <meta charset="utf-8" />
     <title>Team Chtaw</title>
-    <link rel="icon" href="/favicon.ico?v=team-chtaw-2" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/favicon-32x32.png?v=team-chtaw-2" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon.ico?v=team-chtaw-3" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon-32x32.png?v=team-chtaw-3" type="image/png" sizes="32x32" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       body { font: 15px/1.5 system-ui, -apple-system, sans-serif; background: #fafafa; color: #111; display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 1.5rem; }

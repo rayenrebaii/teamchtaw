@@ -1,184 +1,138 @@
 import { motion } from "motion/react";
 import {
-  GraduationCap,
   UserPlus,
   ShieldCheck,
-  Download,
-  Smartphone,
-  Timer,
-  LineChart,
-  Dumbbell,
+  Users,
   CalendarCheck,
   MessageCircle,
   Mail,
-  ArrowRight,
+  Download,
+  Smartphone,
+  Monitor,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal, SectionTitle } from "./Reveal";
-import { OWNER_EMAIL, PWA_URL } from "@/lib/site";
-import logo from "@/assets/chtaw-logo.png";
+import { BrandVideo } from "./BrandVideo";
+import { PWA_URL } from "@/lib/site";
+import logo from "@/assets/team-chtaw-logo.png";
 import { useSiteCopy } from "@/lib/site-language";
 import { localizedInstallUrl } from "@/lib/site-copy";
+export { ContactSection } from "./ContactForm";
 
 const STEPS = [
   {
-    icon: Download,
-    title: "Téléchargez",
-    text: "Touchez Téléchargement, puis confirmez l’installation dans votre navigateur.",
-  },
-  {
     icon: UserPlus,
-    title: "Inscrivez-vous",
-    text: "Créez votre compte dans l'application en indiquant votre école.",
+    title: "Créez votre compte",
+    text: "Renseignez vos informations personnelles et votre établissement dans l’application. Vérifiez votre adresse e-mail si cela vous est demandé.",
   },
   {
     icon: ShieldCheck,
-    title: "Validation",
-    text: "Le coach vérifie et valide votre compte depuis l'application.",
+    title: "Attendez la validation",
+    text: "L’administration examine votre inscription et vous affecte aux groupes. L’accès aux échanges et aux séances nécessite un compte validé.",
   },
   {
-    icon: Smartphone,
-    title: "Entraînez-vous",
-    text: "Une fois validé, accédez à vos programmes et commencez.",
-  },
-];
-
-const FEATURES = [
-  {
-    icon: Dumbbell,
-    title: "Programmes par épreuve",
-    text: "Course, sauts, pompes, gainage… adaptés aux barèmes de votre examen.",
-  },
-  {
-    icon: Timer,
-    title: "Chrono & séances guidées",
-    text: "Lancez une séance, suivez les consignes, laissez le chrono rythmer l'effort.",
-  },
-  {
-    icon: LineChart,
-    title: "Suivi de progression",
-    text: "Enregistrez vos performances et visualisez votre évolution semaine après semaine.",
+    icon: Users,
+    title: "Retrouvez vos groupes",
+    text: "Ouvrez vos conversations de groupe pour consulter les messages, les sondages et les séances qui vous sont destinés.",
   },
   {
     icon: CalendarCheck,
-    title: "Planning d'entraînement",
-    text: "Un calendrier jusqu'au jour J, avec rappels de séances.",
+    title: "Choisissez votre créneau",
+    text: "Votez pour un créneau encore ouvert et disposant de places. Respectez les choix autorisés par la séance ; un horaire commencé ou complet n’est plus disponible.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Consultez vos présences",
+    text: "Dans Présences, retrouvez votre calendrier et votre historique personnel de présences et d’absences, renseigné par les organisateurs.",
   },
   {
     icon: MessageCircle,
-    title: "Échange avec le coach",
-    text: "Posez vos questions et recevez des conseils personnalisés.",
+    title: "Participez aux échanges",
+    text: "Écrivez dans vos conversations et répondez aux sondages ouverts de vos groupes, selon les règles de vote affichées.",
   },
 ];
-
+const INSTALL = [
+  {
+    icon: Smartphone,
+    title: "Android",
+    text: "Ouvrez la page d’installation dans un navigateur compatible. Touchez Installer si cette option apparaît, puis confirmez.",
+  },
+  {
+    icon: Smartphone,
+    title: "iPhone et iPad",
+    text: "Ouvrez l’application avec Safari. Touchez Partager, puis Sur l’écran d’accueil, et confirmez l’ajout.",
+  },
+  {
+    icon: Monitor,
+    title: "Ordinateur",
+    text: "Si votre navigateur propose l’installation, utilisez son bouton Installer ou son menu. Cette option dépend du navigateur.",
+  },
+  {
+    icon: Globe,
+    title: "Dans le navigateur",
+    text: "Vous pouvez aussi utiliser l’application directement dans votre navigateur. L’installation est facultative.",
+  },
+];
 export function GuideSection() {
-  const {t} = useSiteCopy();
+  const { t } = useSiteCopy();
   return (
-    <section id="guide" className="track-lines relative py-28 md:py-36">
+    <section id="guide" className="track-lines relative py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionTitle
           kicker={t("Guide")}
-          title={
-            <>
-              {t("Comment ça")} <span className="text-primary">{t("marche")}</span>
-            </>
-          }
-          sub={t("Tout ce qu'il faut savoir pour commencer à vous entraîner avec le coach.")}
+          title={t("Vos premiers pas avec Chtaw Team")}
+          sub={t("De votre inscription à vos séances : suivez le parcours, à votre rythme.")}
         />
-
-        <Reveal>
-          <div className="mb-20 flex flex-col gap-5 rounded-3xl border border-primary/30 bg-primary/5 p-6 md:flex-row md:items-center md:p-8">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <GraduationCap className="h-7 w-7" />
-            </div>
-            <div>
-              <h3 className="font-display text-3xl">{t("Réservée aux élèves du coach")}</h3>
-              <p className="mt-1 text-muted-foreground">
-                {t("L'application est destinée aux étudiants qui souhaitent s'entraîner avec ce coach. Lors de l'inscription dans l'application, vous devez obligatoirement")}{" "}
-                <strong className="text-foreground">{t("indiquer votre école")}</strong>.
-              </p>
-            </div>
-          </div>
-        </Reveal>
-
-        <h3 className="mb-8 font-display text-4xl">{t("Télécharger l'application en 4 étapes")}</h3>
-        <div className="mb-24 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s, k) => (
-            <Reveal key={s.title} delay={k * 0.1}>
-              <motion.div
-                whileHover={{ y: -6 }}
-                className="group relative h-full overflow-hidden rounded-3xl border bg-card p-6"
-              >
-                <span className="absolute -right-2 -top-6 font-display text-[9rem] leading-none text-secondary transition-colors group-hover:text-primary/15">
-                  {k + 1}
-                </span>
-                <s.icon className="relative h-8 w-8 text-primary" />
-                <h4 className="relative mt-6 text-xl font-bold">{t(s.title)}</h4>
-                <p className="relative mt-2 text-muted-foreground">{t(s.text)}</p>
-              </motion.div>
-            </Reveal>
-          ))}
-        </div>
-
-        <h3 className="mb-8 font-display text-4xl">{t("Ce que contient l'application")}</h3>
-        <div className="mb-24 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, k) => (
-            <Reveal key={f.title} delay={k * 0.08}>
-              <div className="flex h-full gap-4 rounded-3xl border bg-card p-6 transition-colors hover:border-primary/50">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
-                  <f.icon className="h-6 w-6" />
+        <BrandVideo />
+        <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="min-w-0">
+              <Reveal className="h-full" delay={index * 0.04}>
+                <div className="h-full rounded-3xl border bg-card p-6 md:p-8">
+                  <div className="flex items-center justify-between">
+                    <step.icon className="h-7 w-7 text-primary" aria-hidden="true" />
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
+                      {index + 1}
+                    </span>
+                  </div>
+                  <h3 className="mt-6 text-xl font-bold">{t(step.title)}</h3>
+                  <p className="mt-3 leading-relaxed text-muted-foreground">{t(step.text)}</p>
                 </div>
+              </Reveal>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-16 rounded-3xl border border-primary/30 bg-primary/5 p-6 md:p-10">
+          <h3 className="text-2xl font-bold md:text-3xl">
+            {t("Installer l’application, si vous le souhaitez")}
+          </h3>
+          <p className="mt-3 text-muted-foreground">
+            {t(
+              "Un raccourci sur votre écran d’accueil, ou un accès depuis le navigateur : à vous de choisir.",
+            )}
+          </p>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+            {INSTALL.map((item) => (
+              <div key={item.title} className="flex min-w-0 gap-4">
+                <item.icon className="mt-1 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
                 <div>
-                  <h4 className="text-lg font-bold">{t(f.title)}</h4>
-                  <p className="mt-1 text-muted-foreground">{t(f.text)}</p>
+                  <h4 className="text-lg font-bold">{t(item.title)}</h4>
+                  <p className="mt-2 text-muted-foreground">{t(item.text)}</p>
                 </div>
               </div>
-            </Reveal>
-          ))}
-        </div>
-
-        <h3 className="mb-8 font-display text-4xl">{t("Utiliser l'application au quotidien")}</h3>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[
-            [
-              "Ouvrez votre séance du jour",
-              "Depuis l'accueil, la séance prévue est mise en avant. Touchez « Démarrer ».",
-            ],
-            [
-              "Suivez les consignes",
-              "Chaque exercice est expliqué avec durée, répétitions et temps de repos.",
-            ],
-            [
-              "Notez vos résultats",
-              "À la fin, saisissez vos performances : l'application calcule votre progression.",
-            ],
-          ].map(([title, d], k) => (
-            <Reveal key={title} delay={k * 0.1}>
-              <div className="h-full border-l-2 border-primary pl-5">
-                <p className="font-display text-2xl text-primary">0{k + 1}</p>
-                <h4 className="mt-1 text-lg font-bold">{t(title!)}</h4>
-                <p className="mt-1 text-muted-foreground">{t(d!)}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
-        <Reveal className="mt-20">
-          <div className="flex flex-col items-start justify-between gap-4 rounded-3xl bg-secondary p-8 md:flex-row md:items-center">
-            <p className="text-xl font-semibold">
-              {t("Un souci ou une question ?")}{" "}
-              <span className="text-muted-foreground">{t("N'hésitez pas à nous contacter.")}</span>
-            </p>
-            <Button
-              variant="sport"
-              onClick={() =>
-                document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
-              }
-            >
-              {t("Nous contacter")} <ArrowRight />
-            </Button>
+            ))}
           </div>
-        </Reveal>
+          <Button variant="sport" asChild className="mt-8 h-auto min-h-12 whitespace-normal py-3">
+            <a href="#telechargement">{t("Obtenir l’application")}</a>
+          </Button>
+        </div>
+        <p className="mt-10 text-muted-foreground">
+          {t("Un souci ou une question ?")}{" "}
+          <a href="#contact" className="font-semibold text-primary underline underline-offset-4">
+            {t("Nous contacter")}
+          </a>
+        </p>
       </div>
     </section>
   );
@@ -200,7 +154,7 @@ function Card({
       <div className="relative mx-auto max-w-3xl overflow-hidden rounded-[2rem] border bg-card p-8 text-center md:p-14">
         <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
         <motion.div
-          initial={{ scale: 0.6, rotate: -10 }}
+          initial={false}
           whileInView={{ scale: 1, rotate: 0 }}
           viewport={{ once: true }}
           transition={{ type: "spring", stiffness: 220, damping: 14 }}
@@ -218,45 +172,8 @@ function Card({
   );
 }
 
-export function ContactSection() {
-  const {t} = useSiteCopy();
-  return (
-    <section id="contact" className="py-28 md:py-36">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <SectionTitle
-          kicker={t("Contact")}
-          title={
-            <>
-              {t("Parlons")} <span className="text-primary">{t("entraînement")}</span>
-            </>
-          }
-        />
-        <Card
-          icon={Mail}
-          title={t("Écrivez au coach")}
-          text={t("Une question sur l'application ou votre préparation ? Cliquez ci-dessous : votre messagerie s'ouvrira avec l'adresse du coach déjà remplie.")}
-        >
-          {OWNER_EMAIL ? (
-            <Button variant="sport" size="lg" asChild>
-              <a
-                href={`mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(t("Question — Application Team Chtaw"))}`}
-              >
-                <Mail /> {t("Envoyer un e-mail")}
-              </a>
-            </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t("Le contact du coach sera disponible prochainement.")}
-            </p>
-          )}
-        </Card>
-      </div>
-    </section>
-  );
-}
-
 export function DownloadSection() {
-  const {t, language} = useSiteCopy();
+  const { t, language } = useSiteCopy();
   const pwaUrl = localizedInstallUrl(PWA_URL.trim(), language);
   let isConfigured = false;
   try {
@@ -279,7 +196,9 @@ export function DownloadSection() {
         <Card
           icon={Download}
           title={t("Installez l'application Team Chtaw")}
-          text={t("Cliquez sur Installer l’application, puis confirmez sur la page d’installation. Sur iPhone, utilisez Safari : Partager, puis Sur l’écran d’accueil.")}
+          text={t(
+            "Cliquez sur Installer l’application, puis confirmez sur la page d’installation. Sur iPhone, utilisez Safari : Partager, puis Sur l’écran d’accueil.",
+          )}
         >
           <div className="flex w-full flex-col items-center gap-4">
             {isConfigured ? (
@@ -307,9 +226,16 @@ export function DownloadSection() {
             <p className="text-sm text-muted-foreground">
               {t("Disponible sur Android et iPhone. Installation depuis votre navigateur.")}
             </p>
+            <p className="text-muted-foreground">
+              {t(
+                "Vous pouvez aussi utiliser l’application directement dans votre navigateur. L’installation est facultative.",
+              )}
+            </p>
             {!isConfigured && (
               <p id="pwa-unavailable" className="text-sm font-medium text-muted-foreground">
-                {t("Installation indisponible : le lien public de l'application n'est pas encore configuré.")}
+                {t(
+                  "Installation indisponible : le lien public de l'application n'est pas encore configuré.",
+                )}
               </p>
             )}
           </div>
@@ -320,7 +246,7 @@ export function DownloadSection() {
 }
 
 export function Footer() {
-  const {t} = useSiteCopy();
+  const { t } = useSiteCopy();
   return (
     <footer className="border-t py-10">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 text-sm text-muted-foreground md:flex-row md:px-8">
@@ -331,7 +257,9 @@ export function Footer() {
           height={99}
           className="h-auto w-32 object-contain"
         />
-        <p>© {new Date().getFullYear()} Team Chtaw — {t("Préparation aux examens physiques")}</p>
+        <p>
+          © {new Date().getFullYear()} Team Chtaw — {t("Préparation aux examens physiques")}
+        </p>
       </div>
     </footer>
   );

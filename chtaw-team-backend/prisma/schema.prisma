@@ -6,6 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model ContactRequest {
+  id String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(120)
+  email String @db.VarChar(254)
+  subject String @db.VarChar(20)
+  message String @db.VarChar(5000)
+  status String @default("NEW") @db.VarChar(12)
+  senderHash String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  @@index([createdAt, id])
+  @@index([senderHash, createdAt])
+}
+
 // Case-insensitive uniqueness and trimmed names are enforced by the SQL migration.
 model Establishment {
   id   String @id @default(uuid()) @db.Uuid

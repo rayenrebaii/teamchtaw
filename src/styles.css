@@ -60,43 +60,86 @@
   --input: oklch(1 0 0 / 14%);
   --ring: oklch(0.62 0.22 293);
   --overlay: oklch(0.14 0.04 285);
-  --gradient-hero: linear-gradient(180deg, oklch(0.14 0.04 285 / 0.2) 0%, oklch(0.14 0.04 285 / 0.55) 55%, oklch(0.16 0.045 285) 100%);
+  --gradient-hero: linear-gradient(
+    180deg,
+    oklch(0.14 0.04 285 / 0.2) 0%,
+    oklch(0.14 0.04 285 / 0.55) 55%,
+    oklch(0.16 0.045 285) 100%
+  );
   --gradient-brand: linear-gradient(120deg, oklch(0.8 0.14 300), oklch(0.6 0.24 288));
   --shadow-glow: 0 10px 40px -10px oklch(0.62 0.22 293 / 0.55);
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html { scroll-behavior: smooth; }
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  section[id] { scroll-margin-top: 5rem; }
+  section[id] {
+    scroll-margin-top: 5rem;
+  }
 }
 
-@utility font-display { font-family: var(--font-display); letter-spacing: 0.02em; }
-@utility bg-hero-fade { background-image: var(--gradient-hero); }
-@utility bg-brand-gradient { background-image: var(--gradient-brand); }
+@utility font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+@utility bg-hero-fade {
+  background-image: var(--gradient-hero);
+}
+@utility bg-brand-gradient {
+  background-image: var(--gradient-brand);
+}
 @utility text-brand-gradient {
   background-image: var(--gradient-brand);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
-@utility shadow-glow { box-shadow: var(--shadow-glow); }
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
 @utility glass {
   background-color: oklch(0.18 0.05 285 / 0.7);
   backdrop-filter: blur(16px);
 }
 @utility track-lines {
-  background-image: repeating-linear-gradient(115deg, transparent 0 38px, oklch(1 0 0 / 0.025) 38px 40px);
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 38px,
+    oklch(1 0 0 / 0.025) 38px 40px
+  );
 }
-@utility animate-ken-burns { animation: kenburns 7s ease-out forwards; }
+@utility animate-ken-burns {
+  animation: kenburns 7s ease-out forwards;
+}
 
 @keyframes kenburns {
-  from { transform: scale(1.12); }
-  to { transform: scale(1); }
+  from {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 
+// jsdom has no media playback; real playback is checked in Chrome.
+Object.defineProperty(HTMLMediaElement.prototype, "play", {
+  configurable: true,
+  value: async () => {},
+});
+Object.defineProperty(HTMLMediaElement.prototype, "pause", { configurable: true, value: () => {} });
+
 Object.defineProperty(window, "scrollTo", {
   writable: true,
   value: () => {},

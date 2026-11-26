@@ -22,6 +22,7 @@ import { UploadsModule } from "./uploads/uploads.module";
 import { StorageModule } from "./uploads/storage.module";
 import { RealtimeModule } from "./realtime/realtime.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { ContactModule } from "./contact/contact.module";
 import { ExecutionContext, Injectable } from "@nestjs/common";
 @Injectable()
 class HttpThrottleGuard extends ThrottlerGuard {
@@ -58,6 +59,7 @@ class HealthController {
     AttendanceModule,
     RealtimeModule,
     NotificationsModule,
+    ContactModule,
     ThrottlerModule.forRoot([{ name: "default", ttl: 60000, limit: 120 }]),
   ],
   controllers: [HealthController],

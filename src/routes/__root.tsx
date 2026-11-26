@@ -9,6 +9,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { MotionConfig } from "motion/react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -18,7 +19,7 @@ import { SiteLanguageProvider, useSiteCopy } from "@/lib/site-language";
 import { LanguageSelect } from "@/components/site/LanguageSelect";
 
 function NotFoundComponent() {
-  const {t} = useSiteCopy();
+  const { t } = useSiteCopy();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -42,7 +43,7 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  const {t} = useSiteCopy();
+  const { t } = useSiteCopy();
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -107,10 +108,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico?v=team-chtaw-2", sizes: "16x16 32x32 48x48" },
-      { rel: "icon", href: "/favicon-16x16.png?v=team-chtaw-2", type: "image/png", sizes: "16x16" },
-      { rel: "icon", href: "/favicon-32x32.png?v=team-chtaw-2", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-48x48.png?v=team-chtaw-2", type: "image/png", sizes: "48x48" },
+      { rel: "icon", href: "/favicon.ico?v=team-chtaw-3", sizes: "16x16 32x32 48x48" },
+      { rel: "icon", href: "/favicon-16x16.png?v=team-chtaw-3", type: "image/png", sizes: "16x16" },
+      { rel: "icon", href: "/favicon-32x32.png?v=team-chtaw-3", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/favicon-48x48.png?v=team-chtaw-3", type: "image/png", sizes: "48x48" },
     ],
   }),
   shellComponent: RootShell,
@@ -120,11 +121,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <SiteLanguageProvider><RootDocument>{children}</RootDocument></SiteLanguageProvider>;
+  return (
+    <MotionConfig reducedMotion="user">
+      <SiteLanguageProvider>
+        <RootDocument>{children}</RootDocument>
+      </SiteLanguageProvider>
+    </MotionConfig>
+  );
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
-  const {language} = useSiteCopy();
+  const { language } = useSiteCopy();
   return (
     <html lang={language} suppressHydrationWarning>
       <head>

@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { createECDH } from "node:crypto";
+import { isIP } from "node:net";
 export function validateEnvironment(env: Record<string, unknown>) {
   const text = (key: string, fallback?: string) => {
     const value = env[key] ?? fallback;
@@ -27,6 +28,8 @@ export function validateEnvironment(env: Record<string, unknown>) {
       throw Error("CORS_ORIGINS must contain exact HTTP origins.");
   }
   const mode = text("NODE_ENV", "development");
+  const contactProxies = typeof env.CONTACT_TRUSTED_PROXY_IPS === "string" ? env.CONTACT_TRUSTED_PROXY_IPS.split(",").map(value => value.trim()).filter(Boolean) : [];
+  if (contactProxies.some(ip => !isIP(ip))) throw Error("CONTACT_TRUSTED_PROXY_IPS must contain exact proxy IP addresses.");
   if (!["development", "test", "production"].includes(mode)) throw Error("Invalid NODE_ENV.");
   if (env.FIREBASE_AUTH_EMULATOR_HOST && (mode !== "test" ||
     typeof env.FIREBASE_AUTH_EMULATOR_HOST !== "string" || !/^127\.0\.0\.1:\d+$/.test(env.FIREBASE_AUTH_EMULATOR_HOST)))
@@ -69,6 +72,7 @@ export function validateEnvironment(env: Record<string, unknown>) {
   for (const origin of pushOrigins) { const url = new URL(origin); if (url.protocol !== "https:" || url.origin !== origin || url.username || url.password) throw Error("Invalid PUSH_ALLOWED_ORIGINS."); }
   return {
     ...env,
+    CONTACT_TRUSTED_PROXY_IPS: contactProxies,
     AUTH_PROVIDER: authProvider,
     PUSH_ENABLED: pushEnabled,
     VAPID_PUBLIC_KEY: vapid[0], VAPID_PRIVATE_KEY: vapid[1], VAPID_SUBJECT: vapid[2],

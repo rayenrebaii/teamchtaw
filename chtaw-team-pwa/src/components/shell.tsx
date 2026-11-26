@@ -11,6 +11,7 @@ import {
   School,
   ChartNoAxesColumn,
   CalendarDays,
+  Mail,
 } from "lucide-react";
 import { useCommunity } from "@/stores/community";
 import { destination } from "@/lib/utils";
@@ -70,6 +71,7 @@ export function Shell({ children, admin = false, organizer = false }: { children
           { href: "/admin/attendance", label: t("Présences"), Icon: CalendarDays },
           { href: "/admin/groups", label: t("Groupes"), Icon: Layers },
           { href: "/admin/establishments", label: t("Établissements"), Icon: School },
+          { href: "/admin/contact", label: t("Demandes de contact"), Icon: Mail },
         ] : [
           { href: "/app", label: t("Conversations"), Icon: MessageCircle },
           { href: "/collaborator", label: t("Mon calendrier"), Icon: CalendarDays },

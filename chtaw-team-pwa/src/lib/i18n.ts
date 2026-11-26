@@ -9,6 +9,18 @@ import { bulkEnglish } from "./bulk-copy";
 import { studentProfileEnglish } from "./student-profile-copy";
 import { usePreferences, type Language } from "@/stores/preferences";
 export const english = {
+  "ESPACE ADMIN · CONTACT": "ADMIN AREA · CONTACT",
+  "Inscription au service": "Registration",
+  "Demandes du site vitrine": "Website requests",
+  "Demandes de contact": "Contact requests",
+  "Consultez les messages des visiteurs et répondez par e-mail.": "Read visitors’ messages and reply by email.",
+  "Impossible de charger les demandes. Réessayez.": "Unable to load requests. Please try again.",
+  "Impossible de modifier la demande. Réessayez.": "Unable to update the request. Please try again.",
+  "Aucune demande reçue.": "No requests received.",
+  "À traiter": "New", "Traitée": "Processed", "Charger la suite": "Load more",
+  "Demande de contact": "Contact request", "Répondre par e-mail": "Reply by email",
+  "Marquer comme traitée": "Mark as processed", "Rouvrir la demande": "Reopen request",
+  "Validation du compte": "Account approval", "Problème de connexion": "Sign-in problem", "Séances et groupes": "Sessions and groups", "Autre demande": "Other request",
   "ESPACE ADMIN · ADMINISTRATEURS": "ADMIN AREA · ADMINISTRATORS",
   "Statistiques des administrateurs": "Administrator statistics",
   "Total des administrateurs": "Total administrators",

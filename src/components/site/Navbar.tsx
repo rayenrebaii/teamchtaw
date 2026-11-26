@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Menu, X } from "lucide-react";
-import logo from "@/assets/chtaw-logo.png";
+import logo from "@/assets/team-chtaw-logo.png";
 import { PWA_URL } from "@/lib/site";
 import { useSiteCopy } from "@/lib/site-language";
 import { localizedInstallUrl } from "@/lib/site-copy";
@@ -15,7 +15,7 @@ const LINKS = [
 ];
 
 export function Navbar() {
-  const {t, language} = useSiteCopy();
+  const { t, language } = useSiteCopy();
   const [active, setActive] = useState("accueil");
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -98,9 +98,14 @@ export function Navbar() {
 
         <div className="flex items-center gap-3">
           <LanguageSelect />
-        <button className="lg:hidden" onClick={() => setOpen((o) => !o)} aria-label={t(open ? "Fermer le menu" : "Menu")} aria-expanded={open}>
-          {open ? <X /> : <Menu />}
-        </button>
+          <button
+            className="lg:hidden"
+            onClick={() => setOpen((o) => !o)}
+            aria-label={t(open ? "Fermer le menu" : "Menu")}
+            aria-expanded={open}
+          >
+            {open ? <X /> : <Menu />}
+          </button>
         </div>
       </nav>
 

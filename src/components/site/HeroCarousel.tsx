@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronLeft, ChevronRight, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import coachImage from "@/assets/coach-hero.png";
-import app from "@/assets/slide-app-purple.jpg";
+import app from "@/assets/team-chtaw-logo.png";
 import training from "@/assets/slide-training.jpg";
 import { useSiteCopy } from "@/lib/site-language";
 
@@ -18,7 +18,7 @@ const SLIDES = [
     img: app,
     kicker: "L'application",
     title: ["Votre coach", "dans votre", "poche"],
-    text: "Programmes personnalisés, chronomètre, suivi de progression et conseils — partout, tout le temps.",
+    text: "Vos groupes, vos séances, vos votes et votre historique de présence — au même endroit.",
   },
   {
     img: training,
@@ -29,14 +29,16 @@ const SLIDES = [
 ];
 
 export function HeroCarousel() {
-  const {t} = useSiteCopy();
+  const { t } = useSiteCopy();
   const [i, setI] = useState(0);
   const n = SLIDES.length;
+  const reduced = useReducedMotion();
 
   useEffect(() => {
+    if (reduced) return;
     const t = setTimeout(() => setI((x) => (x + 1) % n), 6500);
     return () => clearTimeout(t);
-  }, [i, n]);
+  }, [i, n, reduced]);
 
   const s = SLIDES[i] ?? SLIDES[0];
   if (!s) return null;
@@ -125,7 +127,7 @@ export function HeroCarousel() {
               <button
                 key={k}
                 onClick={() => setI(k)}
-                aria-label={t("Diapositive {number}", {number: k + 1})}
+                aria-label={t("Diapositive {number}", { number: k + 1 })}
                 className="relative h-1 w-12 overflow-hidden rounded-full bg-secondary"
               >
                 {k === i && (

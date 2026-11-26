@@ -5,11 +5,16 @@ import helmet from "helmet";
 import { json, urlencoded, type Request, type Response, type NextFunction } from "express";
 import { ApiExceptionFilter, validationPipe } from "./common/http";
 import { RestrictedSocketAdapter } from "./realtime/socket.adapter";
+import { contactClientIp, type ContactHttpRequest } from "./contact/client-ip";
 export function configureApp(app: INestApplication) {
   const config = app.get(ConfigService);
   const origins = config.getOrThrow<string[]>("CORS_ORIGINS");
   app.setGlobalPrefix("api/v1");
   app.use(helmet());
+  app.use("/api/v1/contact", (request: ContactHttpRequest, _response: Response, next: NextFunction) => {
+    request.contactClientIp = contactClientIp(request, config.get<string[]>("CONTACT_TRUSTED_PROXY_IPS") ?? []);
+    next();
+  });
   app.use("/api/v1/notifications", (_request: Request, response: Response, next: NextFunction) => { response.setHeader("Cache-Control", "private, no-store"); next(); });
   app.use(json({ limit: "32kb" }));
   app.use(urlencoded({ extended: false, limit: "32kb" }));
