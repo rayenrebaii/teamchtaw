@@ -59,7 +59,7 @@ export function InstallationScreen({ available }: { available: boolean }) {
         <div className={styles.appIdentity}>
           {/* This is the icon declared by this PWA's manifest. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/app-v2-192.png" width={56} height={56} alt="" />
+          <img src="/icons/app-v3-192.png" width={56} height={56} alt="" />
           <div><h2>Team Chtaw</h2><p>{t("Votre communauté, en un geste.")}</p></div>
         </div>
         <div className={styles.actions}>
